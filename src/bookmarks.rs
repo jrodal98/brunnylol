@@ -40,7 +40,7 @@ pub fn alias_to_bookmark(alias: &str) -> Option<impl Bookmark> {
             ],
             "Search google".to_string(),
         )),
-        "d" => Some(SimpleBookmark::new(
+        "d" | "ddg" => Some(SimpleBookmark::new(
             vec![
                 "https://www.duckduckgo.com".to_string(),
                 "https://duckduckgo.com/?q=%s".to_string(),
@@ -65,7 +65,7 @@ pub fn alias_to_bookmark(alias: &str) -> Option<impl Bookmark> {
             vec!["https://time.is/".to_string()],
             "Get current time data for various timezones".to_string(),
         )),
-        "wp" => Some(SimpleBookmark::new(
+        "wiki" => Some(SimpleBookmark::new(
             vec![
                 "https://www.wikipedia.org/".to_string(),
                 "https://en.wikipedia.org/wiki/Special:Search/%s".to_string(),
@@ -92,6 +92,20 @@ pub fn alias_to_bookmark(alias: &str) -> Option<impl Bookmark> {
                 "https://www.dictionary.com/browse/%s?s=t".to_string(),
             ],
             "Define a word with dictionary.com".to_string(),
+        )),
+        "genius" => Some(SimpleBookmark::new(
+            vec![
+                "https://genius.com/".to_string(),
+                "https://genius.com/search?q=%s".to_string(),
+            ],
+            "Search for a song with genius".to_string(),
+        )),
+        "reddit" => Some(SimpleBookmark::new(
+            vec![
+                "https://www.reddit.com/".to_string(),
+                "https://www.reddit.com/r/%s".to_string(),
+            ],
+            "Go to a subreddit".to_string(),
         )),
         _ => None,
     }
