@@ -10,22 +10,22 @@ Like bunnylol, but made with Rust.
 
 More details + commands to come soon. (x|y) means that using x or using y works.
 
-* g <query>: Search google
-* (d|ddg) <query>: Search duckduckgo
-* b <query>: Search bing
-* yt <query>: Search youtube
-* wiki <query>: Search wikipedia
-* aw <query>: Search the arch wiki
-* gh <query>: Search github
-* def <query>: Define a word with dictionary.com
-* genius <query>: search for lyrics on genius.com
-* reddit <query>: go to a subreddit
+* g \<query\>: Search google
+* (d|ddg) \<query\>: Search duckduckgo
+* b \<query\>: Search bing
+* yt \<query\>: Search youtube
+* wiki \<query\>: Search wikipedia
+* aw \<query\>: Search the arch wiki
+* gh \<query\>: Search github
+* def \<query\>: Define a word with dictionary.com
+* genius \<query\>: search for lyrics on genius.com
+* reddit \<query\>: go to a subreddit
 * time: Look at time zone information
 
 
 ## Future changes
 
-* support for more complex bookmarks (e.g. am,electronics <query> might specifically search the electronics section for amazon)
+* support for more complex bookmarks (e.g. am,electronics \<query\> might specifically search the electronics section for amazon)
 * Add more bookmarks
     * facebook
     * instagram
