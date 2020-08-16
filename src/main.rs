@@ -3,19 +3,18 @@
 #[macro_use]
 extern crate rocket;
 mod bookmarks;
-use crate::bookmarks::{Bookmark, alias_to_bookmark};
+use crate::bookmarks::{alias_to_bookmark, Bookmark};
 use rocket::http::RawStr;
 use rocket::response::Redirect;
 
 const DEFAULT_ALIAS: &str = "g";
 
-
 #[get("/")]
 fn index() -> &'static str {
-    "Hello, world!"
+    "See https://github.com/jrodal98/brunnylol for commands."
 }
 
-#[get("/q/<input>")]
+#[get("/search/<input>")]
 fn redirect(input: &RawStr) -> Redirect {
     let mut splitted = input.splitn(2, "%20");
     let bookmark_alias = splitted.next().unwrap();
