@@ -4,7 +4,7 @@ Like bunnylol, but made with Rust.
 
 ## How to use
 
-* Add <https://brunnylol.xyz/search/%s> as a search engine, or run your own server. Follow instructions here for setting up a nginx webserver on a VPS: <https://jrodal98.github.io/posts/how-to-deploy-rocket-rust-web-app-on-vps/>
+* Add <https://brunnylol.xyz/search?q=%s> as a search engine, or run your own server. Follow instructions here for setting up a nginx webserver on a VPS: <https://jrodal98.github.io/posts/how-to-deploy-rocket-rust-web-app-on-vps/>
 
 ## Commands
 

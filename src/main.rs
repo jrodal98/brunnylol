@@ -4,7 +4,6 @@
 extern crate rocket;
 mod bookmarks;
 use crate::bookmarks::{alias_to_bookmark, Bookmark};
-use rocket::http::RawStr;
 use rocket::response::Redirect;
 
 const DEFAULT_ALIAS: &str = "g";
@@ -14,9 +13,9 @@ fn index() -> &'static str {
     "See https://github.com/jrodal98/brunnylol for commands."
 }
 
-#[get("/search/<input>")]
-fn redirect(input: &RawStr) -> Redirect {
-    let mut splitted = input.splitn(2, "%20");
+#[get("/search?<q>")]
+fn redirect(q: String) -> Redirect {
+    let mut splitted = q.splitn(2, " ");
     let bookmark_alias = splitted.next().unwrap();
     let query = splitted.next().unwrap_or_default();
 
@@ -24,7 +23,7 @@ fn redirect(input: &RawStr) -> Redirect {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => alias_to_bookmark(DEFAULT_ALIAS)
             .expect("Default search engine alias was not found!")
-            .get_redirect_url(input),
+            .get_redirect_url(&q),
     };
 
     Redirect::to(redirect_url)

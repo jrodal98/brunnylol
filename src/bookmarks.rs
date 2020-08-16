@@ -1,3 +1,6 @@
+extern crate rocket;
+use rocket::http::uri::Uri;
+
 pub trait Bookmark {
     fn new(urls: Vec<String>, description: String) -> Self;
     fn urls(&self) -> &Vec<String>;
@@ -7,7 +10,9 @@ pub trait Bookmark {
         if query.is_empty() {
             self.urls()[0].clone()
         } else {
-            self.urls()[1].clone().replace("%s", query)
+            self.urls()[1]
+                .clone()
+                .replace("%s", &Uri::percent_encode(query))
         }
     }
 }
@@ -31,6 +36,7 @@ impl Bookmark for SimpleBookmark {
     }
 }
 
+// ADD HELP COMMAND!!!
 pub fn alias_to_bookmark(alias: &str) -> Option<impl Bookmark> {
     match alias {
         "g" => Some(SimpleBookmark::new(
