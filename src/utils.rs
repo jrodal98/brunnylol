@@ -1,23 +1,25 @@
+extern crate maplit;
+
 use crate::bookmarks;
+use maplit::hashmap;
+use std::collections::HashMap;
 
-
-pub fn alias_to_bookmark(alias: &str) -> Option<Box<dyn bookmarks::Bookmark>> {
-    match alias {
-        "g" => Some(Box::new(bookmarks::Google)),
-        "ddg" => Some(Box::new(bookmarks::DuckDuckGo)),
-        "yt" => Some(Box::new(bookmarks::Youtube)),
-        "b" => Some(Box::new(bookmarks::Bing)),
-        "time" => Some(Box::new(bookmarks::Timeis)),
-        "wiki" => Some(Box::new(bookmarks::Wikipedia)),
-        "aw" => Some(Box::new(bookmarks::ArchWiki)),
-        "gh" => Some(Box::new(bookmarks::Github)),
-        "def" => Some(Box::new(bookmarks::Dictionary)),
-        "red" => Some(Box::new(bookmarks::Reddit)),
-        "wut" => Some(Box::new(bookmarks::UrbanDictionary)),
-        "gen" | "lyrics" => Some(Box::new(bookmarks::Genius)),
-        "speed" => Some(Box::new(bookmarks::Speed)),
-        "help" => Some(Box::new(bookmarks::Help)),
-        "jrodal" => Some(Box::new(bookmarks::Jrodal)),
-        _ => None,
+pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::Bookmark>> {
+    hashmap! {
+        "g" => Box::new(bookmarks::Google) as Box<dyn bookmarks::Bookmark>,
+        "ddg" => Box::new(bookmarks::DuckDuckGo),
+        "yt" => Box::new(bookmarks::Youtube),
+        "b" => Box::new(bookmarks::Bing),
+        "time" => Box::new(bookmarks::Timeis),
+        "wiki" => Box::new(bookmarks::Wikipedia),
+        "aw" => Box::new(bookmarks::ArchWiki),
+        "gh" => Box::new(bookmarks::Github),
+        "def" => Box::new(bookmarks::Dictionary),
+        "red" => Box::new(bookmarks::Reddit),
+        "wut" => Box::new(bookmarks::UrbanDictionary),
+        "gen" => Box::new(bookmarks::Genius),
+        "speed" => Box::new(bookmarks::Speed),
+        "help" => Box::new(bookmarks::Help),
+        "jrodal" => Box::new(bookmarks::Jrodal),
     }
 }

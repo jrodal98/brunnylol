@@ -1,7 +1,7 @@
 extern crate rocket;
 use rocket::http::uri::Uri;
 
-pub trait Bookmark {
+pub trait Bookmark: Send + Sync {
     fn urls(&self) -> Vec<String>;
     fn description(&self) -> String;
 
