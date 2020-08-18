@@ -3,7 +3,8 @@
 #[macro_use]
 extern crate rocket;
 mod bookmarks;
-use crate::bookmarks::alias_to_bookmark;
+mod utils;
+use crate::utils::alias_to_bookmark;
 use rocket::response::Redirect;
 
 const DEFAULT_ALIAS: &str = "g";
