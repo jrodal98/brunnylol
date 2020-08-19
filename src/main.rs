@@ -37,7 +37,7 @@ fn redirect(
     let redirect_url = match alias_to_bookmark_map.get(bookmark_alias) {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => alias_to_bookmark_map
-            .get(bookmark_alias)
+            .get(DEFAULT_ALIAS)
             .expect("Default search engine alias was not found!")
             .get_redirect_url(&q),
     };
