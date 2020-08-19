@@ -1,0 +1,10 @@
+{% extends "base" %}
+
+{% block content %}
+<h1 style="text-align: center">Brunnylol - Smart Bookmarking + Searching Tool</h1>
+<ul>
+    {% for alias, description in alias_to_description %}
+    <li><strong>{{alias}}</strong>: {{description}}</li>
+    {% endfor %}
+</ul>
+{% endblock content %}
