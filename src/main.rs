@@ -7,13 +7,22 @@ mod utils;
 use crate::utils::get_alias_to_bookmark_map;
 use rocket::response::Redirect;
 use rocket::State;
+use rocket_contrib::templates::Template;
 use std::collections::HashMap;
 
 const DEFAULT_ALIAS: &str = "g";
 
 #[get("/")]
-fn index() -> &'static str {
-    "See https://github.com/jrodal98/brunnylol for commands."
+fn index(
+    alias_to_bookmark_map: State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
+) -> Template {
+    let mut context = HashMap::new();
+    let alias_to_description: HashMap<&str, String> = alias_to_bookmark_map
+        .iter()
+        .map(|(alias, bm)| (*alias, bm.description()))
+        .collect();
+    context.insert("alias_to_description", alias_to_description);
+    Template::render("index", context)
 }
 
 #[get("/search?<q>")]
@@ -40,6 +49,7 @@ fn main() {
     let alias_to_bookmark_map = get_alias_to_bookmark_map();
     rocket::ignite()
         .manage(alias_to_bookmark_map)
+        .attach(Template::fairing())
         .mount("/", routes![index, redirect])
         .launch();
 }

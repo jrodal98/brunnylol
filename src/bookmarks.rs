@@ -209,7 +209,7 @@ impl Bookmark for Speed {
 
 impl Bookmark for Help {
     fn urls(&self) -> Vec<String> {
-        vec!["https://www.brunnylol.xyz/".to_string()]
+        vec!["/".to_string()]
     }
 
     fn description(&self) -> String {
