@@ -21,5 +21,16 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "speed" => Box::new(bookmarks::Speed),
         "help" => Box::new(bookmarks::Help),
         "jrodal" => Box::new(bookmarks::Jrodal),
+        "am" => Box::new(bookmarks::Amazon),
+        "1337x" => Box::new(bookmarks::LeetX),
+        "fb" => Box::new(bookmarks::Facebook),
+        "ig" => Box::new(bookmarks::Instagram),
+        "collab" => Box::new(bookmarks::UVACollab),
+        "sis" => Box::new(bookmarks::UVASis),
+        "li" => Box::new(bookmarks::LinkedIn),
+        "dbox" => Box::new(bookmarks::Dropbox),
+        "net" => Box::new(bookmarks::Netflix),
+        "hulu" => Box::new(bookmarks::Hulu),
+        "img" => Box::new(bookmarks::GoogleImage),
     }
 }
