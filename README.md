@@ -11,15 +11,7 @@ Like bunnylol, but made with Rust.
 ## Future changes
 
 * support for more complex bookmarks (e.g. am,electronics \<query\> might specifically search the electronics section for amazon)
-* Add more bookmarks
-    * facebook
-    * instagram
-    * UVAcollab
-    * sis
-    * linkedin
-    * dropbox
-    * stack overflow
-    * pastebin
+* Add a homepage with a tutorial on how to use and "install" brunnylol
 
 ## Contributing
 

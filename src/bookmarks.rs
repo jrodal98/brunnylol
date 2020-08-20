@@ -30,6 +30,17 @@ pub struct Genius;
 pub struct Speed;
 pub struct Help;
 pub struct Jrodal;
+pub struct Amazon;
+pub struct LeetX;
+pub struct Facebook;
+pub struct Instagram;
+pub struct UVACollab;
+pub struct UVASis;
+pub struct LinkedIn;
+pub struct Dropbox;
+pub struct Netflix;
+pub struct Hulu;
+pub struct GoogleImage;
 
 impl Bookmark for Google {
     fn urls(&self) -> Vec<String> {
@@ -224,6 +235,134 @@ impl Bookmark for Jrodal {
 
     fn description(&self) -> String {
         "Go to brunnylol's developer's website".to_string()
+    }
+}
+
+impl Bookmark for Amazon {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.amazon.com/".to_string(),
+            "https://www.amazon.com/s?k=%s&ref=nb_sb_noss_2".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search amazon".to_string()
+    }
+}
+
+impl Bookmark for LeetX {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://1337x.to/".to_string(),
+            "https://1337x.to/search/%s/1/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search 1337x.to".to_string()
+    }
+}
+
+impl Bookmark for Facebook {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://www.facebook.com/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to Facebook".to_string()
+    }
+}
+
+impl Bookmark for Instagram {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://www.instagram.com/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to Instagram".to_string()
+    }
+}
+
+impl Bookmark for UVACollab {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://collab.its.virginia.edu/portal".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to UVACollab".to_string()
+    }
+}
+
+impl Bookmark for UVASis {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://sisuva.admin.virginia.edu/psc/ihprd/UVSS/SA/s/WEBLIB_HCX_GN.H_SPRINGBOARD.FieldFormula.IScript_Main".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to UVA Sis".to_string()
+    }
+}
+
+impl Bookmark for LinkedIn {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.linkedin.com/".to_string(),
+            "https://www.linkedin.com/search/results/all/?keywords=%s&origin=GLOBAL_SEARCH_HEADER"
+                .to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to LinkedIn".to_string()
+    }
+}
+
+impl Bookmark for Dropbox {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://www.dropbox.com/home".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to Dropbox".to_string()
+    }
+}
+
+impl Bookmark for Netflix {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.netflix.com/".to_string(),
+            "https://www.netflix.com/search?q=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search Netflix".to_string()
+    }
+}
+
+impl Bookmark for Hulu {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://www.hulu.com/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to hulu".to_string()
+    }
+}
+
+impl Bookmark for GoogleImage {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://images.google.com/".to_string(),
+            "https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search amazon".to_string()
     }
 }
 
