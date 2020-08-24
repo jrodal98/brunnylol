@@ -45,6 +45,11 @@ pub struct GoogleCalendar;
 pub struct About;
 pub struct Home;
 pub struct BrunnylolDev;
+pub struct Ebay;
+pub struct UVACommBlackboard;
+pub struct GoogleMail;
+pub struct GogoAnime;
+pub struct Handshake;
 
 impl Bookmark for Google {
     fn urls(&self) -> Vec<String> {
@@ -410,5 +415,64 @@ impl Bookmark for BrunnylolDev {
 
     fn description(&self) -> String {
         "Forward the query to your local version of brunnylol".to_string()
+    }
+}
+
+impl Bookmark for Ebay {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.ebay.com/".to_string(),
+            "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw=%s&_sacat=0".to_string()
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search ebay".to_string()
+    }
+}
+
+impl Bookmark for UVACommBlackboard {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://blackboard.comm.virginia.edu/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to the UVA comm school blackboard page".to_string()
+    }
+}
+
+impl Bookmark for GoogleMail {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://mail.google.com/".to_string(),
+            "https://mail.google.com/mail/u/%s/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to gmail - ALIAS X to go to calendar for google account X.".to_string()
+    }
+}
+
+impl Bookmark for GogoAnime {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www25.gogoanimes.tv/".to_string(),
+            "https://www25.gogoanimes.tv//search.html?keyword=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search gogoanimes.tv".to_string()
+    }
+}
+
+impl Bookmark for Handshake {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://app.joinhandshake.com/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to handshake".to_string()
     }
 }
