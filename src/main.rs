@@ -12,8 +12,8 @@ use std::collections::HashMap;
 
 const DEFAULT_ALIAS: &str = "g";
 
-#[get("/")]
-fn index(
+#[get("/help")]
+fn help(
     alias_to_bookmark_map: State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
 ) -> Template {
     let mut context = HashMap::new();
@@ -22,6 +22,12 @@ fn index(
         .map(|(alias, bm)| (*alias, bm.description()))
         .collect();
     context.insert("alias_to_description", alias_to_description);
+    Template::render("help", context)
+}
+
+#[get("/")]
+fn index() -> Template {
+    let context: HashMap<String, String> = HashMap::new();
     Template::render("index", context)
 }
 
@@ -50,6 +56,6 @@ fn main() {
     rocket::ignite()
         .manage(alias_to_bookmark_map)
         .attach(Template::fairing())
-        .mount("/", routes![index, redirect])
+        .mount("/", routes![index, help, redirect])
         .launch();
 }

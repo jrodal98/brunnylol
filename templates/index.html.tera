@@ -3,8 +3,27 @@
 {% block content %}
 <h1 style="text-align: center">Brunnylol - Smart Bookmarking + Searching Tool</h1>
 <ul>
-    {% for alias, description in alias_to_description %}
-    <li><strong>{{alias}}</strong>: {{description}}</li>
-    {% endfor %}
+    <li>Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
+    <li>Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.
+</li>
+    <li>Brunnylol is written in rust and can be viewed on the following github page: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
 </ul>
+
+<h2 style="text-align: center">How to install brunnylol</h2>
+
+<p>To install brunnylol, you need to add it as your default search engine. Google "how to change default search engine" for whatever browser you use. In chromium browsers, you go to settings and scroll down until you find search engines. It's pretty intuitive from there.</p>
+
+<p>Then, put the following as your search engine: <code>https://brunnylol.xyz/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
+
+<h2 style="text-align: center">How to use brunnylol once it's installed</h2>
+
+<p>
+Brunnylol has a few concepts to understand: bookmarks, aliases, and queries. A bookmark is the site and/or search engine you wish to use. For example, youtube.com is a bookmark. An alias is the shortname for a bookmark. For example, yt is an alias for the youtube.com bookmark. A query is the input you provide after the alias. For example, searching <code>yt minecraft videos</code> searches the youtube.com bookmark using the yt alias with "minecraft videos" as the query.
+</p>
+
+<p>Some bookmarks don't support queries. For example, typing just <code>sis</code> will take you to the University of Virginia's student information service. Bookmarks that also support queries don't require a query either - for example, you can search just <code>yt</code> to go to the youtube homepage if you wish.</p>
+
+<p>
+You can see a list of aliases by searching <code>help</code>.
+</p>
 {% endblock content %}
