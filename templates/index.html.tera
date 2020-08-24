@@ -4,9 +4,9 @@
 <h1 style="text-align: center">Brunnylol - Smart Bookmarking + Searching Tool</h1>
 <ul>
     <li>Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
-    <li>Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.
-</li>
-    <li>Brunnylol is written in rust and can be viewed on the following github page: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
+    <li>Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.</li>
+    <li>A complete list of bookmarks can be found <a href="help">here</a>. You can also type <code>help</code> if you have already installed brunnylol.</li>
+    <li>The source code for brunnylol, which is written in rust, is hosted in the following github repository: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
 </ul>
 
 <h2 style="text-align: center">How to install brunnylol</h2>
