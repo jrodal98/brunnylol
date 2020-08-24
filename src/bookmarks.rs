@@ -43,6 +43,8 @@ pub struct Hulu;
 pub struct GoogleImage;
 pub struct GoogleCalendar;
 pub struct About;
+pub struct Home;
+pub struct BrunnylolDev;
 
 impl Bookmark for Google {
     fn urls(&self) -> Vec<String> {
@@ -388,5 +390,25 @@ impl Bookmark for About {
 
     fn description(&self) -> String {
         "Go to brunnylol home page".to_string()
+    }
+}
+
+impl Bookmark for Home {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://jrodal98.github.io/startpage/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to Jacob Rodal's browser start page".to_string()
+    }
+}
+
+impl Bookmark for BrunnylolDev {
+    fn urls(&self) -> Vec<String> {
+        vec!["http://localhost:8000/search?q=%s".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Forward the query to your local version of brunnylol".to_string()
     }
 }
