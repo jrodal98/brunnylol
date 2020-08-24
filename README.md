@@ -4,14 +4,13 @@ Like bunnylol, but made with Rust.
 
 ## How to use
 
-* Add <https://brunnylol.xyz/search?q=%s> as a search engine, or run your own server. Follow instructions here for setting up a nginx webserver on a VPS: <https://jrodal98.github.io/posts/how-to-deploy-rocket-rust-web-app-on-vps/>
+* See <https://brunnylol.xyz>
+* See list of commands on <https://brunnylol.xyz/help>
 * Search `<alias> <query>`, where `alias` is the shortname for the bookmark (e.g. the alias for Google is g).
-* See list of commands on <https://brunnylol.xyz>
 
 ## Future changes
 
 * support for more complex bookmarks (e.g. am,electronics \<query\> might specifically search the electronics section for amazon)
-* Add a homepage with a tutorial on how to use and "install" brunnylol
 
 ## Contributing
 
