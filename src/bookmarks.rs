@@ -41,6 +41,7 @@ pub struct Dropbox;
 pub struct Netflix;
 pub struct Hulu;
 pub struct GoogleImage;
+pub struct GoogleCalendar;
 
 impl Bookmark for Google {
     fn urls(&self) -> Vec<String> {
@@ -362,7 +363,19 @@ impl Bookmark for GoogleImage {
     }
 
     fn description(&self) -> String {
-        "Search amazon".to_string()
+        "Search google images".to_string()
     }
 }
 
+impl Bookmark for GoogleCalendar {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://calendar.google.com/".to_string(),
+            "https://calendar.google.com/calendar/b/%s/r".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to google calendar - ALIAS X to go to calendar for google account X.".to_string()
+    }
+}

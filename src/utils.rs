@@ -31,6 +31,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "dbox" => Box::new(bookmarks::Dropbox),
         "net" => Box::new(bookmarks::Netflix),
         "hulu" => Box::new(bookmarks::Hulu),
-        "img" => Box::new(bookmarks::GoogleImage),
+        "im" => Box::new(bookmarks::GoogleImage),
+        "cal" => Box::new(bookmarks::GoogleCalendar),
     }
 }
