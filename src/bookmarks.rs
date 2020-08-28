@@ -5,12 +5,17 @@ pub trait Bookmark: Send + Sync {
     fn urls(&self) -> Vec<String>;
     fn description(&self) -> String;
 
+    fn process_query(&self, query: &str) -> String {
+        Uri::percent_encode(query).to_string()
+    }
+
     fn get_redirect_url(&self, query: &str) -> String {
+        let query = &self.process_query(query);
         let urls = self.urls();
         if query.is_empty() || urls.len() == 1 {
             urls[0].clone()
         } else {
-            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+            urls[1].clone().replace("%s", query)
         }
     }
 }
@@ -91,17 +96,10 @@ impl Bookmark for Gradescope {
         "Go to gradescope".to_string()
     }
 
-    fn get_redirect_url(&self, query: &str) -> String {
-        let query = match query {
-            "st" => "133650",
-            _ => query,
-        };
-
-        let urls = self.urls();
-        if query.is_empty() || urls.len() == 1 {
-            urls[0].clone()
-        } else {
-            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+    fn process_query(&self, query: &str) -> String {
+        match query {
+            "st" => "133650".to_string(),
+            _ => Uri::percent_encode(query).to_string(),
         }
     }
 }
@@ -128,19 +126,12 @@ impl Bookmark for Piazza {
         "Go to a piazza class. st to go to stat5170, ds to go to cs4750, ip to go to internet privacy".to_string()
     }
 
-    fn get_redirect_url(&self, query: &str) -> String {
-        let query = match query {
-            "st" => "kdg63se2jfu6d7",
-            "ds" => "kdkzzs4q102d3",
-            "ip" => "ke81el8uw9o3ra",
-            _ => query,
-        };
-
-        let urls = self.urls();
-        if query.is_empty() || urls.len() == 1 {
-            urls[0].clone()
-        } else {
-            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+    fn process_query(&self, query: &str) -> String {
+        match query {
+            "st" => "kdg63se2jfu6d7".to_string(),
+            "ds" => "kdkzzs4q102d3".to_string(),
+            "ip" => "ke81el8uw9o3ra".to_string(),
+            _ => Uri::percent_encode(query).to_string(),
         }
     }
 }
@@ -301,13 +292,9 @@ impl Bookmark for Github {
             .to_string()
     }
 
-    // don't encode the query
-    fn get_redirect_url(&self, query: &str) -> String {
-        if query.is_empty() || self.urls().len() == 1 {
-            self.urls()[0].clone()
-        } else {
-            self.urls()[1].clone().replace("%s", query)
-        }
+    // don't encode the string
+    fn process_query(&self, query: &str) -> String {
+        query.to_string()
     }
 }
 
