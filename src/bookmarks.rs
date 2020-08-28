@@ -50,6 +50,100 @@ pub struct UVACommBlackboard;
 pub struct GoogleMail;
 pub struct GogoAnime;
 pub struct Handshake;
+pub struct Piazza;
+pub struct Campuswire;
+pub struct Gradescope;
+pub struct Vimeo;
+
+impl Bookmark for Vimeo {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://vimeo.com/".to_string(),
+            "https://vimeo.com/search?q=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search Vimeo. Searching for st takes you to my stat5170 lectures.".to_string()
+    }
+
+    fn get_redirect_url(&self, query: &str) -> String {
+        let urls = self.urls();
+        if query.is_empty() || urls.len() == 1 {
+            urls[0].clone()
+        } else if query.eq("st") {
+            "https://vimeo.com/showcase/7469503".to_string()
+        } else {
+            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+        }
+    }
+}
+
+impl Bookmark for Gradescope {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.gradescope.com/".to_string(),
+            "https://www.gradescope.com/courses/%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to gradescope".to_string()
+    }
+
+    fn get_redirect_url(&self, query: &str) -> String {
+        let query = match query {
+            "st" => "133650",
+            _ => query,
+        };
+
+        let urls = self.urls();
+        if query.is_empty() || urls.len() == 1 {
+            urls[0].clone()
+        } else {
+            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+        }
+    }
+}
+
+impl Bookmark for Campuswire {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://campuswire.com/c/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "go to campus wire".to_string()
+    }
+}
+
+impl Bookmark for Piazza {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.piazza.com".to_string(),
+            "https://www.piazza.com/class/%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to a piazza class. st to go to stat5170, ds to go to cs4750, ip to go to internet privacy".to_string()
+    }
+
+    fn get_redirect_url(&self, query: &str) -> String {
+        let query = match query {
+            "st" => "kdg63se2jfu6d7",
+            "ds" => "kdkzzs4q102d3",
+            "ip" => "ke81el8uw9o3ra",
+            _ => query,
+        };
+
+        let urls = self.urls();
+        if query.is_empty() || urls.len() == 1 {
+            urls[0].clone()
+        } else {
+            urls[1].clone().replace("%s", &Uri::percent_encode(query))
+        }
+    }
+}
 
 impl Bookmark for Google {
     fn urls(&self) -> Vec<String> {
