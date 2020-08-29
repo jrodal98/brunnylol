@@ -59,6 +59,19 @@ pub struct Piazza;
 pub struct Campuswire;
 pub struct Gradescope;
 pub struct Vimeo;
+pub struct Pi4;
+
+impl Bookmark for Pi4 {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "http://192.168.0.104:8080/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Goes to my raspberry pi4 local web server".to_string()
+    }
+}
 
 impl Bookmark for Vimeo {
     fn urls(&self) -> Vec<String> {
