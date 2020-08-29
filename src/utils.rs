@@ -25,7 +25,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "1337x" => Box::new(bookmarks::LeetX),
         "fb" => Box::new(bookmarks::Facebook),
         "ig" => Box::new(bookmarks::Instagram),
-        "collab" => Box::new(bookmarks::UVACollab),
+        "co" => Box::new(bookmarks::UVACollab),
         "sis" => Box::new(bookmarks::UVASis),
         "li" => Box::new(bookmarks::LinkedIn),
         "db" => Box::new(bookmarks::Dropbox),
@@ -45,5 +45,6 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "cw" => Box::new(bookmarks::Campuswire),
         "gs" => Box::new(bookmarks::Gradescope),
         "vm" => Box::new(bookmarks::Vimeo),
+        "pi" => Box::new(bookmarks::Pi4),
     }
 }
