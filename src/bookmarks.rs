@@ -60,12 +60,35 @@ pub struct Campuswire;
 pub struct Gradescope;
 pub struct Vimeo;
 pub struct Pi4;
+pub struct GoogleDrive;
+pub struct TypeRacer;
+
+impl Bookmark for TypeRacer {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://play.typeracer.com/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to typeracer".to_string()
+    }
+}
+
+impl Bookmark for GoogleDrive {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://drive.google.com/".to_string(),
+            "https://drive.google.com/drive/u/%s/my-drive".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to google drive - ALIAS X to go to drive for google account X.".to_string()
+    }
+}
 
 impl Bookmark for Pi4 {
     fn urls(&self) -> Vec<String> {
-        vec![
-            "http://192.168.0.104:8080/".to_string(),
-        ]
+        vec!["http://192.168.0.104:8080/".to_string()]
     }
 
     fn description(&self) -> String {
