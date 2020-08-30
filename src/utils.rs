@@ -20,7 +20,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "gen" => Box::new(bookmarks::Genius),
         "speed" => Box::new(bookmarks::Speed),
         "help" => Box::new(bookmarks::Help),
-        "jrodal" => Box::new(bookmarks::Jrodal),
+        "jr" => Box::new(bookmarks::Jrodal),
         "am" => Box::new(bookmarks::Amazon),
         "1337x" => Box::new(bookmarks::LeetX),
         "fb" => Box::new(bookmarks::Facebook),
