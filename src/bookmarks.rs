@@ -367,13 +367,13 @@ impl Bookmark for Jrodal {
 impl Bookmark for Amazon {
     fn urls(&self) -> Vec<String> {
         vec![
-            "https://www.amazon.com/".to_string(),
-            "https://www.amazon.com/s?k=%s&ref=nb_sb_noss_2".to_string(),
+            "https://smile.amazon.com/".to_string(),
+            "https://smile.amazon.com/s?k=%s&ref=nb_sb_noss_2".to_string(),
         ]
     }
 
     fn description(&self) -> String {
-        "Search amazon".to_string()
+        "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing). Consider supporting the Signal Technology Foundation!".to_string()
     }
 }
 
