@@ -586,7 +586,7 @@ impl Bookmark for GogoAnime {
 
 impl Bookmark for Handshake {
     fn urls(&self) -> Vec<String> {
-        vec!["https://app.joinhandshake.com/".to_string()]
+        vec!["https://virginia.joinhandshake.com/login?ref=app-domain".to_string()]
     }
 
     fn description(&self) -> String {
