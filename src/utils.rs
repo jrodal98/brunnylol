@@ -48,5 +48,6 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "pi" => Box::new(bookmarks::Pi4),
         "tr" => Box::new(bookmarks::TypeRacer),
         "gd" => Box::new(bookmarks::GoogleDrive),
+        "mega" => Box::new(bookmarks::MegaNz),
     }
 }

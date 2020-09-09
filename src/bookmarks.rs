@@ -62,6 +62,19 @@ pub struct Vimeo;
 pub struct Pi4;
 pub struct GoogleDrive;
 pub struct TypeRacer;
+pub struct MegaNz;
+
+impl Bookmark for MegaNz {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://mega.nz".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to mega.nz".to_string()
+    }
+}
 
 impl Bookmark for TypeRacer {
     fn urls(&self) -> Vec<String> {
