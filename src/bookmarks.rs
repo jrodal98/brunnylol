@@ -63,6 +63,32 @@ pub struct Pi4;
 pub struct GoogleDrive;
 pub struct TypeRacer;
 pub struct MegaNz;
+pub struct WhatsApp;
+pub struct AndroidMessages;
+
+impl Bookmark for AndroidMessages {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://messages.google.com/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Goes to android messages web client".to_string()
+    }
+}
+
+impl Bookmark for WhatsApp {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://web.whatsapp.com/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to whatsapp web messenger".to_string()
+    }
+}
 
 impl Bookmark for MegaNz {
     fn urls(&self) -> Vec<String> {
