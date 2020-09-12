@@ -65,6 +65,19 @@ pub struct TypeRacer;
 pub struct MegaNz;
 pub struct WhatsApp;
 pub struct AndroidMessages;
+pub struct GroupMe;
+
+impl Bookmark for GroupMe {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://web.groupme.com/chats".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to groupme".to_string()
+    }
+}
 
 impl Bookmark for AndroidMessages {
     fn urls(&self) -> Vec<String> {
