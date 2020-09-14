@@ -52,5 +52,6 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "wap" => Box::new(bookmarks::WhatsApp),
         "ame" => Box::new(bookmarks::AndroidMessages),
         "gme" => Box::new(bookmarks::GroupMe),
+        "meme" => Box::new(bookmarks::KnowYourMeme),
     }
 }

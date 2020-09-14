@@ -66,6 +66,20 @@ pub struct MegaNz;
 pub struct WhatsApp;
 pub struct AndroidMessages;
 pub struct GroupMe;
+pub struct KnowYourMeme;
+
+impl Bookmark for KnowYourMeme {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://knowyourmeme.com".to_string(),
+            "https://knowyourmeme.com/search?q=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search the know your meme database".to_string()
+    }
+}
 
 impl Bookmark for GroupMe {
     fn urls(&self) -> Vec<String> {
