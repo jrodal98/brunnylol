@@ -83,9 +83,7 @@ impl Bookmark for KnowYourMeme {
 
 impl Bookmark for GroupMe {
     fn urls(&self) -> Vec<String> {
-        vec![
-            "https://web.groupme.com/chats".to_string(),
-        ]
+        vec!["https://web.groupme.com/chats".to_string()]
     }
 
     fn description(&self) -> String {
@@ -95,9 +93,7 @@ impl Bookmark for GroupMe {
 
 impl Bookmark for AndroidMessages {
     fn urls(&self) -> Vec<String> {
-        vec![
-            "https://messages.google.com/".to_string(),
-        ]
+        vec!["https://messages.google.com/".to_string()]
     }
 
     fn description(&self) -> String {
@@ -107,9 +103,7 @@ impl Bookmark for AndroidMessages {
 
 impl Bookmark for WhatsApp {
     fn urls(&self) -> Vec<String> {
-        vec![
-            "https://web.whatsapp.com/".to_string(),
-        ]
+        vec!["https://web.whatsapp.com/".to_string()]
     }
 
     fn description(&self) -> String {
@@ -119,9 +113,7 @@ impl Bookmark for WhatsApp {
 
 impl Bookmark for MegaNz {
     fn urls(&self) -> Vec<String> {
-        vec![
-            "https://mega.nz".to_string(),
-        ]
+        vec!["https://mega.nz".to_string()]
     }
 
     fn description(&self) -> String {
@@ -478,11 +470,24 @@ impl Bookmark for Instagram {
 
 impl Bookmark for UVACollab {
     fn urls(&self) -> Vec<String> {
-        vec!["https://collab.its.virginia.edu/portal".to_string()]
+        vec![
+            "https://collab.its.virginia.edu/portal".to_string(),
+            "https://collab.its.virginia.edu/portal/site/%s".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
-        "Go to UVACollab".to_string()
+        "Go to UVACollab or a specific page. st for stat5170, ds for cs4750, ip for cs4501, sts for sts4600".to_string()
+    }
+
+    fn process_query(&self, query: &str) -> String {
+        match query {
+            "st" => "64ef5439-c3d7-41da-bf48-34e9b56b0d94".to_string(),
+            "ds" => "27a3a9f2-00f9-45db-a2ed-6e99e9415ea1".to_string(),
+            "ip" => "bbaeb16c-6afb-4835-9b16-92378b639304".to_string(),
+            "sts" => "20540a71-6fe4-4032-98df-88f4b0ed0062".to_string(),
+            _ => Uri::percent_encode(query).to_string(),
+        }
     }
 }
 
