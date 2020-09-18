@@ -598,7 +598,10 @@ impl Bookmark for Home {
 
 impl Bookmark for BrunnylolDev {
     fn urls(&self) -> Vec<String> {
-        vec!["http://localhost:8000/search?q=%s".to_string()]
+        vec![
+            "http://localhost:8000/".to_string(),
+            "http://localhost:8000/search?q=%s".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
