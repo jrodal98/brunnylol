@@ -58,7 +58,6 @@ pub struct Handshake;
 pub struct Piazza;
 pub struct Campuswire;
 pub struct Gradescope;
-pub struct Vimeo;
 pub struct Pi4;
 pub struct GoogleDrive;
 pub struct TypeRacer;
@@ -154,29 +153,6 @@ impl Bookmark for Pi4 {
     }
 }
 
-impl Bookmark for Vimeo {
-    fn urls(&self) -> Vec<String> {
-        vec![
-            "https://vimeo.com/".to_string(),
-            "https://vimeo.com/search?q=%s".to_string(),
-        ]
-    }
-
-    fn description(&self) -> String {
-        "Search Vimeo. Searching for st takes you to my stat5170 lectures.".to_string()
-    }
-
-    fn get_redirect_url(&self, query: &str) -> String {
-        let urls = self.urls();
-        if query.is_empty() || urls.len() == 1 {
-            urls[0].clone()
-        } else if query.eq("st") {
-            "https://vimeo.com/showcase/7469503".to_string()
-        } else {
-            urls[1].clone().replace("%s", &Uri::percent_encode(query))
-        }
-    }
-}
 
 impl Bookmark for Gradescope {
     fn urls(&self) -> Vec<String> {
