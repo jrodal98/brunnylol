@@ -31,9 +31,10 @@ fn index() -> Template {
     Template::render("index", context)
 }
 
-#[get("/search?<q>")]
+#[get("/search?<q>&<default>")]
 fn redirect(
     q: String,
+    default: Option<String>,
     alias_to_bookmark_map: State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
 ) -> Redirect {
     let mut splitted = q.splitn(2, " ");
@@ -43,7 +44,7 @@ fn redirect(
     let redirect_url = match alias_to_bookmark_map.get(bookmark_alias) {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => alias_to_bookmark_map
-            .get(DEFAULT_ALIAS)
+            .get(default.as_deref().unwrap_or(DEFAULT_ALIAS))
             .expect("Default search engine alias was not found!")
             .get_redirect_url(&q),
     };
