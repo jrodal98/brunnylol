@@ -66,6 +66,21 @@ pub struct WhatsApp;
 pub struct AndroidMessages;
 pub struct GroupMe;
 pub struct KnowYourMeme;
+pub struct GoogleMaps;
+
+impl Bookmark for GoogleMaps {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://www.google.com/maps".to_string(),
+            "https://www.google.com/maps/search/%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search Google Maps".to_string()
+    }
+}
+
 
 impl Bookmark for KnowYourMeme {
     fn urls(&self) -> Vec<String> {
