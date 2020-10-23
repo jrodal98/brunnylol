@@ -67,6 +67,20 @@ pub struct AndroidMessages;
 pub struct GroupMe;
 pub struct KnowYourMeme;
 pub struct GoogleMaps;
+pub struct GooglePhotos;
+
+impl Bookmark for GooglePhotos {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://photos.google.com/".to_string(),
+            "https://photos.google.com/u/%s/".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to google photos - ALIAS X to go to photos for google account X.".to_string()
+    }
+}
 
 impl Bookmark for GoogleMaps {
     fn urls(&self) -> Vec<String> {
@@ -632,7 +646,7 @@ impl Bookmark for GoogleMail {
     }
 
     fn description(&self) -> String {
-        "Go to gmail - ALIAS X to go to calendar for google account X.".to_string()
+        "Go to gmail - ALIAS X to go to mail for google account X.".to_string()
     }
 }
 
