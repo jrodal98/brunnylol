@@ -68,6 +68,20 @@ pub struct GroupMe;
 pub struct KnowYourMeme;
 pub struct GoogleMaps;
 pub struct GooglePhotos;
+pub struct MinecraftWiki;
+
+impl Bookmark for MinecraftWiki {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://minecraft.gamepedia.com/".to_string(),
+            "https://minecraft.gamepedia.com/index.php?search=%s&title=Special%3ASearch&go=Go".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search minecraft.gamepedia.com".to_string()
+    }
+}
 
 impl Bookmark for GooglePhotos {
     fn urls(&self) -> Vec<String> {
