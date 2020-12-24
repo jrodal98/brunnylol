@@ -54,5 +54,6 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "meme" => Box::new(bookmarks::KnowYourMeme),
         "gmaps" => Box::new(bookmarks::GoogleMaps),
         "gp" => Box::new(bookmarks::GooglePhotos),
+        "mc" => Box::new(bookmarks::MinecraftWiki),
     }
 }
