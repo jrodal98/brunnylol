@@ -20,6 +20,8 @@ pub trait Bookmark: Send + Sync {
     }
 }
 
+// START OF STRUCT DECLARATIONS
+
 pub struct Google;
 pub struct DuckDuckGo;
 pub struct Bing;
@@ -69,6 +71,8 @@ pub struct KnowYourMeme;
 pub struct GoogleMaps;
 pub struct GooglePhotos;
 pub struct MinecraftWiki;
+
+// START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
 
 impl Bookmark for MinecraftWiki {
     fn urls(&self) -> Vec<String> {
