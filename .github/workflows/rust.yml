@@ -13,7 +13,13 @@ jobs:
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
-      - name : Build  
-        run: cargo build --release --all-features
+          override: true  
+      - name : Build
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-feature
       - name: Run tests
-        run: cargo test
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
