@@ -71,14 +71,29 @@ pub struct KnowYourMeme;
 pub struct GoogleMaps;
 pub struct GooglePhotos;
 pub struct MinecraftWiki;
+pub struct StackOverflow;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for StackOverflow {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://stackoverflow.com".to_string(),
+            "https://stackoverflow.com/search?q=%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Search questions on stackoverflow".to_string()
+    }
+}
 
 impl Bookmark for MinecraftWiki {
     fn urls(&self) -> Vec<String> {
         vec![
             "https://minecraft.gamepedia.com/".to_string(),
-            "https://minecraft.gamepedia.com/index.php?search=%s&title=Special%3ASearch&go=Go".to_string(),
+            "https://minecraft.gamepedia.com/index.php?search=%s&title=Special%3ASearch&go=Go"
+                .to_string(),
         ]
     }
 
@@ -112,7 +127,6 @@ impl Bookmark for GoogleMaps {
         "Search Google Maps".to_string()
     }
 }
-
 
 impl Bookmark for KnowYourMeme {
     fn urls(&self) -> Vec<String> {
@@ -199,7 +213,6 @@ impl Bookmark for Pi4 {
         "Goes to my raspberry pi4 local web server".to_string()
     }
 }
-
 
 impl Bookmark for Gradescope {
     fn urls(&self) -> Vec<String> {
