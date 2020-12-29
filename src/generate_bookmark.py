@@ -7,6 +7,7 @@
 
 import os
 import sys
+import subprocess
 
 # define some important file variables
 BM_FILENAME = "bookmarks.rs"
@@ -64,9 +65,6 @@ impl Bookmark for {struct_name} {{
     }}
 }}"""
 
-# TODO: Replace bm_file text
-print(bm_file_text.replace(BM_START_STR, struct_code))
-
 with open(alias_path, "r") as f:
     alias_file_text = f.read()
 
@@ -81,5 +79,15 @@ alias_code = (
     f'"{alias_name}" => Box::new(bookmarks::{struct_name}),\n        {ALIAS_START_STR}'
 )
 
-# TODO: replace alias_path text
-print(alias_file_text.replace(ALIAS_START_STR, alias_code))
+
+with open(bm_path, "w") as f:
+    f.write(bm_file_text.replace(BM_START_STR, struct_code))
+with open(alias_path, "w") as f:
+    f.write(alias_file_text.replace(ALIAS_START_STR, alias_code))
+
+try:
+    subprocess.run(["cargo", "fmt"]).check_returncode()
+except subprocess.CalledProcessError:
+    print("Error when formatting code with cargo. Check if the code compiles.")
+except Exception:
+    print("Error running `cargo fmt`. If you don't have cargo, ignore this message.")
