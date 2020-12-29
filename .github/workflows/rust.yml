@@ -1,0 +1,25 @@
+name: Rust
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true  
+      - name : Build
+      - uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --all-feature
+      - name: Run tests
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
