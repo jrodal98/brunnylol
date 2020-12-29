@@ -55,5 +55,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "gmaps" => Box::new(bookmarks::GoogleMaps),
         "gp" => Box::new(bookmarks::GooglePhotos),
         "mc" => Box::new(bookmarks::MinecraftWiki),
+        "so" => Box::new(bookmarks::StackOverflow),
+        // END OF ALIAS IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
     }
 }
