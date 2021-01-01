@@ -60,7 +60,6 @@ pub struct Handshake;
 pub struct Piazza;
 pub struct Campuswire;
 pub struct Gradescope;
-pub struct Pi4;
 pub struct GoogleDrive;
 pub struct TypeRacer;
 pub struct MegaNz;
@@ -72,8 +71,19 @@ pub struct GoogleMaps;
 pub struct GooglePhotos;
 pub struct MinecraftWiki;
 pub struct StackOverflow;
+pub struct Pihole;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for Pihole {
+    fn urls(&self) -> Vec<String> {
+        vec!["http://192.168.1.58/admin/".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "Go to pihole admin page".to_string()
+    }
+}
 
 impl Bookmark for StackOverflow {
     fn urls(&self) -> Vec<String> {
@@ -201,16 +211,6 @@ impl Bookmark for GoogleDrive {
 
     fn description(&self) -> String {
         "Go to google drive - ALIAS X to go to drive for google account X.".to_string()
-    }
-}
-
-impl Bookmark for Pi4 {
-    fn urls(&self) -> Vec<String> {
-        vec!["http://192.168.0.104:8080/".to_string()]
-    }
-
-    fn description(&self) -> String {
-        "Goes to my raspberry pi4 local web server".to_string()
     }
 }
 
@@ -486,21 +486,27 @@ impl Bookmark for LeetX {
 
 impl Bookmark for Facebook {
     fn urls(&self) -> Vec<String> {
-        vec!["https://www.facebook.com/".to_string()]
+        vec![
+            "https://www.facebook.com/".to_string(),
+            "https://www.facebook.com/search/top?q=%s".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
-        "Go to Facebook".to_string()
+        "Search Facebook".to_string()
     }
 }
 
 impl Bookmark for Instagram {
     fn urls(&self) -> Vec<String> {
-        vec!["https://www.instagram.com/".to_string()]
+        vec![
+            "https://www.instagram.com/".to_string(),
+            "https://www.instagram.com/%s/".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
-        "Go to Instagram".to_string()
+        "Search Instagram".to_string()
     }
 }
 

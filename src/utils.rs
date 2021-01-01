@@ -44,7 +44,6 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "pz" => Box::new(bookmarks::Piazza),
         "cw" => Box::new(bookmarks::Campuswire),
         "gs" => Box::new(bookmarks::Gradescope),
-        "pi" => Box::new(bookmarks::Pi4),
         "tr" => Box::new(bookmarks::TypeRacer),
         "gd" => Box::new(bookmarks::GoogleDrive),
         "mega" => Box::new(bookmarks::MegaNz),
@@ -56,6 +55,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "gp" => Box::new(bookmarks::GooglePhotos),
         "mc" => Box::new(bookmarks::MinecraftWiki),
         "so" => Box::new(bookmarks::StackOverflow),
+        "ph" => Box::new(bookmarks::Pihole),
         // END OF ALIAS IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
     }
 }
