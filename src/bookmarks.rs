@@ -72,8 +72,22 @@ pub struct GooglePhotos;
 pub struct MinecraftWiki;
 pub struct StackOverflow;
 pub struct Pihole;
+pub struct Box;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for Box {
+    fn urls(&self) -> Vec<String> {
+        vec![
+            "https://app.box.com/".to_string(),
+            "https://app.box.com/folder/%s".to_string(),
+        ]
+    }
+
+    fn description(&self) -> String {
+        "Go to box cloud storage - ALIAS X to go to folder X".to_string()
+    }
+}
 
 impl Bookmark for Pihole {
     fn urls(&self) -> Vec<String> {
