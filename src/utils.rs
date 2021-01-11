@@ -7,7 +7,7 @@ use std::collections::HashMap;
 pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::Bookmark>> {
     hashmap! {
         "g" => Box::new(bookmarks::Google) as Box<dyn bookmarks::Bookmark>,
-        "ddg" => Box::new(bookmarks::DuckDuckGo),
+        "d" => Box::new(bookmarks::DuckDuckGo),
         "yt" => Box::new(bookmarks::Youtube),
         "b" => Box::new(bookmarks::Bing),
         "time" => Box::new(bookmarks::Timeis),
@@ -31,7 +31,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "db" => Box::new(bookmarks::Dropbox),
         "nf" => Box::new(bookmarks::Netflix),
         "hulu" => Box::new(bookmarks::Hulu),
-        "im" => Box::new(bookmarks::GoogleImage),
+        "img" => Box::new(bookmarks::GoogleImage),
         "cal" => Box::new(bookmarks::GoogleCalendar),
         "bl" => Box::new(bookmarks::About),
         "~" => Box::new(bookmarks::Home),
