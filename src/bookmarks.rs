@@ -481,7 +481,7 @@ impl Bookmark for Amazon {
     }
 
     fn description(&self) -> String {
-        "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing). Consider supporting the Signal Technology Foundation!".to_string()
+        "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing).".to_string()
     }
 }
 
