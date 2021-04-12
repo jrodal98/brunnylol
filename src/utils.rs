@@ -57,6 +57,7 @@ pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn bookmarks::B
         "so" => Box::new(bookmarks::StackOverflow),
         "ph" => Box::new(bookmarks::Pihole),
         "box" => Box::new(bookmarks::Box),
+        "pm" => Box::new(bookmarks::ProtonMail),
         // END OF ALIAS IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
     }
 }

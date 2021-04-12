@@ -73,8 +73,19 @@ pub struct MinecraftWiki;
 pub struct StackOverflow;
 pub struct Pihole;
 pub struct Box;
+pub struct ProtonMail;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for ProtonMail {
+    fn urls(&self) -> Vec<String> {
+        vec!["https://mail.protonmail.com/inbox".to_string()]
+    }
+
+    fn description(&self) -> String {
+        "ProtonMail".to_string()
+    }
+}
 
 impl Bookmark for Box {
     fn urls(&self) -> Vec<String> {
