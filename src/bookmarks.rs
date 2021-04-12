@@ -79,11 +79,14 @@ pub struct ProtonMail;
 
 impl Bookmark for ProtonMail {
     fn urls(&self) -> Vec<String> {
-        vec!["https://mail.protonmail.com/inbox".to_string()]
+        vec![
+            "https://beta.protonmail.com".to_string(),
+            "https://beta.protonmail.com/u/%s/".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
-        "ProtonMail".to_string()
+        "Go to Protonmail - ALIAS X to go to mail for protonmail account X.".to_string()
     }
 }
 
