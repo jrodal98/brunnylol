@@ -478,7 +478,7 @@ impl Bookmark for Help {
 
 impl Bookmark for Jrodal {
     fn urls(&self) -> Vec<String> {
-        vec!["https://jrodal.dev/".to_string()]
+        vec!["https://jrodal.com/".to_string()]
     }
 
     fn description(&self) -> String {
