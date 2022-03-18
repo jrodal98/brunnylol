@@ -48,20 +48,21 @@ query_url = input(
 
 description = input("Enter bookmark description: ")
 
-urls = f'"{base_url}".to_string(),'
+urls = f'"{base_url}",'
 if query_url:
-    urls += f'"{query_url}".to_string(),'
+    urls += f'"{query_url}",'
 
 struct_code = f"""pub struct {struct_name};
 {BM_START_STR}
 
+
 impl Bookmark for {struct_name} {{
-    fn urls(&self) -> Vec<String> {{
+    fn urls(&self) -> Vec<&'static str> {{
         vec![{urls}]
     }}
 
-    fn description(&self) -> String {{
-        "{description}".to_string()
+    fn description(&self) -> &'static str {{
+        "{description}"
     }}
 }}"""
 

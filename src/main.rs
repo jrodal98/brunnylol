@@ -15,7 +15,7 @@ fn help(
     alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
 ) -> Template {
     let mut context = HashMap::new();
-    let alias_to_description: HashMap<&str, String> = alias_to_bookmark_map
+    let alias_to_description: HashMap<&str, &str> = alias_to_bookmark_map
         .iter()
         .map(|(alias, bm)| (*alias, bm.description()))
         .collect();
