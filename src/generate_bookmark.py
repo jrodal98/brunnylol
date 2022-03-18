@@ -41,12 +41,33 @@ while not struct_name:
         print(f"{struct_name} already exists. Pick a different name.")
         struct_name = ""
 
+description = input("Enter bookmark description: ")
+
 base_url = input("Enter base url of bookmark (e.g: https://www.google.com): ")
 query_url = input(
     "Enter query url with %s or hit enter to continue (e.g. https://www.google.com/search?q=%s): "
 )
 
-description = input("Enter bookmark description: ")
+query_overrides = []
+while to_replace := input("Enter query token to override or hit enter to continue: "):
+    replace_with = input("Enter override value: ")
+    query_overrides.append(f'"{to_replace}" => "{replace_with}",')
+
+
+query_override_str = "\n".join(query_overrides)
+query_override_code = (
+    f"""
+    fn override_query<'a>(&self, query: &'a str) -> &'a str {{
+        match query {{
+            {query_override_str}
+            _ => query,
+        }}
+    }}
+"""
+    if query_overrides
+    else ""
+)
+
 
 urls = f'"{base_url}",'
 if query_url:
@@ -64,6 +85,8 @@ impl Bookmark for {struct_name} {{
     fn description(&self) -> &'static str {{
         "{description}"
     }}
+
+    {query_override_code}
 }}"""
 
 with open(alias_path, "r") as f:

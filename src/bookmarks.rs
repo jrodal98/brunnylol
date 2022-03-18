@@ -9,9 +9,17 @@ pub trait Bookmark: Send + Sync {
         query
     }
 
+    fn encode_query(&self) -> bool {
+        true
+    }
+
     fn process_query(&self, query: &str) -> String {
         let query = self.override_query(query);
-        RawStr::new(query).percent_encode().to_string()
+        if self.encode_query() {
+            RawStr::new(query).percent_encode().to_string()
+        } else {
+            query.to_string()
+        }
     }
 
     fn get_redirect_url(&self, query: &str) -> String {
@@ -393,9 +401,8 @@ impl Bookmark for Github {
         "Go to brunnylol's developer's github or go to another repo (e.g. jrodal98/brunnylol)"
     }
 
-    // don't encode the string
-    fn process_query(&self, query: &str) -> String {
-        query.to_string()
+    fn encode_query(&self) -> bool {
+        false
     }
 }
 
