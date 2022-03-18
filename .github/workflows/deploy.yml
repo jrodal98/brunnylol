@@ -22,7 +22,7 @@ jobs:
         KEY: ${{ secrets.SSHKEY }}
       with:
         source: "."
-        target: "/var/www/mywebsite"
+        target: "/var/www/brunnylol"
 
     - name: Executing remote command
       uses: appleboy/ssh-action@master
@@ -31,4 +31,8 @@ jobs:
         USERNAME: ${{ secrets.USERNAME }}
         PORT: ${{ secrets.PORT }}
         KEY: ${{ secrets.SSHKEY }}
-        script: ./update_brunnylol.sh
+        script_stop: true
+        script: |
+             cd /var/www/brunnylol
+             /root/.cargo/bin/cargo build --release
+             systemctl restart brunnylol.xyz.service
