@@ -5,7 +5,12 @@ pub trait Bookmark: Send + Sync {
     fn urls(&self) -> Vec<String>;
     fn description(&self) -> String;
 
+    fn override_query<'a>(&self, query: &'a str) -> &'a str {
+        query
+    }
+
     fn process_query(&self, query: &str) -> String {
+        let query = self.override_query(query);
         RawStr::new(query).percent_encode().to_string()
     }
 
@@ -41,8 +46,6 @@ pub struct Amazon;
 pub struct LeetX;
 pub struct Facebook;
 pub struct Instagram;
-pub struct UVACollab;
-pub struct UVASis;
 pub struct LinkedIn;
 pub struct Dropbox;
 pub struct Netflix;
@@ -53,13 +56,8 @@ pub struct About;
 pub struct Home;
 pub struct BrunnylolDev;
 pub struct Ebay;
-pub struct UVACommBlackboard;
 pub struct GoogleMail;
 pub struct GogoAnime;
-pub struct Handshake;
-pub struct Piazza;
-pub struct Campuswire;
-pub struct Gradescope;
 pub struct GoogleDrive;
 pub struct TypeRacer;
 pub struct MegaNz;
@@ -71,7 +69,7 @@ pub struct GoogleMaps;
 pub struct GooglePhotos;
 pub struct MinecraftWiki;
 pub struct StackOverflow;
-pub struct Pihole;
+pub struct Pi;
 pub struct Box;
 pub struct ProtonMail;
 
@@ -103,13 +101,25 @@ impl Bookmark for Box {
     }
 }
 
-impl Bookmark for Pihole {
+impl Bookmark for Pi {
     fn urls(&self) -> Vec<String> {
-        vec!["http://192.168.1.58/admin/".to_string()]
+        vec![
+            "http://192.168.0.104/".to_string(),
+            "http://192.168.0.104:%s".to_string(),
+        ]
     }
 
     fn description(&self) -> String {
-        "Go to pihole admin page".to_string()
+        "Go to raspberry pi pages".to_string()
+    }
+
+    fn override_query<'a>(&self, query: &'a str) -> &'a str {
+        match query {
+            "j" => "8096",
+            "t" => "9091",
+            "h" => "8384",
+            _ => query,
+        }
     }
 }
 
@@ -239,58 +249,6 @@ impl Bookmark for GoogleDrive {
 
     fn description(&self) -> String {
         "Go to google drive - ALIAS X to go to drive for google account X.".to_string()
-    }
-}
-
-impl Bookmark for Gradescope {
-    fn urls(&self) -> Vec<String> {
-        vec![
-            "https://www.gradescope.com/".to_string(),
-            "https://www.gradescope.com/courses/%s".to_string(),
-        ]
-    }
-
-    fn description(&self) -> String {
-        "Go to gradescope".to_string()
-    }
-
-    fn process_query(&self, query: &str) -> String {
-        match query {
-            "st" => "133650".to_string(),
-            _ => RawStr::new(query).percent_encode().to_string(),
-        }
-    }
-}
-
-impl Bookmark for Campuswire {
-    fn urls(&self) -> Vec<String> {
-        vec!["https://campuswire.com/c/".to_string()]
-    }
-
-    fn description(&self) -> String {
-        "go to campus wire".to_string()
-    }
-}
-
-impl Bookmark for Piazza {
-    fn urls(&self) -> Vec<String> {
-        vec![
-            "https://www.piazza.com".to_string(),
-            "https://www.piazza.com/class/%s".to_string(),
-        ]
-    }
-
-    fn description(&self) -> String {
-        "Go to a piazza class. st to go to stat5170, ds to go to cs4750, ip to go to internet privacy".to_string()
-    }
-
-    fn process_query(&self, query: &str) -> String {
-        match query {
-            "st" => "kdg63se2jfu6d7".to_string(),
-            "ds" => "kdkzzs4q102d3".to_string(),
-            "ip" => "ke81el8uw9o3ra".to_string(),
-            _ => RawStr::new(query).percent_encode().to_string(),
-        }
     }
 }
 
@@ -538,41 +496,6 @@ impl Bookmark for Instagram {
     }
 }
 
-impl Bookmark for UVACollab {
-    fn urls(&self) -> Vec<String> {
-        vec![
-            "https://collab.its.virginia.edu/portal".to_string(),
-            "https://collab.its.virginia.edu/portal/site/%s".to_string(),
-        ]
-    }
-
-    fn description(&self) -> String {
-        "Go to UVACollab or a specific page. st for stat5170, ds for cs4750, ip for cs4501, sts for sts4600".to_string()
-    }
-
-    fn process_query(&self, query: &str) -> String {
-        match query {
-            "st" => "64ef5439-c3d7-41da-bf48-34e9b56b0d94".to_string(),
-            "ds" => "27a3a9f2-00f9-45db-a2ed-6e99e9415ea1".to_string(),
-            "ip" => "bbaeb16c-6afb-4835-9b16-92378b639304".to_string(),
-            "sts" => "20540a71-6fe4-4032-98df-88f4b0ed0062".to_string(),
-            _ => RawStr::new(query).percent_encode().to_string(),
-        }
-    }
-}
-
-impl Bookmark for UVASis {
-    fn urls(&self) -> Vec<String> {
-        vec![
-            "https://sisuva.admin.virginia.edu/psc/ihprd/UVSS/SA/s/WEBLIB_HCX_GN.H_SPRINGBOARD.FieldFormula.IScript_Main".to_string(),
-        ]
-    }
-
-    fn description(&self) -> String {
-        "Go to UVA Sis".to_string()
-    }
-}
-
 impl Bookmark for LinkedIn {
     fn urls(&self) -> Vec<String> {
         vec![
@@ -692,16 +615,6 @@ impl Bookmark for Ebay {
     }
 }
 
-impl Bookmark for UVACommBlackboard {
-    fn urls(&self) -> Vec<String> {
-        vec!["https://blackboard.comm.virginia.edu/".to_string()]
-    }
-
-    fn description(&self) -> String {
-        "Go to the UVA comm school blackboard page".to_string()
-    }
-}
-
 impl Bookmark for GoogleMail {
     fn urls(&self) -> Vec<String> {
         vec![
@@ -725,15 +638,5 @@ impl Bookmark for GogoAnime {
 
     fn description(&self) -> String {
         "Search gogoanimes.tv".to_string()
-    }
-}
-
-impl Bookmark for Handshake {
-    fn urls(&self) -> Vec<String> {
-        vec!["https://virginia.joinhandshake.com/login?ref=app-domain".to_string()]
-    }
-
-    fn description(&self) -> String {
-        "Go to handshake".to_string()
     }
 }
