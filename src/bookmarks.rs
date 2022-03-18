@@ -123,14 +123,14 @@ impl Bookmark for Pi {
     }
 
     fn description(&self) -> &'static str {
-        "Go to raspberry pi pages"
+        "Go to raspberry pi pages. j for Jellyfin, t for Transmission, s for Syncthing"
     }
 
     fn override_query<'a>(&self, query: &'a str) -> &'a str {
         match query {
             "j" => "8096",
             "t" => "9091",
-            "h" => "8384",
+            "s" => "8384",
             _ => query,
         }
     }
