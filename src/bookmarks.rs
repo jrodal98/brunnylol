@@ -1,12 +1,12 @@
 extern crate rocket;
-use rocket::http::uri::Uri;
+use rocket::http::RawStr;
 
 pub trait Bookmark: Send + Sync {
     fn urls(&self) -> Vec<String>;
     fn description(&self) -> String;
 
     fn process_query(&self, query: &str) -> String {
-        Uri::percent_encode(query).to_string()
+        RawStr::new(query).percent_encode().to_string()
     }
 
     fn get_redirect_url(&self, query: &str) -> String {
@@ -257,7 +257,7 @@ impl Bookmark for Gradescope {
     fn process_query(&self, query: &str) -> String {
         match query {
             "st" => "133650".to_string(),
-            _ => Uri::percent_encode(query).to_string(),
+            _ => RawStr::new(query).percent_encode().to_string(),
         }
     }
 }
@@ -289,7 +289,7 @@ impl Bookmark for Piazza {
             "st" => "kdg63se2jfu6d7".to_string(),
             "ds" => "kdkzzs4q102d3".to_string(),
             "ip" => "ke81el8uw9o3ra".to_string(),
-            _ => Uri::percent_encode(query).to_string(),
+            _ => RawStr::new(query).percent_encode().to_string(),
         }
     }
 }
@@ -556,7 +556,7 @@ impl Bookmark for UVACollab {
             "ds" => "27a3a9f2-00f9-45db-a2ed-6e99e9415ea1".to_string(),
             "ip" => "bbaeb16c-6afb-4835-9b16-92378b639304".to_string(),
             "sts" => "20540a71-6fe4-4032-98df-88f4b0ed0062".to_string(),
-            _ => Uri::percent_encode(query).to_string(),
+            _ => RawStr::new(query).percent_encode().to_string(),
         }
     }
 }
