@@ -2,26 +2,21 @@ name: Rust
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
+    branches: [ main ]
+
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build_and_test:
+  build:
+
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true  
-      - name : Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --all-features
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+    - uses: actions/checkout@v2
+    - name: Build
+      run: cargo build --verbose
+    - name: Run tests
+      run: cargo test --verbose
