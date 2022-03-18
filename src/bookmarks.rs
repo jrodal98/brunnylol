@@ -72,8 +72,19 @@ pub struct StackOverflow;
 pub struct Pi;
 pub struct Box;
 pub struct ProtonMail;
+pub struct MonkeyType;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for MonkeyType {
+    fn urls(&self) -> Vec<&'static str> {
+        vec!["https://monkeytype.com"]
+    }
+
+    fn description(&self) -> &'static str {
+        "Go to monkeytype, a minimalistic typing test"
+    }
+}
 
 impl Bookmark for ProtonMail {
     fn urls(&self) -> Vec<&'static str> {
