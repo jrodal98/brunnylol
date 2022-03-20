@@ -81,8 +81,30 @@ pub struct Pi;
 pub struct Box;
 pub struct ProtonMail;
 pub struct MonkeyType;
+pub struct LocalHost;
 
 // START OF STRUCT IMPLEMENTATIONS (DO NOT DELETE THIS LINE)
+
+impl Bookmark for LocalHost {
+    fn urls(&self) -> Vec<&'static str> {
+        vec!["http://localhost", "http://localhost:%s"]
+    }
+
+    fn description(&self) -> &'static str {
+        "Go to ports on local host"
+    }
+
+    fn override_query<'a>(&self, query: &'a str) -> &'a str {
+        match query {
+            "h" | "hugo" => "1313",
+            "r" | "rocket" => "8000",
+            "j" | "jellyfin" => "8096",
+            "t" | "transmission" => "9091",
+            "s" | "syncthing" => "8384",
+            _ => query,
+        }
+    }
+}
 
 impl Bookmark for MonkeyType {
     fn urls(&self) -> Vec<&'static str> {
@@ -128,9 +150,9 @@ impl Bookmark for Pi {
 
     fn override_query<'a>(&self, query: &'a str) -> &'a str {
         match query {
-            "j" => "8096",
-            "t" => "9091",
-            "s" => "8384",
+            "j" | "jellyfin" => "8096",
+            "t" | "transmission" => "9091",
+            "s" | "syncthing" => "8384",
             _ => query,
         }
     }
