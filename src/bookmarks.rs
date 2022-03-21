@@ -94,6 +94,10 @@ impl Bookmark for LocalHost {
         "Go to ports on local host"
     }
 
+    fn encode_query(&self) -> bool {
+        false
+    }
+
     fn override_query<'a>(&self, query: &'a str) -> &'a str {
         match query {
             "h" | "hugo" => "1313",
@@ -146,6 +150,10 @@ impl Bookmark for Pi {
 
     fn description(&self) -> &'static str {
         "Go to raspberry pi pages. j for Jellyfin, t for Transmission, s for Syncthing"
+    }
+
+    fn encode_query(&self) -> bool {
+        false
     }
 
     fn override_query<'a>(&self, query: &'a str) -> &'a str {
