@@ -1,0 +1,15 @@
+[Unit]
+Description=brunnylol
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/home/jrodal/dev/brunnylol
+Environment="ROCKET_ENV=prod"
+Environment="ROCKET_ADDRESS=127.0.0.1"
+Environment="ROCKET_PORT=7000"
+Environment="ROCKET_LOG=critical"
+ExecStart=/home/jrodal/dev/brunnylol/target/release/brunnylol
+
+[Install]
+WantedBy=multi-user.target
