@@ -6,8 +6,8 @@ pub struct SimpleBookmark {
 }
 
 impl Command for SimpleBookmark {
-    fn description(&self) -> &str {
-        &self.description
+    fn description(&self) -> String {
+        self.description.clone()
     }
 
     fn get_redirect_url(&self, _query: &str) -> String {

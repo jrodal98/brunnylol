@@ -11,9 +11,12 @@ pub struct NestedCommand<'a> {
 }
 
 impl<'a> Command for NestedCommand<'a> {
-    // TODO: iterate over commands to form description
-    fn description(&self) -> &str {
-        &self.description
+    fn description(&self) -> String {
+        let mut description = self.description.clone();
+        for (alias, command) in self.commands.iter() {
+            description.push_str(&format!("\n{}: {}", alias, command.description()));
+        }
+        description
     }
 
     fn get_redirect_url(&self, query: &str) -> String {
@@ -47,6 +50,7 @@ impl<'a> NestedCommand<'a> {
     }
 }
 
+#[allow(dead_code)]
 fn create_nested_command(should_recurse: bool) -> NestedCommand<'static> {
     let mut commands: HashMap<&str, Box<dyn Command>> = HashMap::new();
     // a single character should work
@@ -75,7 +79,11 @@ fn create_nested_command(should_recurse: bool) -> NestedCommand<'static> {
 #[test]
 fn test_description() {
     let command = create_nested_command(true);
-    assert_eq!(command.description(), "a test website".to_string());
+    let description = command.description();
+    assert_eq!(description.contains("a test website"), true);
+    assert_eq!(description.contains("nested: a test website"), true);
+    assert_eq!(description.contains("bookmark: bookmark command"), true);
+    assert_eq!(description.contains("t: templated command"), true);
 }
 
 #[test]
