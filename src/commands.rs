@@ -35,6 +35,13 @@ impl<'a> AliasAndCommand<'static> {
             Self::wikipedia(),
             Self::archwiki(),
             Self::github(),
+            Self::dictionary(),
+            Self::reddit(),
+            Self::urbandictionary(),
+            Self::genius(),
+            Self::speed(),
+            Self::help(),
+            Self::jrodal(),
         ];
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }
@@ -129,14 +136,78 @@ impl<'a> AliasAndCommand<'static> {
             ),
         }
     }
+
+    fn dictionary() -> Self {
+        Self {
+            alias: "def",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.dictionary.com/",
+                "https://www.dictionary.com/browse/%s?s=t",
+                "Define a word with dictionary.com",
+            )),
+        }
+    }
+
+    fn reddit() -> Self {
+        Self {
+            alias: "red",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.reddit.com/",
+                "https://www.reddit.com/r/%s",
+                "Go to a subreddit",
+            )),
+        }
+    }
+
+    fn urbandictionary() -> Self {
+        Self {
+            alias: "wut",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.urbandictionary.com/",
+                "https://www.urbandictionary.com/define.php?term=%s",
+                "Searches for a phrase on urban dictionary",
+            )),
+        }
+    }
+
+    fn genius() -> Self {
+        Self {
+            alias: "gen",
+            command: Box::new(TemplatedCommand::new(
+                "https://genius.com/",
+                "https://genius.com/search?q=%s",
+                "Search youtube",
+            )),
+        }
+    }
+
+    fn speed() -> Self {
+        Self {
+            alias: "speed",
+            command: Box::new(SimpleBookmark::new(
+                "https://www.speedtest.net/",
+                "Run an internet speedtest",
+            )),
+        }
+    }
+
+    fn help() -> Self {
+        Self {
+            alias: "help",
+            command: Box::new(SimpleBookmark::new("/help", "Go to brunnylol's help page")),
+        }
+    }
+
+    fn jrodal() -> Self {
+        Self {
+            alias: "jr",
+            command: Box::new(SimpleBookmark::new(
+                "https://jrodal.com/",
+                "Go to jrodal.com",
+            )),
+        }
+    }
 }
-//         // "def" => Box::new(bookmarks::Dictionary),
-//         // "red" => Box::new(bookmarks::Reddit),
-//         // "wut" => Box::new(bookmarks::UrbanDictionary),
-//         // "gen" => Box::new(bookmarks::Genius),
-//         // "speed" => Box::new(bookmarks::Speed),
-//         // "help" => Box::new(bookmarks::Help),
-//         // "jr" => Box::new(bookmarks::Jrodal),
 //         // "am" => Box::new(bookmarks::Amazon),
 //         // "1337x" => Box::new(bookmarks::LeetX),
 //         // "fb" => Box::new(bookmarks::Facebook),
