@@ -1,6 +1,8 @@
 extern crate maplit;
 
-use crate::command::{command::Command, templated_command::TemplatedCommand};
+use crate::command::{
+    command::Command, simple_bookmark::SimpleBookmark, templated_command::TemplatedCommand,
+};
 use std::collections::HashMap;
 
 pub struct AliasAndCommand<'a> {
@@ -128,7 +130,6 @@ impl<'a> AliasAndCommand<'static> {
         }
     }
 }
-//         // "gh" => Box::new(bookmarks::Github),
 //         // "def" => Box::new(bookmarks::Dictionary),
 //         // "red" => Box::new(bookmarks::Reddit),
 //         // "wut" => Box::new(bookmarks::UrbanDictionary),
@@ -170,3 +171,25 @@ impl<'a> AliasAndCommand<'static> {
 //         // "lh" => Box::new(bookmarks::LocalHost),
 //     }
 // }
+
+#[test]
+fn test_valid_map() {
+    // ensure that the map can be constructed
+    let _ = AliasAndCommand::get_alias_to_bookmark_map();
+}
+
+#[test]
+#[should_panic(expected = "Duplicate alias: a")]
+fn test_duplicate_map_panics() {
+    let aliases_and_commands = vec![
+        AliasAndCommand {
+            alias: "a",
+            command: Box::new(SimpleBookmark::new("www.example.com", "test website")),
+        },
+        AliasAndCommand {
+            alias: "a",
+            command: Box::new(SimpleBookmark::new("www.example2.com", "test2 website")),
+        },
+    ];
+    let _ = AliasAndCommand::create_alias_to_bookmark_map(aliases_and_commands);
+}
