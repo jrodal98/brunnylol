@@ -51,7 +51,7 @@ fn redirect(
 
 #[launch]
 fn rocket() -> _ {
-    let alias_to_bookmark_map = commands::get_alias_to_bookmark_map();
+    let alias_to_bookmark_map = commands::AliasAndCommand::get_alias_to_bookmark_map();
     rocket::build()
         .manage(alias_to_bookmark_map)
         .attach(Template::fairing())
