@@ -1,4 +1,4 @@
-[![Deploy](https://github.com/jrodal98/brunnylol/actions/workflows/deploy.yml/badge.svg)](https://github.com/jrodal98/brunnylol/actions/workflows/deploy.yml)
+[![Rust](https://github.com/jrodal98/brunnylol/actions/workflows/rust.yml/badge.svg)](https://github.com/jrodal98/brunnylol/actions/workflows/rust.yml) [![Deploy](https://github.com/jrodal98/brunnylol/actions/workflows/deploy.yml/badge.svg)](https://github.com/jrodal98/brunnylol/actions/workflows/deploy.yml)
 
 # brunnylol
 
