@@ -8,6 +8,19 @@ struct TemplatedString {
 }
 
 impl TemplatedString {
+    fn new(template: &str, placeholder: &str) -> Self {
+        if !template.contains(placeholder) {
+            panic!(
+                "Invalid TemplateString - {} does not contain {}",
+                template, placeholder
+            );
+        } else {
+            Self {
+                template: template.to_string(),
+                placeholder: placeholder.to_string(),
+            }
+        }
+    }
     fn replace(&self, query: &str) -> String {
         self.template.replace(&self.placeholder, query)
     }
@@ -47,10 +60,7 @@ impl TemplatedCommand {
     pub fn new(bookmark: &str, template: &str, description: &str) -> Self {
         Self {
             bookmark: bookmark.to_string(),
-            template: TemplatedString {
-                template: template.to_string(),
-                placeholder: "{}".to_string(),
-            },
+            template: TemplatedString::new(template, "{}"),
             description: description.to_string(),
             encode_query: true,
         }
@@ -94,6 +104,7 @@ fn test_no_encode() {
 }
 
 #[test]
+#[should_panic(expected = "Invalid TemplateString - www.example.com/%s does not contain {}")]
 fn test_wrong_placeholder() {
     let command = TemplatedCommand::new("www.example.com", "www.example.com/%s", "a test website");
     assert_eq!(
