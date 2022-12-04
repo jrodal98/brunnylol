@@ -1,8 +1,8 @@
 #[macro_use]
 extern crate rocket;
-mod bookmarks;
-mod utils;
-use crate::utils::get_alias_to_bookmark_map;
+mod command;
+pub mod commands;
+use command::command::Command;
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
@@ -11,11 +11,9 @@ use std::collections::HashMap;
 const DEFAULT_ALIAS: &str = "g";
 
 #[get("/help")]
-fn help(
-    alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
-) -> Template {
+fn help(alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn Command>>>) -> Template {
     let mut context = HashMap::new();
-    let alias_to_description: HashMap<&str, &str> = alias_to_bookmark_map
+    let alias_to_description: HashMap<&str, String> = alias_to_bookmark_map
         .iter()
         .map(|(alias, bm)| (*alias, bm.description()))
         .collect();
@@ -33,7 +31,7 @@ fn index() -> Template {
 fn redirect(
     q: String,
     default: Option<String>,
-    alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn bookmarks::Bookmark>>>,
+    alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn Command>>>,
 ) -> Redirect {
     let mut splitted = q.splitn(2, " ");
     let bookmark_alias = splitted.next().unwrap();
@@ -52,7 +50,7 @@ fn redirect(
 
 #[launch]
 fn rocket() -> _ {
-    let alias_to_bookmark_map = get_alias_to_bookmark_map();
+    let alias_to_bookmark_map = commands::AliasAndCommand::get_alias_to_bookmark_map();
     rocket::build()
         .manage(alias_to_bookmark_map)
         .attach(Template::fairing())
