@@ -431,42 +431,99 @@ impl<'a> AliasAndCommand<'static> {
         }
     }
 
-    fn jellyfin() -> Self {
+    fn jellyfin(base_url: &str) -> Self {
         Self {
             alias: "j",
             command: Box::new(SimpleBookmark::new(
-                "http://192.168.0.104:8096",
+                &format!("{}:8096", base_url),
                 "Go to jellyfin",
             )),
         }
     }
 
-    fn transmission() -> Self {
+    fn transmission(base_url: &str) -> Self {
         Self {
             alias: "t",
             command: Box::new(SimpleBookmark::new(
-                "http://192.168.0.104:9091",
-                "Go to jellyfin",
+                &format!("{}:9091", base_url),
+                "Go to transmission",
             )),
         }
     }
 
     fn pi() -> Self {
-        let alias_and_commands = vec![Self::jellyfin(), Self::transmission()];
+        let base_url = "http://192.168.0.104";
+        let alias_and_commands = vec![Self::jellyfin(base_url), Self::transmission(base_url)];
 
         Self {
             alias: "pi",
             command: Box::new(NestedCommand::new(
-                "http://192.168.0.104/",
+                base_url,
                 Self::create_alias_to_bookmark_map(alias_and_commands),
                 "Go to raspberry pi pages",
             )),
         }
     }
-    //         // "box" => Box::new(bookmarks::Box),
-    //         // "pm" => Box::new(bookmarks::ProtonMail),
-    //         // "mt" => Box::new(bookmarks::MonkeyType),
-    //         // "lh" => Box::new(bookmarks::LocalHost),
+
+    fn protonmail() -> Self {
+        Self {
+            alias: "pm",
+            command: Box::new(TemplatedCommand::new(
+                "https://beta.protonmail.com",
+                "https://beta.protonmail.com/u/{}/",
+                "Go to Protonmail - ALIAS X to go to mail for protonmail account X.",
+            )),
+        }
+    }
+
+    fn monkeytype() -> Self {
+        Self {
+            alias: "mt",
+            command: Box::new(SimpleBookmark::new(
+                "https://monkeytype.com",
+                "Go to monkeytype, a minimalistic typing test",
+            )),
+        }
+    }
+
+    fn hugo(base_url: &str) -> Self {
+        Self {
+            alias: "hugo",
+            command: Box::new(SimpleBookmark::new(
+                &format!("{}:1313", base_url),
+                "Go to hugo page",
+            )),
+        }
+    }
+
+    fn rocket(base_url: &str) -> Self {
+        Self {
+            alias: "r",
+            command: Box::new(SimpleBookmark::new(
+                &format!("{}:8000", base_url),
+                "Go to rocket",
+            )),
+        }
+    }
+
+    fn localhost() -> Self {
+        let base_url = "http://localhost";
+        let alias_and_commands = vec![
+            Self::jellyfin(base_url),
+            Self::transmission(base_url),
+            Self::hugo(base_url),
+            Self::rocket(base_url),
+        ];
+
+        Self {
+            alias: "lh",
+            command: Box::new(NestedCommand::new(
+                base_url,
+                Self::create_alias_to_bookmark_map(alias_and_commands),
+                "Go to raspberry pi pages",
+            )),
+        }
+    }
 
     pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
         let alias_and_commands = vec![
@@ -509,6 +566,9 @@ impl<'a> AliasAndCommand<'static> {
             Self::minecraft_wiki(),
             Self::stack_overflow(),
             Self::pi(),
+            Self::localhost(),
+            Self::protonmail(),
+            Self::monkeytype(),
         ];
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }
