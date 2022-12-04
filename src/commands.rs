@@ -253,6 +253,188 @@ impl<'a> AliasAndCommand<'static> {
         }
     }
 
+    fn netflix() -> Self {
+        Self {
+            alias: "nf",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.netflix.com/",
+                "https://www.netflix.com/search?q={}",
+                "Search Netflix",
+            )),
+        }
+    }
+
+    fn hulu() -> Self {
+        Self {
+            alias: "hulu",
+            command: Box::new(SimpleBookmark::new("https://www.hulu.com/", "Go to hulu")),
+        }
+    }
+
+    fn google_image() -> Self {
+        Self {
+            alias: "img",
+            command: Box::new(TemplatedCommand::new(
+                "https://images.google.com/",
+                "https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={}",
+                "Search google images",
+            )),
+        }
+    }
+
+    fn google_calendar() -> Self {
+        Self {
+            alias: "cal",
+            command: Box::new(TemplatedCommand::new(
+                "https://calendar.google.com/",
+                "https://calendar.google.com/calendar/b/{}/r",
+                "Go to google calendar - ALIAS X to go to calendar for google account X.",
+            )),
+        }
+    }
+
+    fn about() -> Self {
+        Self {
+            alias: "bl",
+            command: Box::new(SimpleBookmark::new("/", "Go to brunnylol's home page")),
+        }
+    }
+
+    fn brunnylol_dev() -> Self {
+        Self {
+            alias: "dbl",
+            command: Box::new(TemplatedCommand::new(
+                "http://localhost:8000/",
+                "http://localhost:8000/search?q={}",
+                "Forward the query to your local version of brunnylol (port 8000)",
+            )),
+        }
+    }
+
+    fn ebay() -> Self {
+        Self {
+            alias: "eb",
+            command: Box::new(TemplatedCommand::new(
+            "https://www.ebay.com/",
+            "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={}&_sacat=0",
+                        "Search ebay",
+            )
+        ),
+        }
+    }
+
+    fn gmail() -> Self {
+        Self {
+            alias: "gm",
+            command: Box::new(TemplatedCommand::new(
+                "https://mail.google.com/",
+                "https://mail.google.com/mail/u/{}/",
+                "Go to gmail - ALIAS X to go to mail for google account X.",
+            )),
+        }
+    }
+
+    fn type_racer() -> Self {
+        Self {
+            alias: "tr",
+            command: Box::new(SimpleBookmark::new(
+                "https://play.typeracer.com/",
+                "Go to brunnylol's help page",
+            )),
+        }
+    }
+
+    fn google_drive() -> Self {
+        Self {
+            alias: "gd",
+            command: Box::new(TemplatedCommand::new(
+                "https://drive.google.com/",
+                "https://drive.google.com/drive/u/{}/my-drive",
+                "Go to google drive - ALIAS X to go to drive for google account X.",
+            )),
+        }
+    }
+
+    fn whatsapp() -> Self {
+        Self {
+            alias: "wap",
+            command: Box::new(SimpleBookmark::new(
+                "https://web.whatsapp.com/",
+                "Go to whatsapp web messenger",
+            )),
+        }
+    }
+
+    fn android_messages() -> Self {
+        Self {
+            alias: "ame",
+            command: Box::new(SimpleBookmark::new(
+                "https://messages.google.com/",
+                "Go to android messages web client",
+            )),
+        }
+    }
+
+    fn know_your_meme() -> Self {
+        Self {
+            alias: "meme",
+            command: Box::new(TemplatedCommand::new(
+                "https://knowyourmeme.com",
+                "https://knowyourmeme.com/search?q={}",
+                "Search the 'know your meme' database",
+            )),
+        }
+    }
+
+    fn google_maps() -> Self {
+        Self {
+            alias: "gmap",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.google.com/maps",
+                "https://www.google.com/maps/search/{}",
+                "Search Google maps",
+            )),
+        }
+    }
+
+    fn google_photos() -> Self {
+        Self {
+            alias: "gp",
+            command: Box::new(TemplatedCommand::new(
+                "https://photos.google.com/",
+                "https://photos.google.com/u/{}/",
+                "Go to google photos - ALIAS X to go to photos for google account X.",
+            )),
+        }
+    }
+
+    fn minecraft_wiki() -> Self {
+        Self {
+            alias: "mc",
+            command: Box::new(TemplatedCommand::new(
+                "https://minecraft.gamepedia.com/",
+                "https://minecraft.gamepedia.com/index.php?search={}&title=Special%3ASearch&go=Go",
+                "Search minecraft.gamepedia.com",
+            )),
+        }
+    }
+
+    fn stack_overflow() -> Self {
+        Self {
+            alias: "so",
+            command: Box::new(TemplatedCommand::new(
+                "https://stackoverflow.com",
+                "https://stackoverflow.com/search?q={}",
+                "Search questions on stackoverflow",
+            )),
+        }
+    }
+    //         // "pi" => Box::new(bookmarks::Pi),
+    //         // "box" => Box::new(bookmarks::Box),
+    //         // "pm" => Box::new(bookmarks::ProtonMail),
+    //         // "mt" => Box::new(bookmarks::MonkeyType),
+    //         // "lh" => Box::new(bookmarks::LocalHost),
+
     pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
         let alias_and_commands = vec![
             Self::google(),
@@ -276,38 +458,27 @@ impl<'a> AliasAndCommand<'static> {
             Self::instagram(),
             Self::dropbox(),
             Self::linkedin(),
+            Self::netflix(),
+            Self::hulu(),
+            Self::google_image(),
+            Self::google_calendar(),
+            Self::about(),
+            Self::brunnylol_dev(),
+            Self::ebay(),
+            Self::gmail(),
+            Self::type_racer(),
+            Self::google_drive(),
+            Self::whatsapp(),
+            Self::android_messages(),
+            Self::know_your_meme(),
+            Self::google_maps(),
+            Self::google_photos(),
+            Self::minecraft_wiki(),
+            Self::stack_overflow(),
         ];
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }
 }
-//         // "nf" => Box::new(bookmarks::Netflix),
-//         // "hulu" => Box::new(bookmarks::Hulu),
-//         // "img" => Box::new(bookmarks::GoogleImage),
-//         // "cal" => Box::new(bookmarks::GoogleCalendar),
-//         // "bl" => Box::new(bookmarks::About),
-//         // "~" => Box::new(bookmarks::Home),
-//         // "dbl" => Box::new(bookmarks::BrunnylolDev),
-//         // "eb" => Box::new(bookmarks::Ebay),
-//         // "gm" => Box::new(bookmarks::GoogleMail),
-//         // "go" => Box::new(bookmarks::GogoAnime),
-//         // "tr" => Box::new(bookmarks::TypeRacer),
-//         // "gd" => Box::new(bookmarks::GoogleDrive),
-//         // "mega" => Box::new(bookmarks::MegaNz),
-//         // "wap" => Box::new(bookmarks::WhatsApp),
-//         // "ame" => Box::new(bookmarks::AndroidMessages),
-//         // "gme" => Box::new(bookmarks::GroupMe),
-//         // "meme" => Box::new(bookmarks::KnowYourMeme),
-//         // "gmaps" => Box::new(bookmarks::GoogleMaps),
-//         // "gp" => Box::new(bookmarks::GooglePhotos),
-//         // "mc" => Box::new(bookmarks::MinecraftWiki),
-//         // "so" => Box::new(bookmarks::StackOverflow),
-//         // "pi" => Box::new(bookmarks::Pi),
-//         // "box" => Box::new(bookmarks::Box),
-//         // "pm" => Box::new(bookmarks::ProtonMail),
-//         // "mt" => Box::new(bookmarks::MonkeyType),
-//         // "lh" => Box::new(bookmarks::LocalHost),
-//     }
-// }
 
 #[test]
 fn test_valid_map() {
