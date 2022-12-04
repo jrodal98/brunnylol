@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 mod bookmarks;
+mod command;
 mod utils;
 use crate::utils::get_alias_to_bookmark_map;
 use rocket::response::Redirect;
