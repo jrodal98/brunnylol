@@ -1,7 +1,6 @@
 extern crate maplit;
 
 use crate::command::{command::Command, templated_command::TemplatedCommand};
-use maplit::hashmap;
 use std::collections::HashMap;
 
 pub struct AliasAndCommand<'a> {
@@ -10,19 +9,11 @@ pub struct AliasAndCommand<'a> {
 }
 
 impl<'a> AliasAndCommand<'static> {
-    pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
+    fn create_alias_to_bookmark_map(
+        alias_and_commands: Vec<AliasAndCommand<'static>>,
+    ) -> HashMap<&'static str, Box<dyn Command>> {
         let mut map = HashMap::new();
-        for alias_and_command in vec![
-            Self::google(),
-            Self::duckduckgo(),
-            Self::youtube(),
-            Self::bing(),
-            Self::time(),
-            Self::wikipedia(),
-            Self::archwiki(),
-        ]
-        .into_iter()
-        {
+        for alias_and_command in alias_and_commands.into_iter() {
             if map
                 .insert(alias_and_command.alias, alias_and_command.command)
                 .is_some()
@@ -31,6 +22,19 @@ impl<'a> AliasAndCommand<'static> {
             }
         }
         map
+    }
+    pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
+        let alias_and_commands = vec![
+            Self::google(),
+            Self::duckduckgo(),
+            Self::youtube(),
+            Self::bing(),
+            Self::time(),
+            Self::wikipedia(),
+            Self::archwiki(),
+            Self::github(),
+        ];
+        Self::create_alias_to_bookmark_map(alias_and_commands)
     }
 
     fn google() -> Self {
@@ -107,6 +111,20 @@ impl<'a> AliasAndCommand<'static> {
                 "https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={}",
                 "Search the arch wiki",
             )),
+        }
+    }
+
+    fn github() -> Self {
+        Self {
+            alias: "gh",
+            command: Box::new(
+                TemplatedCommand::new(
+                    "https://github.com/jrodal98",
+                    "https://github.com/{}",
+                    "Go to jrodal98's github page or go to another repo (e.g. jrodal98/brunnylol)",
+                )
+                .with_no_query_encode(),
+            ),
         }
     }
 }
