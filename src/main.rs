@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate rocket;
-mod bookmarks;
 mod command;
 pub mod commands;
 use command::command::Command;

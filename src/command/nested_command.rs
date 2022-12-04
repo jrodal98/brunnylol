@@ -14,7 +14,7 @@ impl<'a> Command for NestedCommand<'a> {
     fn description(&self) -> String {
         let mut description = self.description.clone();
         for (alias, command) in self.commands.iter() {
-            description.push_str(&format!("\n{}: {}", alias, command.description()));
+            description.push_str(&format!("|{}: {}", alias, command.description()));
         }
         description
     }
@@ -81,9 +81,9 @@ fn test_description() {
     let command = create_nested_command(true);
     let description = command.description();
     assert_eq!(description.contains("a test website"), true);
-    assert_eq!(description.contains("nested: a test website"), true);
-    assert_eq!(description.contains("bookmark: bookmark command"), true);
-    assert_eq!(description.contains("t: templated command"), true);
+    assert_eq!(description.contains("|nested: a test website"), true);
+    assert_eq!(description.contains("|bookmark: bookmark command"), true);
+    assert_eq!(description.contains("|t: templated command"), true);
 }
 
 #[test]
