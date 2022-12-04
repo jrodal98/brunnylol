@@ -1,4 +1,3 @@
-
 use crate::command::{
     command::Command, nested_command::NestedCommand, simple_bookmark::SimpleBookmark,
     templated_command::TemplatedCommand,
@@ -524,6 +523,33 @@ impl<'a> AliasAndCommand<'static> {
         }
     }
 
+    fn advent_of_code_repo(alias: &'static str, repo: &str) -> Self {
+        Self {
+            alias,
+            command: Box::new(SimpleBookmark::new(
+                &format!("https://github.com/{}", repo),
+                &format!("Go to {}", repo),
+            )),
+        }
+    }
+
+    fn advent_of_code() -> Self {
+        let alias_and_commands = vec![
+            Self::advent_of_code_repo("j", "jrodal98/advent-of-code-2022"),
+            Self::advent_of_code_repo("l", "gorel/advent-2022"),
+            Self::advent_of_code_repo("e", "mozilla2012/adventOfCode"),
+        ];
+
+        Self {
+            alias: "aoc",
+            command: Box::new(NestedCommand::new(
+                "https://adventofcode.com/2022/",
+                Self::create_alias_to_bookmark_map(alias_and_commands),
+                "Advent of code",
+            )),
+        }
+    }
+
     pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
         let alias_and_commands = vec![
             Self::google(),
@@ -568,6 +594,7 @@ impl<'a> AliasAndCommand<'static> {
             Self::localhost(),
             Self::protonmail(),
             Self::monkeytype(),
+            Self::advent_of_code(),
         ];
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }
