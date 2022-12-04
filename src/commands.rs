@@ -1,7 +1,8 @@
 extern crate maplit;
 
 use crate::command::{
-    command::Command, simple_bookmark::SimpleBookmark, templated_command::TemplatedCommand,
+    command::Command, nested_command::NestedCommand, simple_bookmark::SimpleBookmark,
+    templated_command::TemplatedCommand,
 };
 use std::collections::HashMap;
 
@@ -339,7 +340,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "tr",
             command: Box::new(SimpleBookmark::new(
                 "https://play.typeracer.com/",
-                "Go to brunnylol's help page",
+                "Play typeracer",
             )),
         }
     }
@@ -429,7 +430,39 @@ impl<'a> AliasAndCommand<'static> {
             )),
         }
     }
-    //         // "pi" => Box::new(bookmarks::Pi),
+
+    fn jellyfin() -> Self {
+        Self {
+            alias: "j",
+            command: Box::new(SimpleBookmark::new(
+                "http://192.168.0.104:8096",
+                "Go to jellyfin",
+            )),
+        }
+    }
+
+    fn transmission() -> Self {
+        Self {
+            alias: "t",
+            command: Box::new(SimpleBookmark::new(
+                "http://192.168.0.104:9091",
+                "Go to jellyfin",
+            )),
+        }
+    }
+
+    fn pi() -> Self {
+        let alias_and_commands = vec![Self::jellyfin(), Self::transmission()];
+
+        Self {
+            alias: "pi",
+            command: Box::new(NestedCommand::new(
+                "http://192.168.0.104/",
+                Self::create_alias_to_bookmark_map(alias_and_commands),
+                "Go to raspberry pi pages",
+            )),
+        }
+    }
     //         // "box" => Box::new(bookmarks::Box),
     //         // "pm" => Box::new(bookmarks::ProtonMail),
     //         // "mt" => Box::new(bookmarks::MonkeyType),
@@ -475,6 +508,7 @@ impl<'a> AliasAndCommand<'static> {
             Self::google_photos(),
             Self::minecraft_wiki(),
             Self::stack_overflow(),
+            Self::pi(),
         ];
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }

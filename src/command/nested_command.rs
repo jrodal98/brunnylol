@@ -4,13 +4,13 @@ use crate::command::templated_command::TemplatedCommand;
 
 use super::{command::Command, simple_bookmark::SimpleBookmark};
 
-pub struct NestedCommand {
+pub struct NestedCommand<'a> {
     bookmark: String,
-    commands: HashMap<String, Box<dyn Command>>,
+    commands: HashMap<&'a str, Box<dyn Command>>,
     description: String,
 }
 
-impl Command for NestedCommand {
+impl<'a> Command for NestedCommand<'a> {
     // TODO: iterate over commands to form description
     fn description(&self) -> &str {
         &self.description
@@ -33,10 +33,10 @@ impl Command for NestedCommand {
     }
 }
 
-impl NestedCommand {
+impl<'a> NestedCommand<'a> {
     pub fn new(
         bookmark: &str,
-        commands: HashMap<String, Box<dyn Command>>,
+        commands: HashMap<&'a str, Box<dyn Command>>,
         description: &str,
     ) -> Self {
         Self {
@@ -47,11 +47,11 @@ impl NestedCommand {
     }
 }
 
-fn create_nested_command(should_recurse: bool) -> NestedCommand {
-    let mut commands: HashMap<String, Box<dyn Command>> = HashMap::new();
+fn create_nested_command(should_recurse: bool) -> NestedCommand<'static> {
+    let mut commands: HashMap<&str, Box<dyn Command>> = HashMap::new();
     // a single character should work
     commands.insert(
-        "t".to_string(),
+        "t",
         Box::new(TemplatedCommand::new(
             "www.template.com",
             "www.template.com/{}",
@@ -60,13 +60,13 @@ fn create_nested_command(should_recurse: bool) -> NestedCommand {
     );
     // an entire word should work as well
     commands.insert(
-        "bookmark".to_string(),
+        "bookmark",
         Box::new(SimpleBookmark::new("www.bookmark.com", "bookmark command")),
     );
 
     if should_recurse {
         // arbitrary nesting should be possible
-        commands.insert("nested".to_string(), Box::new(create_nested_command(false)));
+        commands.insert("nested", Box::new(create_nested_command(false)));
     }
 
     NestedCommand::new("www.example.com", commands, "a test website")
