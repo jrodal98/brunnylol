@@ -25,26 +25,6 @@ impl<'a> AliasAndCommand<'static> {
         }
         map
     }
-    pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
-        let alias_and_commands = vec![
-            Self::google(),
-            Self::duckduckgo(),
-            Self::youtube(),
-            Self::bing(),
-            Self::time(),
-            Self::wikipedia(),
-            Self::archwiki(),
-            Self::github(),
-            Self::dictionary(),
-            Self::reddit(),
-            Self::urbandictionary(),
-            Self::genius(),
-            Self::speed(),
-            Self::help(),
-            Self::jrodal(),
-        ];
-        Self::create_alias_to_bookmark_map(alias_and_commands)
-    }
 
     fn google() -> Self {
         Self {
@@ -142,7 +122,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "def",
             command: Box::new(TemplatedCommand::new(
                 "https://www.dictionary.com/",
-                "https://www.dictionary.com/browse/%s?s=t",
+                "https://www.dictionary.com/browse/{}?s=t",
                 "Define a word with dictionary.com",
             )),
         }
@@ -153,7 +133,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "red",
             command: Box::new(TemplatedCommand::new(
                 "https://www.reddit.com/",
-                "https://www.reddit.com/r/%s",
+                "https://www.reddit.com/r/{}",
                 "Go to a subreddit",
             )),
         }
@@ -164,7 +144,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "wut",
             command: Box::new(TemplatedCommand::new(
                 "https://www.urbandictionary.com/",
-                "https://www.urbandictionary.com/define.php?term=%s",
+                "https://www.urbandictionary.com/define.php?term={}",
                 "Searches for a phrase on urban dictionary",
             )),
         }
@@ -175,7 +155,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "gen",
             command: Box::new(TemplatedCommand::new(
                 "https://genius.com/",
-                "https://genius.com/search?q=%s",
+                "https://genius.com/search?q={}",
                 "Search youtube",
             )),
         }
@@ -207,13 +187,99 @@ impl<'a> AliasAndCommand<'static> {
             )),
         }
     }
+
+    fn amazon() -> Self {
+        Self {
+                        alias: "am",
+                        command: Box::new(TemplatedCommand::new(
+            "https://smile.amazon.com/",
+            "https://smile.amazon.com/s?k={}&ref=nb_sb_noss_2",
+        "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing)."
+            )),
+                    }
+    }
+
+    fn leet_x() -> Self {
+        Self {
+            alias: "1337x",
+            command: Box::new(TemplatedCommand::new(
+                "https://1337x.to/",
+                "https://1337x.to/search/{}/1/",
+                "Search 1337x.to",
+            )),
+        }
+    }
+
+    fn facebook() -> Self {
+        Self {
+            alias: "fb",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.facebook.com/",
+                "https://www.facebook.com/search/top?q={}",
+                "Search Facebook",
+            )),
+        }
+    }
+
+    fn instagram() -> Self {
+        Self {
+            alias: "ig",
+            command: Box::new(TemplatedCommand::new(
+                "https://www.instagram.com/",
+                "https://www.instagram.com/{}/",
+                "Search instagram",
+            )),
+        }
+    }
+
+    fn linkedin() -> Self {
+        Self {
+            alias: "li",
+            command: Box::new(TemplatedCommand::new(
+            "https://www.linkedin.com/",
+            "https://www.linkedin.com/search/results/all/?keywords={}&origin=GLOBAL_SEARCH_HEADER",
+                "Search LinkedIn",
+            )),
+        }
+    }
+
+    fn dropbox() -> Self {
+        Self {
+            alias: "db",
+            command: Box::new(SimpleBookmark::new(
+                "https://www.dropbox.com/home",
+                "Go to dropbox",
+            )),
+        }
+    }
+
+    pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
+        let alias_and_commands = vec![
+            Self::google(),
+            Self::duckduckgo(),
+            Self::youtube(),
+            Self::bing(),
+            Self::time(),
+            Self::wikipedia(),
+            Self::archwiki(),
+            Self::github(),
+            Self::dictionary(),
+            Self::reddit(),
+            Self::urbandictionary(),
+            Self::genius(),
+            Self::speed(),
+            Self::help(),
+            Self::jrodal(),
+            Self::amazon(),
+            Self::leet_x(),
+            Self::facebook(),
+            Self::instagram(),
+            Self::dropbox(),
+            Self::linkedin(),
+        ];
+        Self::create_alias_to_bookmark_map(alias_and_commands)
+    }
 }
-//         // "am" => Box::new(bookmarks::Amazon),
-//         // "1337x" => Box::new(bookmarks::LeetX),
-//         // "fb" => Box::new(bookmarks::Facebook),
-//         // "ig" => Box::new(bookmarks::Instagram),
-//         // "li" => Box::new(bookmarks::LinkedIn),
-//         // "db" => Box::new(bookmarks::Dropbox),
 //         // "nf" => Box::new(bookmarks::Netflix),
 //         // "hulu" => Box::new(bookmarks::Hulu),
 //         // "img" => Box::new(bookmarks::GoogleImage),
