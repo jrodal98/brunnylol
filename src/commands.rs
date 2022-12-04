@@ -487,7 +487,7 @@ impl<'a> AliasAndCommand<'static> {
 
     fn hugo(base_url: &str) -> Self {
         Self {
-            alias: "hugo",
+            alias: "h",
             command: Box::new(SimpleBookmark::new(
                 &format!("{}:1313", base_url),
                 "Go to hugo page",
