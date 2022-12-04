@@ -1,4 +1,3 @@
-extern crate maplit;
 
 use crate::command::{
     command::Command, nested_command::NestedCommand, simple_bookmark::SimpleBookmark,
