@@ -17,11 +17,16 @@ pub struct TemplatedCommand {
     bookmark: String,
     template: TemplatedString,
     description: String,
+    encode_query: bool,
 }
 
 impl TemplatedCommand {
     fn process_query(&self, query: &str) -> String {
-        RawStr::new(query).percent_encode().to_string()
+        if self.encode_query {
+            RawStr::new(query).percent_encode().to_string()
+        } else {
+            query.to_string()
+        }
     }
 }
 
@@ -39,48 +44,39 @@ impl Command for TemplatedCommand {
 }
 
 impl TemplatedCommand {
-    pub fn new(bookmark: &str, template: &str, placeholder: &str, description: &str) -> Self {
+    pub fn new(bookmark: &str, template: &str, description: &str) -> Self {
         Self {
             bookmark: bookmark.to_string(),
             template: TemplatedString {
                 template: template.to_string(),
-                placeholder: placeholder.to_string(),
+                placeholder: "{}".to_string(),
             },
             description: description.to_string(),
+            encode_query: true,
         }
+    }
+
+    pub fn with_no_query_encode(mut self) -> Self {
+        self.encode_query = false;
+        self
     }
 }
 
 #[test]
 fn test_description() {
-    let command = TemplatedCommand::new(
-        "www.example.com",
-        "www.example.com/%s",
-        "%s",
-        "a test website",
-    );
+    let command = TemplatedCommand::new("www.example.com", "www.example.com/{}", "a test website");
     assert_eq!(command.description(), "a test website".to_string());
 }
 
 #[test]
 fn test_empty_query_redirect() {
-    let command = TemplatedCommand::new(
-        "www.example.com",
-        "www.example.com/%s",
-        "%s",
-        "a test website",
-    );
+    let command = TemplatedCommand::new("www.example.com", "www.example.com/{}", "a test website");
     assert_eq!(command.get_redirect_url(""), "www.example.com".to_string());
 }
 
 #[test]
 fn test_non_empty_query_redirect() {
-    let command = TemplatedCommand::new(
-        "www.example.com",
-        "www.example.com/%s",
-        "%s",
-        "a test website",
-    );
+    let command = TemplatedCommand::new("www.example.com", "www.example.com/{}", "a test website");
     assert_eq!(
         command.get_redirect_url("hello world"),
         "www.example.com/hello%20world".to_string()
@@ -88,29 +84,20 @@ fn test_non_empty_query_redirect() {
 }
 
 #[test]
-fn test_wacky_placeholder() {
-    let command = TemplatedCommand::new(
-        "www.example.com",
-        "www.example.com/LMAO",
-        "LMAO",
-        "a test website",
-    );
+fn test_no_encode() {
+    let command = TemplatedCommand::new("www.example.com", "www.example.com/{}", "a test website")
+        .with_no_query_encode();
     assert_eq!(
-        command.get_redirect_url("hello world"),
-        "www.example.com/hello%20world".to_string()
+        command.get_redirect_url("hello/world"),
+        "www.example.com/hello/world".to_string()
     );
 }
 
 #[test]
 fn test_wrong_placeholder() {
-    let command = TemplatedCommand::new(
-        "www.example.com",
-        "www.example.com/{}",
-        "%s",
-        "a test website",
-    );
+    let command = TemplatedCommand::new("www.example.com", "www.example.com/%s", "a test website");
     assert_eq!(
         command.get_redirect_url("hello world"),
-        "www.example.com/{}".to_string()
+        "www.example.com/%s".to_string()
     );
 }

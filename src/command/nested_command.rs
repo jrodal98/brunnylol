@@ -54,8 +54,7 @@ fn create_nested_command(should_recurse: bool) -> NestedCommand {
         "t".to_string(),
         Box::new(TemplatedCommand::new(
             "www.template.com",
-            "www.template.com/%s",
-            "%s",
+            "www.template.com/{}",
             "templated command",
         )),
     );

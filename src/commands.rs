@@ -38,8 +38,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "g",
             command: Box::new(TemplatedCommand::new(
                 "https://www.google.com",
-                "https://www.google.com/search?q=%s",
-                "%s",
+                "https://www.google.com/search?q={}",
                 "Search google",
             )),
         }
@@ -50,8 +49,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "d",
             command: Box::new(TemplatedCommand::new(
                 "https://www.duckduckgo.com",
-                "https://duckduckgo.com/?q=%s",
-                "%s",
+                "https://duckduckgo.com/?q={}",
                 "Search duckduckgo",
             )),
         }
@@ -62,8 +60,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "yt",
             command: Box::new(TemplatedCommand::new(
                 "https://www.youtube.com",
-                "https://www.youtube.com/results?search_query=%s",
-                "%s",
+                "https://www.youtube.com/results?search_query={}",
                 "Search youtube",
             )),
         }
@@ -74,8 +71,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "b",
             command: Box::new(TemplatedCommand::new(
                 "https://www.bing.com",
-                "https://www.bing.com/search?q=%s",
-                "%s",
+                "https://www.bing.com/search?q={}",
                 "Search bing",
             )),
         }
@@ -86,8 +82,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "time",
             command: Box::new(TemplatedCommand::new(
                 "https://time.is/",
-                "https://time.is/%s",
-                "%s",
+                "https://time.is/{}",
                 "Get current time data for a city/country",
             )),
         }
@@ -98,8 +93,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "wiki",
             command: Box::new(TemplatedCommand::new(
                 "https://www.wikipedia.org/",
-                "https://en.wikipedia.org/wiki/Special:Search/%s",
-                "%s",
+                "https://en.wikipedia.org/wiki/Special:Search/{}",
                 "Search wikipedia",
             )),
         }
@@ -110,8 +104,7 @@ impl<'a> AliasAndCommand<'static> {
             alias: "aw",
             command: Box::new(TemplatedCommand::new(
                 "https://wiki.archlinux.org/",
-                "https://wiki.archlinux.org/index.php?title=Special%3ASearch&search=%s",
-                "%s",
+                "https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={}",
                 "Search the arch wiki",
             )),
         }
