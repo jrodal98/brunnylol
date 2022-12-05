@@ -9,7 +9,40 @@ pub struct AliasAndCommand<'a> {
     command: Box<dyn Command>,
 }
 
+/// The bl macro is a flexible macro that can be used to define different kinds of AliasAndCommand
+/// objects. AliasAndCommand is an object that holds a command that the user can execute and an alias
+/// that the user can use to reference that command.
+///
+/// The bl macro takes different arguments depending on the type of AliasAndCommand object that it
+/// should create. The first argument is always an alias for the command, which is a string that the
+/// user can use to reference the command.
+///
+/// If the macro is called with three arguments ($alias, $url, $command), it creates an AliasAndCommand
+/// object with a TemplatedCommand inside. TemplatedCommand is a type of command that can be executed
+/// by substituting placeholders in a URL with values specified by the user. The $url and $command
+/// arguments are used to create the TemplatedCommand object.
+///
+/// If the macro is called with four arguments and the string "no_encode" as the fourth argument
+/// ($alias, $url, $command, "no_encode"), it creates an AliasAndCommand object with a TemplatedCommand
+///     inside. The TemplatedCommand is created in the same way as before, but the with_no_query_encode
+///     method is called on the TemplatedCommand before it is used to create the AliasAndCommand
+///     object. This method disables query encoding for the TemplatedCommand, which affects how the URL
+///     is constructed when the command is executed.
+///
+///     If the macro is called with three arguments ($alias, $url, $description), it creates an
+///     AliasAndCommand object with a BookmarkCommand inside. BookmarkCommand is a type of command that
+///     simply navigates to a pre-defined URL when executed. The $url and $description arguments are
+///     used to create the BookmarkCommand object.
+///
+///     If the macro is called with four or more arguments ($alias, $base_url, $description,
+///         $($alias_and_command),*), it creates an AliasAndCommand object with a NestedCommand inside.
+///     NestedCommand is a type of command that holds a map of other AliasAndCommand objects, allowing
+///     the user to execute those commands by referencing their aliases. The $base_url argument is used
+///     to create the NestedCommand, and the other arguments are used to create the map of
+///     AliasAndCommand objects that the NestedCommand contains. The create_alias_to_bookmark_map
+///     method is called on the AliasAndCommand object to create the map from the provided arguments.
 macro_rules! bl {
+    // Create an AliasAndCommand with a TemplatedCommand inside
     ($alias:expr, $url:expr, $command:expr, $description:expr) => {
         AliasAndCommand {
             alias: $alias,
@@ -17,6 +50,7 @@ macro_rules! bl {
         }
     };
 
+    // Create an AliasAndCommand with a TemplatedCommand inside, with query encoding disabled
     ($alias:expr, $url:expr, $command:expr, $description:expr, "no_encode") => {
         AliasAndCommand {
             alias: $alias,
@@ -24,6 +58,7 @@ macro_rules! bl {
         }
     };
 
+    // Create an AliasAndCommand with a BookmarkCommand inside
     ($alias:expr, $url:expr, $description:expr) => {
         AliasAndCommand {
             alias: $alias,
@@ -31,6 +66,7 @@ macro_rules! bl {
         }
     };
 
+    // Create an AliasAndCommand with a NestedCommand inside
     ($alias:expr, $base_url:expr, $description:expr, $($alias_and_command:expr),*) => {
         AliasAndCommand {
             alias: $alias,
