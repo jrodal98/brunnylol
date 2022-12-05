@@ -1,5 +1,5 @@
 use crate::command::{
-    command::Command, nested_command::NestedCommand, simple_bookmark::SimpleBookmark,
+    bookmark_command::BookmarkCommand, command::Command, nested_command::NestedCommand,
     templated_command::TemplatedCommand,
 };
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ macro_rules! bl {
     ($alias:expr, $url:expr, $description:expr) => {
         AliasAndCommand {
             alias: $alias,
-            command: Box::new(SimpleBookmark::new($url, $description)),
+            command: Box::new(BookmarkCommand::new($url, $description)),
         }
     };
 
@@ -383,11 +383,11 @@ fn test_duplicate_map_panics() {
     let aliases_and_commands = vec![
         AliasAndCommand {
             alias: "a",
-            command: Box::new(SimpleBookmark::new("www.example.com", "test website")),
+            command: Box::new(BookmarkCommand::new("www.example.com", "test website")),
         },
         AliasAndCommand {
             alias: "a",
-            command: Box::new(SimpleBookmark::new("www.example2.com", "test2 website")),
+            command: Box::new(BookmarkCommand::new("www.example2.com", "test2 website")),
         },
     ];
     let _ = AliasAndCommand::create_alias_to_bookmark_map(aliases_and_commands);

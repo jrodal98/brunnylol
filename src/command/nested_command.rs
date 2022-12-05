@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::command::templated_command::TemplatedCommand;
 
-use super::{command::Command, simple_bookmark::SimpleBookmark};
+use super::{bookmark_command::BookmarkCommand, command::Command};
 
 pub struct NestedCommand<'a> {
     bookmark: String,
@@ -65,7 +65,7 @@ fn create_nested_command(should_recurse: bool) -> NestedCommand<'static> {
     // an entire word should work as well
     commands.insert(
         "bookmark",
-        Box::new(SimpleBookmark::new("www.bookmark.com", "bookmark command")),
+        Box::new(BookmarkCommand::new("www.bookmark.com", "bookmark command")),
     );
 
     if should_recurse {
