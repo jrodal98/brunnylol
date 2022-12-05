@@ -25,6 +25,19 @@ macro_rules! brunnylol {
     };
 }
 
+macro_rules! brunnylol_nested {
+    ($alias:expr, $base_url:expr, ($($alias_and_command:expr),*), $description:expr) => {
+        AliasAndCommand {
+            alias: $alias,
+            command: Box::new(NestedCommand::new(
+                $base_url,
+                AliasAndCommand::create_alias_to_bookmark_map(vec![$($alias_and_command),*]),
+                $description,
+            )),
+        }
+    };
+}
+
 impl<'a> AliasAndCommand<'static> {
     fn create_alias_to_bookmark_map(
         alias_and_commands: Vec<AliasAndCommand<'static>>,
@@ -397,15 +410,11 @@ impl<'a> AliasAndCommand<'static> {
 
     fn pi() -> Self {
         let base_url = "http://192.168.0.104";
-        let alias_and_commands = vec![Self::jellyfin(base_url), Self::transmission(base_url)];
-
-        Self {
-            alias: "pi",
-            command: Box::new(NestedCommand::new(
-                base_url,
-                Self::create_alias_to_bookmark_map(alias_and_commands),
-                "Go to raspberry pi pages",
-            )),
+        brunnylol_nested! {
+            "pi",
+            base_url,
+            (Self::jellyfin(base_url),Self::transmission(base_url)),
+            "Go to raspberry pi pages"
         }
     }
 
@@ -444,20 +453,16 @@ impl<'a> AliasAndCommand<'static> {
 
     fn localhost() -> Self {
         let base_url = "http://localhost";
-        let alias_and_commands = vec![
-            Self::jellyfin(base_url),
-            Self::transmission(base_url),
-            Self::hugo(base_url),
-            Self::rocket(base_url),
-        ];
-
-        Self {
-            alias: "lh",
-            command: Box::new(NestedCommand::new(
-                base_url,
-                Self::create_alias_to_bookmark_map(alias_and_commands),
-                "Go to raspberry pi pages",
-            )),
+        brunnylol_nested! {
+            "lh",
+            base_url,
+            (
+                Self::jellyfin(base_url),
+                Self::transmission(base_url),
+                Self::hugo(base_url),
+                Self::rocket(base_url)
+            ),
+            "Go to raspberry pi pages"
         }
     }
 
