@@ -17,16 +17,21 @@ macro_rules! brunnylol {
         }
     };
 
+    ($alias:expr, $url:expr, $command:expr, $description:expr, "no_encode") => {
+        AliasAndCommand {
+            alias: $alias,
+            command: Box::new(TemplatedCommand::new($url, $command, $description).with_no_query_encode()),
+        }
+    };
+
     ($alias:expr, $url:expr, $description:expr) => {
         AliasAndCommand {
             alias: $alias,
             command: Box::new(SimpleBookmark::new($url, $description)),
         }
     };
-}
 
-macro_rules! brunnylol_nested {
-    ($alias:expr, $base_url:expr, ($($alias_and_command:expr),*), $description:expr) => {
+    ($alias:expr, $base_url:expr, $description:expr, $($alias_and_command:expr),*) => {
         AliasAndCommand {
             alias: $alias,
             command: Box::new(NestedCommand::new(
@@ -118,16 +123,12 @@ impl<'a> AliasAndCommand<'static> {
     }
 
     fn github() -> Self {
-        Self {
-            alias: "gh",
-            command: Box::new(
-                TemplatedCommand::new(
-                    "https://github.com/jrodal98",
-                    "https://github.com/{}",
-                    "Go to jrodal98's github page or go to another repo (e.g. jrodal98/brunnylol)",
-                )
-                .with_no_query_encode(),
-            ),
+        brunnylol! {
+            "gh",
+            "https://github.com/jrodal98",
+            "https://github.com/{}",
+            "Go to jrodal98's github page or go to another repo (e.g. jrodal98/brunnylol)",
+            "no_encode"
         }
     }
 
@@ -410,11 +411,12 @@ impl<'a> AliasAndCommand<'static> {
 
     fn pi() -> Self {
         let base_url = "http://192.168.0.104";
-        brunnylol_nested! {
+        brunnylol! {
             "pi",
             base_url,
-            (Self::jellyfin(base_url),Self::transmission(base_url)),
-            "Go to raspberry pi pages"
+            "Go to raspberry pi pages",
+            Self::jellyfin(base_url),
+            Self::transmission(base_url)
         }
     }
 
@@ -453,16 +455,14 @@ impl<'a> AliasAndCommand<'static> {
 
     fn localhost() -> Self {
         let base_url = "http://localhost";
-        brunnylol_nested! {
+        brunnylol! {
             "lh",
             base_url,
-            (
-                Self::jellyfin(base_url),
-                Self::transmission(base_url),
-                Self::hugo(base_url),
-                Self::rocket(base_url)
-            ),
-            "Go to raspberry pi pages"
+            "Go to raspberry pi pages",
+            Self::jellyfin(base_url),
+            Self::transmission(base_url),
+            Self::hugo(base_url),
+            Self::rocket(base_url)
         }
     }
 
