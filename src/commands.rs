@@ -4,6 +4,8 @@ use crate::command::{
 };
 use std::collections::HashMap;
 
+/// AliasAndCommand is an object that holds a command that the user can execute and an alias
+/// that the user can use to reference that command.
 pub struct AliasAndCommand<'a> {
     alias: &'a str,
     command: Box<dyn Command>,

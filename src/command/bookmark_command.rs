@@ -1,5 +1,6 @@
 use super::command::Command;
 
+/// A struct that represents a command that navigates to a pre-defined URL when executed.
 pub struct BookmarkCommand {
     bookmark: String,
     description: String,
