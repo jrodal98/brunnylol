@@ -9,6 +9,22 @@ pub struct AliasAndCommand<'a> {
     command: Box<dyn Command>,
 }
 
+macro_rules! brunnylol {
+    ($alias:expr, $url:expr, $command:expr, $description:expr) => {
+        AliasAndCommand {
+            alias: $alias,
+            command: Box::new(TemplatedCommand::new($url, $command, $description)),
+        }
+    };
+
+    ($alias:expr, $url:expr, $description:expr) => {
+        AliasAndCommand {
+            alias: $alias,
+            command: Box::new(SimpleBookmark::new($url, $description)),
+        }
+    };
+}
+
 impl<'a> AliasAndCommand<'static> {
     fn create_alias_to_bookmark_map(
         alias_and_commands: Vec<AliasAndCommand<'static>>,
@@ -26,79 +42,65 @@ impl<'a> AliasAndCommand<'static> {
     }
 
     fn google() -> Self {
-        Self {
-            alias: "g",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.google.com",
-                "https://www.google.com/search?q={}",
-                "Search google",
-            )),
+        brunnylol! {
+            "g",
+            "https://www.google.com",
+            "https://www.google.com/search?q={}",
+            "Search google"
         }
     }
 
     fn duckduckgo() -> Self {
-        Self {
-            alias: "d",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.duckduckgo.com",
-                "https://duckduckgo.com/?q={}",
-                "Search duckduckgo",
-            )),
+        brunnylol! {
+            "d",
+            "https://www.duckduckgo.com",
+            "https://duckduckgo.com/?q={}",
+            "Search duckduckgo"
         }
     }
 
     fn youtube() -> Self {
-        Self {
-            alias: "yt",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.youtube.com",
-                "https://www.youtube.com/results?search_query={}",
-                "Search youtube",
-            )),
+        brunnylol! {
+            "yt",
+            "https://www.youtube.com",
+            "https://www.youtube.com/results?search_query={}",
+            "Search youtube"
         }
     }
 
     fn bing() -> Self {
-        Self {
-            alias: "b",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.bing.com",
-                "https://www.bing.com/search?q={}",
-                "Search bing",
-            )),
+        brunnylol! {
+            "b",
+            "https://www.bing.com",
+            "https://www.bing.com/search?q={}",
+            "Search bing"
         }
     }
 
     fn time() -> Self {
-        Self {
-            alias: "time",
-            command: Box::new(TemplatedCommand::new(
-                "https://time.is/",
-                "https://time.is/{}",
-                "Get current time data for a city/country",
-            )),
+        brunnylol! {
+            "time",
+            "https://time.is/",
+            "https://time.is/{}",
+            "Get current time data for a city/country"
         }
     }
 
     fn wikipedia() -> Self {
-        Self {
-            alias: "wiki",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.wikipedia.org/",
-                "https://en.wikipedia.org/wiki/Special:Search/{}",
-                "Search wikipedia",
-            )),
+        brunnylol! {
+            "wiki",
+            "https://www.wikipedia.org/",
+            "https://en.wikipedia.org/wiki/Special:Search/{}",
+            "Search wikipedia"
         }
     }
 
     fn archwiki() -> Self {
-        Self {
-            alias: "aw",
-            command: Box::new(TemplatedCommand::new(
-                "https://wiki.archlinux.org/",
-                "https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={}",
-                "Search the arch wiki",
-            )),
+        brunnylol! {
+            "aw",
+            "https://wiki.archlinux.org/",
+            "https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={}",
+            "Search the arch wiki"
         }
     }
 
@@ -117,335 +119,279 @@ impl<'a> AliasAndCommand<'static> {
     }
 
     fn dictionary() -> Self {
-        Self {
-            alias: "def",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.dictionary.com/",
-                "https://www.dictionary.com/browse/{}?s=t",
-                "Define a word with dictionary.com",
-            )),
+        brunnylol! {
+            "def",
+            "https://www.dictionary.com/",
+            "https://www.dictionary.com/browse/{}?s=t",
+            "Define a word with dictionary.com"
         }
     }
 
     fn reddit() -> Self {
-        Self {
-            alias: "red",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.reddit.com/",
-                "https://www.reddit.com/r/{}",
-                "Go to a subreddit",
-            )),
+        brunnylol! {
+            "red",
+            "https://www.reddit.com/",
+            "https://www.reddit.com/r/{}",
+            "Go to a subreddit"
         }
     }
 
     fn urbandictionary() -> Self {
-        Self {
-            alias: "wut",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.urbandictionary.com/",
-                "https://www.urbandictionary.com/define.php?term={}",
-                "Searches for a phrase on urban dictionary",
-            )),
+        brunnylol! {
+            "wut",
+            "https://www.urbandictionary.com/",
+            "https://www.urbandictionary.com/define.php?term={}",
+            "Searches for a phrase on urban dictionary"
         }
     }
 
     fn genius() -> Self {
-        Self {
-            alias: "gen",
-            command: Box::new(TemplatedCommand::new(
-                "https://genius.com/",
-                "https://genius.com/search?q={}",
-                "Search youtube",
-            )),
+        brunnylol! {
+            "gen",
+            "https://genius.com/",
+            "https://genius.com/search?q={}",
+            "Search youtube"
         }
     }
 
     fn speed() -> Self {
-        Self {
-            alias: "speed",
-            command: Box::new(SimpleBookmark::new(
-                "https://www.speedtest.net/",
-                "Run an internet speedtest",
-            )),
+        brunnylol! {
+            "speed",
+            "https://www.speedtest.net/",
+            "Run an internet speedtest"
         }
     }
 
     fn help() -> Self {
-        Self {
-            alias: "help",
-            command: Box::new(SimpleBookmark::new("/help", "Go to brunnylol's help page")),
+        brunnylol! {
+            "help",
+            "/help",
+            "Go to brunnylol's help page"
         }
     }
 
     fn jrodal() -> Self {
-        Self {
-            alias: "jr",
-            command: Box::new(SimpleBookmark::new(
-                "https://jrodal.com/",
-                "Go to jrodal.com",
-            )),
+        brunnylol! {
+            "jr",
+            "https://jrodal.com/",
+            "Go to jrodal.com"
         }
     }
 
     fn amazon() -> Self {
-        Self {
-                        alias: "am",
-                        command: Box::new(TemplatedCommand::new(
+        brunnylol! {
+            "am",
             "https://smile.amazon.com/",
             "https://smile.amazon.com/s?k={}&ref=nb_sb_noss_2",
-        "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing)."
-            )),
-                    }
+            "Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing)."
+        }
     }
 
     fn leet_x() -> Self {
-        Self {
-            alias: "1337x",
-            command: Box::new(TemplatedCommand::new(
-                "https://1337x.to/",
-                "https://1337x.to/search/{}/1/",
-                "Search 1337x.to",
-            )),
+        brunnylol! {
+            "1337x",
+            "https://1337x.to/",
+            "https://1337x.to/search/{}/1/",
+            "Search 1337x.to"
         }
     }
 
     fn facebook() -> Self {
-        Self {
-            alias: "fb",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.facebook.com/",
-                "https://www.facebook.com/search/top?q={}",
-                "Search Facebook",
-            )),
+        brunnylol! {
+            "fb",
+            "https://www.facebook.com/",
+            "https://www.facebook.com/search/top?q={}",
+            "Search Facebook"
         }
     }
 
     fn instagram() -> Self {
-        Self {
-            alias: "ig",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.instagram.com/",
-                "https://www.instagram.com/{}/",
-                "Search instagram",
-            )),
+        brunnylol! {
+            "ig",
+            "https://www.instagram.com/",
+            "https://www.instagram.com/{}/",
+            "Search instagram"
         }
     }
 
     fn linkedin() -> Self {
-        Self {
-            alias: "li",
-            command: Box::new(TemplatedCommand::new(
+        brunnylol! {
+            "li",
             "https://www.linkedin.com/",
             "https://www.linkedin.com/search/results/all/?keywords={}&origin=GLOBAL_SEARCH_HEADER",
-                "Search LinkedIn",
-            )),
+            "Search LinkedIn"
         }
     }
 
     fn dropbox() -> Self {
-        Self {
-            alias: "db",
-            command: Box::new(SimpleBookmark::new(
-                "https://www.dropbox.com/home",
-                "Go to dropbox",
-            )),
+        brunnylol! {
+            "db",
+            "https://www.dropbox.com/home",
+            "Go to dropbox"
         }
     }
 
     fn netflix() -> Self {
-        Self {
-            alias: "nf",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.netflix.com/",
-                "https://www.netflix.com/search?q={}",
-                "Search Netflix",
-            )),
+        brunnylol! {
+            "nf",
+            "https://www.netflix.com/",
+            "https://www.netflix.com/search?q={}",
+            "Search Netflix"
         }
     }
 
     fn hulu() -> Self {
-        Self {
-            alias: "hulu",
-            command: Box::new(SimpleBookmark::new("https://www.hulu.com/", "Go to hulu")),
+        brunnylol! {
+            "hulu",
+            "https://www.hulu.com/",
+            "Go to hulu"
         }
     }
 
     fn google_image() -> Self {
-        Self {
-            alias: "img",
-            command: Box::new(TemplatedCommand::new(
-                "https://images.google.com/",
-                "https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={}",
-                "Search google images",
-            )),
+        brunnylol! {
+            "img",
+            "https://images.google.com/",
+            "https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={}",
+            "Search google images"
         }
     }
 
     fn google_calendar() -> Self {
-        Self {
-            alias: "cal",
-            command: Box::new(TemplatedCommand::new(
-                "https://calendar.google.com/",
-                "https://calendar.google.com/calendar/b/{}/r",
-                "Go to google calendar - ALIAS X to go to calendar for google account X.",
-            )),
+        brunnylol! {
+            "cal",
+            "https://calendar.google.com/",
+            "https://calendar.google.com/calendar/b/{}/r",
+            "Go to google calendar - ALIAS X to go to calendar for google account X."
         }
     }
 
     fn about() -> Self {
-        Self {
-            alias: "bl",
-            command: Box::new(SimpleBookmark::new("/", "Go to brunnylol's home page")),
+        brunnylol! {
+            "bl",
+            "/",
+            "Go to brunnylol's home page"
         }
     }
 
     fn brunnylol_dev() -> Self {
-        Self {
-            alias: "dbl",
-            command: Box::new(TemplatedCommand::new(
-                "http://localhost:8000/",
-                "http://localhost:8000/search?q={}",
-                "Forward the query to your local version of brunnylol (port 8000)",
-            )),
+        brunnylol! {
+            "dbl",
+            "http://localhost:8000/",
+            "http://localhost:8000/search?q={}",
+            "Forward the query to your local version of brunnylol (port 8000)"
         }
     }
 
     fn ebay() -> Self {
-        Self {
-            alias: "eb",
-            command: Box::new(TemplatedCommand::new(
+        brunnylol! {
+            "eb",
             "https://www.ebay.com/",
             "https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={}&_sacat=0",
-                        "Search ebay",
-            )
-        ),
+            "Search ebay"
         }
     }
 
     fn gmail() -> Self {
-        Self {
-            alias: "gm",
-            command: Box::new(TemplatedCommand::new(
-                "https://mail.google.com/",
-                "https://mail.google.com/mail/u/{}/",
-                "Go to gmail - ALIAS X to go to mail for google account X.",
-            )),
+        brunnylol! {
+            "gm",
+            "https://mail.google.com/",
+            "https://mail.google.com/mail/u/{}/",
+            "Go to gmail - ALIAS X to go to mail for google account X."
         }
     }
 
     fn type_racer() -> Self {
-        Self {
-            alias: "tr",
-            command: Box::new(SimpleBookmark::new(
-                "https://play.typeracer.com/",
-                "Play typeracer",
-            )),
+        brunnylol! {
+            "tr",
+            "https://play.typeracer.com/",
+            "Play typeracer"
         }
     }
 
     fn google_drive() -> Self {
-        Self {
-            alias: "gd",
-            command: Box::new(TemplatedCommand::new(
-                "https://drive.google.com/",
-                "https://drive.google.com/drive/u/{}/my-drive",
-                "Go to google drive - ALIAS X to go to drive for google account X.",
-            )),
+        brunnylol! {
+            "gd",
+            "https://drive.google.com/",
+            "https://drive.google.com/drive/u/{}/my-drive",
+            "Go to google drive - ALIAS X to go to drive for google account X."
         }
     }
 
     fn whatsapp() -> Self {
-        Self {
-            alias: "wap",
-            command: Box::new(SimpleBookmark::new(
-                "https://web.whatsapp.com/",
-                "Go to whatsapp web messenger",
-            )),
+        brunnylol! {
+            "wap",
+            "https://web.whatsapp.com/",
+            "Go to whatsapp web messenger"
         }
     }
 
     fn android_messages() -> Self {
-        Self {
-            alias: "ame",
-            command: Box::new(SimpleBookmark::new(
-                "https://messages.google.com/",
-                "Go to android messages web client",
-            )),
+        brunnylol! {
+            "ame",
+            "https://messages.google.com/",
+            "Go to android messages web client"
         }
     }
 
     fn know_your_meme() -> Self {
-        Self {
-            alias: "meme",
-            command: Box::new(TemplatedCommand::new(
-                "https://knowyourmeme.com",
-                "https://knowyourmeme.com/search?q={}",
-                "Search the 'know your meme' database",
-            )),
+        brunnylol! {
+            "meme",
+            "https://knowyourmeme.com",
+            "https://knowyourmeme.com/search?q={}",
+            "Search the 'know your meme' database"
         }
     }
 
     fn google_maps() -> Self {
-        Self {
-            alias: "gmap",
-            command: Box::new(TemplatedCommand::new(
-                "https://www.google.com/maps",
-                "https://www.google.com/maps/search/{}",
-                "Search Google maps",
-            )),
+        brunnylol! {
+            "gmap",
+            "https://www.google.com/maps",
+            "https://www.google.com/maps/search/{}",
+            "Search Google maps"
         }
     }
 
     fn google_photos() -> Self {
-        Self {
-            alias: "gp",
-            command: Box::new(TemplatedCommand::new(
-                "https://photos.google.com/",
-                "https://photos.google.com/u/{}/",
-                "Go to google photos - ALIAS X to go to photos for google account X.",
-            )),
+        brunnylol! {
+            "gp",
+            "https://photos.google.com/",
+            "https://photos.google.com/u/{}/",
+            "Go to google photos - ALIAS X to go to photos for google account X."
         }
     }
 
     fn minecraft_wiki() -> Self {
-        Self {
-            alias: "mc",
-            command: Box::new(TemplatedCommand::new(
-                "https://minecraft.gamepedia.com/",
-                "https://minecraft.gamepedia.com/index.php?search={}&title=Special%3ASearch&go=Go",
-                "Search minecraft.gamepedia.com",
-            )),
+        brunnylol! {
+            "mc",
+            "https://minecraft.gamepedia.com/",
+            "https://minecraft.gamepedia.com/index.php?search={}&title=Special%3ASearch&go=Go",
+            "Search minecraft.gamepedia.com"
         }
     }
 
     fn stack_overflow() -> Self {
-        Self {
-            alias: "so",
-            command: Box::new(TemplatedCommand::new(
-                "https://stackoverflow.com",
-                "https://stackoverflow.com/search?q={}",
-                "Search questions on stackoverflow",
-            )),
+        brunnylol! {
+            "so",
+            "https://stackoverflow.com",
+            "https://stackoverflow.com/search?q={}",
+            "Search questions on stackoverflow"
         }
     }
 
     fn jellyfin(base_url: &str) -> Self {
-        Self {
-            alias: "j",
-            command: Box::new(SimpleBookmark::new(
-                &format!("{}:8096", base_url),
-                "Go to jellyfin",
-            )),
+        brunnylol! {
+            "j",
+            &format!("{}:8096", base_url),
+            "Go to jellyfin"
         }
     }
 
     fn transmission(base_url: &str) -> Self {
-        Self {
-            alias: "t",
-            command: Box::new(SimpleBookmark::new(
-                &format!("{}:9091", base_url),
-                "Go to transmission",
-            )),
+        brunnylol! {
+            "t",
+            &format!("{}:9091", base_url),
+            "Go to transmission"
         }
     }
 
@@ -464,43 +410,35 @@ impl<'a> AliasAndCommand<'static> {
     }
 
     fn protonmail() -> Self {
-        Self {
-            alias: "pm",
-            command: Box::new(TemplatedCommand::new(
-                "https://beta.protonmail.com",
-                "https://beta.protonmail.com/u/{}/",
-                "Go to Protonmail - ALIAS X to go to mail for protonmail account X.",
-            )),
+        brunnylol! {
+            "pm",
+            "https://beta.protonmail.com",
+            "https://beta.protonmail.com/u/{}/",
+            "Go to Protonmail - ALIAS X to go to mail for protonmail account X."
         }
     }
 
     fn monkeytype() -> Self {
-        Self {
-            alias: "mt",
-            command: Box::new(SimpleBookmark::new(
-                "https://monkeytype.com",
-                "Go to monkeytype, a minimalistic typing test",
-            )),
+        brunnylol! {
+            "mt",
+            "https://monkeytype.com",
+            "Go to monkeytype, a minimalistic typing test"
         }
     }
 
     fn hugo(base_url: &str) -> Self {
-        Self {
-            alias: "h",
-            command: Box::new(SimpleBookmark::new(
-                &format!("{}:1313", base_url),
-                "Go to hugo page",
-            )),
+        brunnylol! {
+            "h",
+            &format!("{}:1313", base_url),
+            "Go to hugo page"
         }
     }
 
     fn rocket(base_url: &str) -> Self {
-        Self {
-            alias: "r",
-            command: Box::new(SimpleBookmark::new(
-                &format!("{}:8000", base_url),
-                "Go to rocket",
-            )),
+        brunnylol! {
+            "r",
+            &format!("{}:8000", base_url),
+            "Go to rocket"
         }
     }
 
@@ -524,12 +462,10 @@ impl<'a> AliasAndCommand<'static> {
     }
 
     fn advent_of_code_repo(alias: &'static str, repo: &str) -> Self {
-        Self {
+        brunnylol! {
             alias,
-            command: Box::new(SimpleBookmark::new(
-                &format!("https://github.com/{}", repo),
-                &format!("Go to {}", repo),
-            )),
+            &format!("https://github.com/{}", repo),
+            &format!("Go to {}", repo)
         }
     }
 
