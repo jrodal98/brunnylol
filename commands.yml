@@ -188,3 +188,39 @@
   command: https://github.com/{}
   description: Go to jrodal98's github page or go to another repo (e.g. jrodal98/brunnylol)
   encode: false
+
+- alias: aoc
+  url: https://adventofcode.com/2022/
+  description: Advent of code
+  nested:
+    - alias: j
+      url: https://github.com/jrodal98/advent-of-code-2022
+      description: jrodal98 AOC solutions
+    - alias: l
+      url: https://github.com/gorel/advent-2022
+      description: gorel AOC solutions
+    - alias: e
+      url: https://github.com/mozilla2012/adventOfCode
+      description: mozilla2012 AOC solutions
+
+- alias: pi
+  url: http://192.168.0.104
+  description: Go to raspberry pi pages
+  nested:
+    - alias: j
+      url: http://192.168.0.104:8096
+      description: Jellyfin
+    - alias: t
+      url: http://192.168.0.104:9091
+      description: Transmission
+
+- alias: lh
+  url: http://localhost
+  description: Go to local pages
+  nested:
+    - alias: h
+      url: http://localhost:1313
+      description: Hugo
+    - alias: r
+      url: http://localhost:8000
+      description: Rocket
