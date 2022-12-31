@@ -409,24 +409,29 @@ impl<'a> AliasAndCommand<'static> {
     }
 }
 
-#[test]
-fn test_valid_map() {
-    // ensure that the map can be constructed
-    let _ = AliasAndCommand::get_alias_to_bookmark_map();
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-#[test]
-#[should_panic(expected = "Duplicate alias: a")]
-fn test_duplicate_map_panics() {
-    let aliases_and_commands = vec![
-        AliasAndCommand {
-            alias: "a",
-            command: Box::new(BookmarkCommand::new("www.example.com", "test website")),
-        },
-        AliasAndCommand {
-            alias: "a",
-            command: Box::new(BookmarkCommand::new("www.example2.com", "test2 website")),
-        },
-    ];
-    let _ = AliasAndCommand::create_alias_to_bookmark_map(aliases_and_commands);
+    #[test]
+    fn test_valid_map() {
+        // ensure that the map can be constructed
+        let _ = AliasAndCommand::get_alias_to_bookmark_map();
+    }
+
+    #[test]
+    #[should_panic(expected = "Duplicate alias: a")]
+    fn test_duplicate_map_panics() {
+        let aliases_and_commands = vec![
+            AliasAndCommand {
+                alias: "a",
+                command: Box::new(BookmarkCommand::new("www.example.com", "test website")),
+            },
+            AliasAndCommand {
+                alias: "a",
+                command: Box::new(BookmarkCommand::new("www.example2.com", "test2 website")),
+            },
+        ];
+        let _ = AliasAndCommand::create_alias_to_bookmark_map(aliases_and_commands);
+    }
 }
