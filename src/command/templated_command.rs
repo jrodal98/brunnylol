@@ -1,6 +1,6 @@
 use rocket::http::RawStr;
 
-use super::command::Command;
+use super::Command;
 
 struct TemplatedString {
     template: String,

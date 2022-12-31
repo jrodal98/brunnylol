@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::command::Command;
+use super::Command;
 
 pub struct NestedCommand<'a> {
     bookmark: String,

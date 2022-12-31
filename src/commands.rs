@@ -1,6 +1,6 @@
 use crate::command::{
-    bookmark_command::BookmarkCommand, command::Command, nested_command::NestedCommand,
-    templated_command::TemplatedCommand,
+    bookmark_command::BookmarkCommand, nested_command::NestedCommand,
+    templated_command::TemplatedCommand, Command,
 };
 use std::collections::HashMap;
 

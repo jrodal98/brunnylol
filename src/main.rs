@@ -2,7 +2,7 @@
 extern crate rocket;
 mod command;
 pub mod commands;
-use command::command::Command;
+use command::Command;
 use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
