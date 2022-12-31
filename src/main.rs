@@ -2,6 +2,7 @@
 extern crate rocket;
 mod command;
 pub mod commands;
+pub mod yml_settings;
 use command::Command;
 use rocket::response::Redirect;
 use rocket::State;
