@@ -32,7 +32,7 @@ fn index() -> Template {
 fn redirect(
     q: String,
     default: Option<String>,
-    alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn Command>>>,
+    alias_to_bookmark_map: &State<HashMap<String, Box<dyn Command>>>,
 ) -> Redirect {
     let mut splitted = q.splitn(2, " ");
     let bookmark_alias = splitted.next().unwrap();
