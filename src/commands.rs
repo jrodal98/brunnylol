@@ -84,9 +84,9 @@ macro_rules! bl {
     };
 }
 
-impl From<&YmlSettings> for AliasAndCommand {
-    fn from(value: &YmlSettings) -> Self {
-        let command_box = match (&value.command, &value.encode, &value.nested) {
+impl From<YmlSettings> for AliasAndCommand {
+    fn from(value: YmlSettings) -> Self {
+        let command_box = match (value.command, value.encode, value.nested) {
             (None, None, None) => {
                 Box::new(BookmarkCommand::new(&value.url, &value.description)) as Box<dyn Command>
             }
@@ -100,7 +100,8 @@ impl From<&YmlSettings> for AliasAndCommand {
             }
             // valid
             (None, None, Some(nested)) => {
-                let alias_and_commands = nested.iter().map(|settings| settings.into()).collect();
+                let alias_and_commands =
+                    nested.into_iter().map(|settings| settings.into()).collect();
                 let commands = AliasAndCommand::create_alias_to_bookmark_map(alias_and_commands);
                 Box::new(NestedCommand::new(&value.url, commands, &value.description))
             }
