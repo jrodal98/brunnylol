@@ -1,6 +1,9 @@
-use crate::command::{
-    bookmark_command::BookmarkCommand, nested_command::NestedCommand,
-    templated_command::TemplatedCommand, Command,
+use crate::{
+    command::{
+        bookmark_command::BookmarkCommand, nested_command::NestedCommand,
+        templated_command::TemplatedCommand, Command,
+    },
+    yml_settings::YmlSettings,
 };
 use std::collections::HashMap;
 
@@ -81,10 +84,39 @@ macro_rules! bl {
     };
 }
 
-impl<'a> AliasAndCommand<'static> {
+impl<'a> From<&'static YmlSettings> for AliasAndCommand<'static> {
+    fn from(value: &'static YmlSettings) -> Self {
+        let command_box = match (&value.command, &value.encode, &value.nested) {
+            (None, None, None) => {
+                Box::new(BookmarkCommand::new(&value.url, &value.description)) as Box<dyn Command>
+            }
+            (Some(command), maybe_encode, None) => {
+                let tc = TemplatedCommand::new(&value.url, &command, &value.description);
+                Box::new(if !maybe_encode.unwrap_or(true) {
+                    tc.with_no_query_encode()
+                } else {
+                    tc
+                })
+            }
+            // valid
+            (None, None, Some(nested)) => {
+                let alias_and_commands = nested.iter().map(|settings| settings.into()).collect();
+                let commands = AliasAndCommand::create_alias_to_bookmark_map(alias_and_commands);
+                Box::new(NestedCommand::new(&value.url, commands, &value.description))
+            }
+            _ => panic!("Invalid yaml configuration"),
+        };
+        Self {
+            alias: &value.alias,
+            command: command_box,
+        }
+    }
+}
+
+impl<'a> AliasAndCommand<'a> {
     fn create_alias_to_bookmark_map(
-        alias_and_commands: Vec<AliasAndCommand<'static>>,
-    ) -> HashMap<&'static str, Box<dyn Command>> {
+        alias_and_commands: Vec<AliasAndCommand<'a>>,
+    ) -> HashMap<&'a str, Box<dyn Command>> {
         let mut map = HashMap::new();
         for alias_and_command in alias_and_commands.into_iter() {
             if map
@@ -96,7 +128,8 @@ impl<'a> AliasAndCommand<'static> {
         }
         map
     }
-
+}
+impl<'a> AliasAndCommand<'static> {
     pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
         let alias_and_commands = vec![
             bl! {
