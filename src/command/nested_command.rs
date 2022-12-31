@@ -2,13 +2,13 @@ use std::collections::HashMap;
 
 use super::Command;
 
-pub struct NestedCommand<'a> {
+pub struct NestedCommand {
     bookmark: String,
-    commands: HashMap<&'a str, Box<dyn Command>>,
+    commands: HashMap<String, Box<dyn Command>>,
     description: String,
 }
 
-impl<'a> Command for NestedCommand<'a> {
+impl Command for NestedCommand {
     fn description(&self) -> String {
         let mut description = self.description.clone();
         for (alias, command) in self.commands.iter() {
@@ -34,10 +34,10 @@ impl<'a> Command for NestedCommand<'a> {
     }
 }
 
-impl<'a> NestedCommand<'a> {
+impl NestedCommand {
     pub fn new(
         bookmark: &str,
-        commands: HashMap<&'a str, Box<dyn Command>>,
+        commands: HashMap<String, Box<dyn Command>>,
         description: &str,
     ) -> Self {
         Self {
@@ -55,11 +55,11 @@ mod tests {
     use super::*;
 
     #[allow(dead_code)]
-    fn create_nested_command(should_recurse: bool) -> NestedCommand<'static> {
-        let mut commands: HashMap<&str, Box<dyn Command>> = HashMap::new();
+    fn create_nested_command(should_recurse: bool) -> NestedCommand {
+        let mut commands: HashMap<String, Box<dyn Command>> = HashMap::new();
         // a single character should work
         commands.insert(
-            "t",
+            "t".to_string(),
             Box::new(TemplatedCommand::new(
                 "www.template.com",
                 "www.template.com/{}",
@@ -68,13 +68,13 @@ mod tests {
         );
         // an entire word should work as well
         commands.insert(
-            "bookmark",
+            "bookmark".to_string(),
             Box::new(BookmarkCommand::new("www.bookmark.com", "bookmark command")),
         );
 
         if should_recurse {
             // arbitrary nesting should be possible
-            commands.insert("nested", Box::new(create_nested_command(false)));
+            commands.insert("nested".to_string(), Box::new(create_nested_command(false)));
         }
 
         NestedCommand::new("www.example.com", commands, "a test website")

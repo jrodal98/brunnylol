@@ -9,8 +9,8 @@ use std::collections::HashMap;
 
 /// AliasAndCommand is an object that holds a command that the user can execute and an alias
 /// that the user can use to reference that command.
-pub struct AliasAndCommand<'a> {
-    alias: &'a str,
+pub struct AliasAndCommand {
+    alias: String,
     command: Box<dyn Command>,
 }
 
@@ -50,7 +50,7 @@ macro_rules! bl {
     // Create an AliasAndCommand with a TemplatedCommand inside
     ($alias:expr, $url:expr, $command:expr, $description:expr) => {
         AliasAndCommand {
-            alias: $alias,
+            alias: $alias.to_string(),
             command: Box::new(TemplatedCommand::new($url, $command, $description)),
         }
     };
@@ -58,7 +58,7 @@ macro_rules! bl {
     // Create an AliasAndCommand with a TemplatedCommand inside, with query encoding disabled
     ($alias:expr, $url:expr, $command:expr, $description:expr, "no_encode") => {
         AliasAndCommand {
-            alias: $alias,
+            alias: $alias.to_string(),
             command: Box::new(TemplatedCommand::new($url, $command, $description).with_no_query_encode()),
         }
     };
@@ -66,7 +66,7 @@ macro_rules! bl {
     // Create an AliasAndCommand with a BookmarkCommand inside
     ($alias:expr, $url:expr, $description:expr) => {
         AliasAndCommand {
-            alias: $alias,
+            alias: $alias.to_string(),
             command: Box::new(BookmarkCommand::new($url, $description)),
         }
     };
@@ -74,7 +74,7 @@ macro_rules! bl {
     // Create an AliasAndCommand with a NestedCommand inside
     ($alias:expr, $base_url:expr, $description:expr, $($alias_and_command:expr),*) => {
         AliasAndCommand {
-            alias: $alias,
+            alias: $alias.to_string(),
             command: Box::new(NestedCommand::new(
                 $base_url,
                 AliasAndCommand::create_alias_to_bookmark_map(vec![$($alias_and_command),*]),
@@ -84,8 +84,8 @@ macro_rules! bl {
     };
 }
 
-impl<'a> From<&'static YmlSettings> for AliasAndCommand<'static> {
-    fn from(value: &'static YmlSettings) -> Self {
+impl From<&YmlSettings> for AliasAndCommand {
+    fn from(value: &YmlSettings) -> Self {
         let command_box = match (&value.command, &value.encode, &value.nested) {
             (None, None, None) => {
                 Box::new(BookmarkCommand::new(&value.url, &value.description)) as Box<dyn Command>
@@ -107,20 +107,20 @@ impl<'a> From<&'static YmlSettings> for AliasAndCommand<'static> {
             _ => panic!("Invalid yaml configuration"),
         };
         Self {
-            alias: &value.alias,
+            alias: value.alias.clone(),
             command: command_box,
         }
     }
 }
 
-impl<'a> AliasAndCommand<'a> {
+impl AliasAndCommand {
     fn create_alias_to_bookmark_map(
-        alias_and_commands: Vec<AliasAndCommand<'a>>,
-    ) -> HashMap<&'a str, Box<dyn Command>> {
+        alias_and_commands: Vec<AliasAndCommand>,
+    ) -> HashMap<String, Box<dyn Command>> {
         let mut map = HashMap::new();
         for alias_and_command in alias_and_commands.into_iter() {
             if map
-                .insert(alias_and_command.alias, alias_and_command.command)
+                .insert(alias_and_command.alias.clone(), alias_and_command.command)
                 .is_some()
             {
                 panic!("Duplicate alias: {}", alias_and_command.alias);
@@ -128,9 +128,8 @@ impl<'a> AliasAndCommand<'a> {
         }
         map
     }
-}
-impl<'a> AliasAndCommand<'static> {
-    pub fn get_alias_to_bookmark_map() -> HashMap<&'static str, Box<dyn Command>> {
+
+    pub fn get_alias_to_bookmark_map() -> HashMap<String, Box<dyn Command>> {
         let alias_and_commands = vec![
             bl! {
                 "g",
@@ -457,11 +456,11 @@ mod tests {
     fn test_duplicate_map_panics() {
         let aliases_and_commands = vec![
             AliasAndCommand {
-                alias: "a",
+                alias: "a".to_string(),
                 command: Box::new(BookmarkCommand::new("www.example.com", "test website")),
             },
             AliasAndCommand {
-                alias: "a",
+                alias: "a".to_string(),
                 command: Box::new(BookmarkCommand::new("www.example2.com", "test2 website")),
             },
         ];

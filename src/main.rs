@@ -12,11 +12,11 @@ use std::collections::HashMap;
 const DEFAULT_ALIAS: &str = "g";
 
 #[get("/help")]
-fn help(alias_to_bookmark_map: &State<HashMap<&'static str, Box<dyn Command>>>) -> Template {
+fn help(alias_to_bookmark_map: &State<HashMap<String, Box<dyn Command>>>) -> Template {
     let mut context = HashMap::new();
-    let alias_to_description: HashMap<&str, String> = alias_to_bookmark_map
+    let alias_to_description: HashMap<&String, String> = alias_to_bookmark_map
         .iter()
-        .map(|(alias, bm)| (*alias, bm.description()))
+        .map(|(alias, bm)| (alias, bm.description()))
         .collect();
     context.insert("alias_to_description", alias_to_description);
     Template::render("help", context)
