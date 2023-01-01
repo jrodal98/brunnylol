@@ -36,6 +36,7 @@ fn redirect(
     q: String,
     default: Option<String>,
     alias_to_bookmark_map: &State<HashMap<String, Box<dyn Command>>>,
+    default_alias: &State<String>,
 ) -> Redirect {
     let mut splitted = q.splitn(2, " ");
     let bookmark_alias = splitted.next().unwrap();
@@ -44,8 +45,11 @@ fn redirect(
     let redirect_url = match alias_to_bookmark_map.get(bookmark_alias) {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => alias_to_bookmark_map
-            .get(default.as_deref().unwrap_or(DEFAULT_ALIAS))
-            .expect("Default search engine alias was not found!")
+            .get(default.as_deref().unwrap_or(default_alias))
+            .expect(&format!(
+                "Default search engine alias '{}' was not found!",
+                default_alias
+            ))
             .get_redirect_url(&q),
     };
 
@@ -62,11 +66,26 @@ fn rocket() -> _ {
                 .value_name("COMMANDS")
                 .help("Path to a YAML file containing commands"),
         )
+        .arg(
+            Arg::new("default_alias")
+                .short('a')
+                .long("default_alias")
+                .value_name("DEFAULT_ALIAS")
+                .help("Default alias to use when none is provided"),
+        )
         .get_matches();
+
     let yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
+    let default_alias = matches
+        .get_one("default_alias")
+        .map(|c: &String| c.as_str())
+        .unwrap_or(DEFAULT_ALIAS)
+        .to_string();
+
     let alias_to_bookmark_map = commands::AliasAndCommand::get_alias_to_bookmark_map(yaml_path);
     rocket::build()
         .manage(alias_to_bookmark_map)
+        .manage(default_alias)
         .attach(Template::fairing())
         .mount("/", routes![index, help, redirect])
 }
