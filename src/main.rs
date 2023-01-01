@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate rocket;
+extern crate clap;
 mod command;
 pub mod commands;
 pub mod yml_settings;
@@ -8,6 +9,8 @@ use rocket::response::Redirect;
 use rocket::State;
 use rocket_dyn_templates::Template;
 use std::collections::HashMap;
+
+use clap::Arg;
 
 const DEFAULT_ALIAS: &str = "g";
 
@@ -51,7 +54,17 @@ fn redirect(
 
 #[launch]
 fn rocket() -> _ {
-    let alias_to_bookmark_map = commands::AliasAndCommand::get_alias_to_bookmark_map();
+    let matches = clap::Command::new("Brunnylol")
+        .arg(
+            Arg::new("commands")
+                .short('c')
+                .long("commands")
+                .value_name("COMMANDS")
+                .help("Path to a YAML file containing commands"),
+        )
+        .get_matches();
+    let yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
+    let alias_to_bookmark_map = commands::AliasAndCommand::get_alias_to_bookmark_map(yaml_path);
     rocket::build()
         .manage(alias_to_bookmark_map)
         .attach(Template::fairing())
