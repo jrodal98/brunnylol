@@ -7,6 +7,8 @@ use crate::{
 };
 use std::collections::HashMap;
 
+const DEFAULT_CONFIG_FILE: &'static str = "commands.yml";
+
 /// AliasAndCommand is an object that holds a command that the user can execute and an alias
 /// that the user can use to reference that command.
 pub struct AliasAndCommand {
@@ -59,10 +61,11 @@ impl AliasAndCommand {
         map
     }
 
-    pub fn get_alias_to_bookmark_map() -> HashMap<String, Box<dyn Command>> {
-        let yml = include_str!("../commands.yml");
+    pub fn get_alias_to_bookmark_map(maybe_yml: Option<&str>) -> HashMap<String, Box<dyn Command>> {
+        let yml = std::fs::read_to_string(maybe_yml.unwrap_or(DEFAULT_CONFIG_FILE))
+            .expect("Could not read file");
         let settings: Vec<YmlSettings> =
-            serde_yaml::from_str(yml).expect("Invalid yaml configuration");
+            serde_yaml::from_str(&yml).expect("Invalid yaml configuration");
         let alias_and_commands = settings.into_iter().map(AliasAndCommand::from).collect();
         Self::create_alias_to_bookmark_map(alias_and_commands)
     }
@@ -75,7 +78,7 @@ mod tests {
     #[test]
     fn test_valid_map() {
         // ensure that the map can be constructed
-        let _ = AliasAndCommand::get_alias_to_bookmark_map();
+        let _ = AliasAndCommand::get_alias_to_bookmark_map(None);
     }
 
     #[test]
