@@ -2,7 +2,7 @@
 
 {% block content %}
 <h1 style="text-align: center">Brunnylol - Smart Bookmarking + Searching Tool</h1>
-<form id="search-form-Brunnylol" class="mb-3" action="https://brunnylol.xyz/search?q=%25s" method="get" style="text-align: center">
+<form id="search-form-Brunnylol" class="mb-3" action="/search?q=%25s" method="get" style="text-align: center">
     <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus type="text" placeholder="Search Brunnylol" name="q" alt="Search Brunnylol" onkeydown="if(event.keyCode === 13) { this.form.submit(); return false; }">
 </form>
 <ul>
