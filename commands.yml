@@ -54,9 +54,9 @@
   description: Search genius
 
 - alias: am
-  url: https://smile.amazon.com/
-  command: https://smile.amazon.com/s?k={}&ref=nb_sb_noss_2
-  description: Search amazon through smile.amazon (donates .5% of whatever you spend to a charity of your choosing).
+  url: https://amazon.com/
+  command: https://amazon.com/s?k={}&ref=nb_sb_noss_2
+  description: Search amazon
 
 - alias: 1337x
   url: https://1337x.to/
