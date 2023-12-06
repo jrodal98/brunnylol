@@ -193,6 +193,9 @@
   url: https://adventofcode.com
   description: Advent of code
   nested:
+    - alias: r
+      url: https://www.reddit.com/r/adventofcode/
+      description: reddit
     - alias: j
       url: https://github.com/jrodal98/advent-of-code
       description: jrodal98 AOC solutions
