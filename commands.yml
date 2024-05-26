@@ -143,6 +143,10 @@
   command: https://beta.protonmail.com/u/{}/
   description: Go to Protonmail - ALIAS X to go to mail for protonmail account X.
 
+- alias: pc
+  url: https://home.personalcapital.com/page/login/goHome
+  description: Go to personalcapital (empower)
+
 - alias: speed
   url: https://www.speedtest.net/
   description: Run an internet speedtest
