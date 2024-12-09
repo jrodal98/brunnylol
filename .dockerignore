@@ -1,0 +1,22 @@
+# Git-related files
+.git
+.gitignore
+
+# Build artifacts
+target
+
+# IDE and editor files
+.vscode
+.idea
+
+# Docker-related files
+Dockerfile
+.dockerignore
+
+# Other unnecessary files
+README.md
+LICENSE
+.github
+
+# brunnylol.service (systemd config)
+brunnylol.service
