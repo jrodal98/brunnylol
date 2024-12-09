@@ -16,9 +16,9 @@
 
 <p>To install brunnylol, you need to add it as your default search engine. Google "how to change default search engine" for whatever browser you use. In chromium browsers, you go to settings and scroll down until you find search engines. Set the name to whatever you want (I suggest brunnylol) and set the keyword to whatever you want (I suggest bl).</p>
 
-<p>Then, put the following as your search engine: <code>https://brunnylol.xyz/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
+<p>Then, put the following as your search engine: <code>https://brunnylol.jrodal.com/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
 
-<p>By default, brunnylol will search google if you forget to provide an alias. If you wish to change this, pass the <code>default=ALIAS_HERE</code> parameter when specifying your search engine. For example, here is a search engine that will default to duckduckgo instead of google: <code>https://brunnylol.xyz/search?q=%s&default=d</code></p>
+<p>By default, brunnylol will search google if you forget to provide an alias. If you wish to change this, pass the <code>default=ALIAS_HERE</code> parameter when specifying your search engine. For example, here is a search engine that will default to duckduckgo instead of google: <code>https://brunnylol.jrodal.com/search?q=%s&default=d</code></p>
 
 <h2 style="text-align: center">How to use brunnylol once it's installed</h2>
 
