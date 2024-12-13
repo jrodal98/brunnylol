@@ -202,28 +202,16 @@
       description: reddit
     - alias: j
       url: https://github.com/jrodal98/advent-of-code
-      description: jrodal98 AOC solutions
-    - alias: jrodal98
-      url: https://github.com/jrodal98/advent-of-code
+      command: https://github.com/jrodal98/advent-of-code/blob/master/py2024/day{}/solution.py
       description: jrodal98 AOC solutions
     - alias: l
-      url: https://github.com/gorel/advent-2023
-      description: gorel AOC solutions
-    - alias: gorel
-      url: https://github.com/gorel/advent-2023
+      url: https://github.com/gorel/advent-2024
+      command: https://github.com/gorel/advent-2024/blob/main/advent/day{}.py
       description: gorel AOC solutions
     - alias: e
       url: https://github.com/mozilla2012/adventOfCode
+      command: https://github.com/mozilla2012/adventOfCode/blob/main/2024/days/{}/{}.ts
       description: mozilla2012 AOC solutions
-    - alias: mozilla2012
-      url: https://github.com/mozilla2012/adventOfCode
-      description: mozilla2012 AOC solutions
-    - alias: h
-      url: https://github.com/HarunFeraidon/advent-of-code
-      description: Harun AOC solutions
-    - alias: HarunFeraidon
-      url: https://github.com/HarunFeraidon/advent-of-code
-      description: Harun AOC solutions
 
 - alias: pi
   url: http://192.168.0.104
