@@ -3,7 +3,7 @@
   command: https://www.google.com/search?q={}
   description: Search google
 
-- alias: d
+- alias: ddg
   url: https://www.duckduckgo.com
   command: https://duckduckgo.com/?q={}
   description: Search duckduckgo
@@ -48,20 +48,10 @@
   command: https://www.urbandictionary.com/define.php?term={}
   description: Searches for a phrase on urban dictionary
 
-- alias: gen
-  url: https://genius.com/
-  command: https://genius.com/search?q={}
-  description: Search genius
-
 - alias: am
   url: https://amazon.com/
   command: https://amazon.com/s?k={}&ref=nb_sb_noss_2
   description: Search amazon
-
-- alias: 1337x
-  url: https://1337x.to/
-  command: https://1337x.to/search/{}/1/
-  description: Search 1337x.to
 
 - alias: fb
   url: https://www.facebook.com/
@@ -113,11 +103,6 @@
   command: https://drive.google.com/drive/u/{}/my-drive
   description: Go to google drive - ALIAS X to go to drive for google account X.
 
-- alias: meme
-  url: https://knowyourmeme.com
-  command: https://knowyourmeme.com/search?q={}
-  description: Search the 'know your meme' database
-
 - alias: gmap
   url: https://www.google.com/maps
   command: https://www.google.com/maps/search/{}
@@ -139,13 +124,14 @@
   description: Search questions on stackoverflow
 
 - alias: pm
-  url: https://beta.protonmail.com
-  command: https://beta.protonmail.com/u/{}/
+  url: https://protonmail.com
+  command: https://protonmail.com/u/{}/
   description: Go to Protonmail - ALIAS X to go to mail for protonmail account X.
 
-- alias: pc
-  url: https://home.personalcapital.com/page/login/goHome
-  description: Go to personalcapital (empower)
+- alias: pr
+  url: https://proton.me
+  command: https://{}.proton.me
+  description: Go to proton - ALIAS X to go to X.proton.me
 
 - alias: speed
   url: https://www.speedtest.net/
@@ -212,17 +198,6 @@
       url: https://github.com/mozilla2012/adventOfCode
       command: https://github.com/mozilla2012/adventOfCode/blob/main/2024/days/{}/{}.ts
       description: mozilla2012 AOC solutions
-
-- alias: pi
-  url: http://192.168.0.104
-  description: Go to raspberry pi pages
-  nested:
-    - alias: j
-      url: http://192.168.0.104:8096
-      description: Jellyfin
-    - alias: t
-      url: http://192.168.0.104:9091
-      description: Transmission
 
 - alias: lh
   url: http://localhost
