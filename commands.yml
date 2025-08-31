@@ -124,7 +124,7 @@
   description: Search questions on stackoverflow
 
 - alias: pm
-  url: https:/mail.proton.me
+  url: https://mail.proton.me
   command: https://mail.proton.me/u/{}/
   description: Go to Protonmail - ALIAS X to go to mail for protonmail account X.
 
