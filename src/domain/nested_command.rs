@@ -50,7 +50,7 @@ impl NestedCommand {
 
 #[cfg(test)]
 mod tests {
-    use crate::command::{bookmark_command::BookmarkCommand, templated_command::TemplatedCommand};
+    use crate::domain::{bookmark_command::BookmarkCommand, templated_command::TemplatedCommand};
 
     use super::*;
 

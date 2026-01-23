@@ -1,9 +1,9 @@
 use crate::{
-    command::{
+    domain::{
         bookmark_command::BookmarkCommand, nested_command::NestedCommand,
         templated_command::TemplatedCommand, Command,
     },
-    yml_settings::YmlSettings,
+    config::yml_settings::YmlSettings,
 };
 use std::collections::HashMap;
 

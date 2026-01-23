@@ -1,5 +1,3 @@
-use rocket::http::RawStr;
-
 use super::Command;
 
 struct TemplatedString {
@@ -36,7 +34,7 @@ pub struct TemplatedCommand {
 impl TemplatedCommand {
     fn process_query(&self, query: &str) -> String {
         if self.encode_query {
-            RawStr::new(query).percent_encode().to_string()
+            urlencoding::encode(query).to_string()
         } else {
             query.to_string()
         }

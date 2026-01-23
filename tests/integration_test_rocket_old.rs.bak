@@ -1,0 +1,197 @@
+// Integration tests for brunnylol routes
+// These tests capture the current behavior of the Rocket implementation
+// and will be updated to work with Axum after migration
+
+use rocket::http::Status;
+use rocket::local::blocking::Client;
+
+// Helper to create test client
+fn create_test_client() -> Client {
+    let rocket = brunnylol::rocket();
+    Client::tracked(rocket).expect("valid rocket instance")
+}
+
+#[test]
+fn test_index_page_renders() {
+    let client = create_test_client();
+    let response = client.get("/").dispatch();
+
+    assert_eq!(response.status(), Status::Ok);
+    let body = response.into_string().expect("response body");
+    assert!(body.contains("Brunnylol"));
+    assert!(body.contains("Smart Bookmarking"));
+}
+
+#[test]
+fn test_help_page_renders() {
+    let client = create_test_client();
+    let response = client.get("/help").dispatch();
+
+    assert_eq!(response.status(), Status::Ok);
+    let body = response.into_string().expect("response body");
+    assert!(body.contains("Brunnylol"));
+    assert!(body.contains("Alias"));
+    assert!(body.contains("Description"));
+}
+
+#[test]
+fn test_help_page_contains_google_alias() {
+    let client = create_test_client();
+    let response = client.get("/help").dispatch();
+
+    let body = response.into_string().expect("response body");
+    // Should contain the google alias from commands.yml
+    assert!(body.contains(">g<") || body.contains("google"));
+}
+
+#[test]
+fn test_redirect_with_valid_alias() {
+    let client = create_test_client();
+    // Test Google search: "g hello world"
+    let response = client.get("/search?q=g%20hello%20world").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Should redirect to Google with encoded query
+    assert!(location.contains("google.com"));
+    assert!(location.contains("hello%20world"));
+}
+
+#[test]
+fn test_redirect_url_encoding_spaces() {
+    let client = create_test_client();
+    // Test that spaces are encoded as %20
+    let response = client.get("/search?q=g%20rust%20programming").dispatch();
+
+    let location = response.headers().get_one("Location").expect("Location header");
+    assert!(location.contains("rust%20programming"));
+}
+
+#[test]
+fn test_redirect_with_alias_only() {
+    let client = create_test_client();
+    // Test just alias without query (should go to base URL)
+    let response = client.get("/search?q=g").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Should redirect to Google homepage (not search template)
+    assert!(location.contains("google.com"));
+    assert!(!location.contains("search?q="));
+}
+
+#[test]
+fn test_redirect_default_fallback() {
+    let client = create_test_client();
+    // Test unknown alias falls back to default (google)
+    let response = client.get("/search?q=unknownalias%20hello%20world").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Should use entire query with default search engine
+    assert!(location.contains("google.com"));
+    assert!(location.contains("unknownalias%20hello%20world"));
+}
+
+#[test]
+fn test_redirect_custom_default() {
+    let client = create_test_client();
+    // Test custom default parameter
+    let response = client.get("/search?q=unknownalias%20test&default=g").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Should use google as default
+    assert!(location.contains("google.com"));
+}
+
+#[test]
+fn test_redirect_no_encoding_github() {
+    let client = create_test_client();
+    // Test GitHub alias with encode=false (forward slash should NOT be encoded)
+    let response = client.get("/search?q=gh%20jrodal98/brunnylol").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Forward slash should be preserved (not %2F)
+    assert!(location.contains("github.com"));
+    assert!(location.contains("jrodal98/brunnylol"));
+    assert!(!location.contains("jrodal98%2Fbrunnylol"));
+}
+
+#[test]
+fn test_redirect_nested_command() {
+    let client = create_test_client();
+    // Test nested command structure (if aoc alias exists in commands.yml)
+    let response = client.get("/search?q=aoc%20j%205").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Should route through nested command structure
+    assert!(location.contains("github.com") || location.contains("advent-of-code"));
+}
+
+#[test]
+fn test_redirect_special_characters() {
+    let client = create_test_client();
+    // Test special characters in query
+    let response = client.get("/search?q=g%20c%2B%2B%20tutorial").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Plus signs should be encoded
+    assert!(location.contains("c%2B%2B"));
+}
+
+#[test]
+fn test_redirect_ampersand_encoding() {
+    let client = create_test_client();
+    // Test ampersand encoding
+    let response = client.get("/search?q=g%20rock%20%26%20roll").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Ampersand should be encoded
+    assert!(location.contains("rock%20%26%20roll") || location.contains("rock+%26+roll"));
+}
+
+#[test]
+fn test_redirect_multiple_spaces() {
+    let client = create_test_client();
+    // Test multiple consecutive spaces
+    let response = client.get("/search?q=g%20hello%20%20%20world").dispatch();
+
+    assert_eq!(response.status(), Status::SeeOther);
+    let location = response.headers().get_one("Location").expect("Location header");
+
+    // Multiple spaces should be preserved and encoded
+    assert!(location.contains("google.com"));
+}
+
+#[test]
+fn test_index_contains_help_link() {
+    let client = create_test_client();
+    let response = client.get("/").dispatch();
+
+    let body = response.into_string().expect("response body");
+    // Should contain link to help page
+    assert!(body.contains("help") || body.contains("/help"));
+}
+
+#[test]
+fn test_help_page_searchable() {
+    let client = create_test_client();
+    let response = client.get("/help").dispatch();
+
+    let body = response.into_string().expect("response body");
+    // Should contain search input for filtering aliases
+    assert!(body.contains("input") || body.contains("search"));
+}

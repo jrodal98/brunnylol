@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    h1 {
+        font-size: 2em;
+        text-align: center;
+        color: #333;
+        margin-bottom: 0.5em;
+    }
+
+    table {
+        border-collapse: collapse;
+        width: 100%;
+    }
+
+    th, td {
+        text-align: left;
+        padding: 8px;
+    }
+
+    tr:nth-child(even){background-color: #f2f2f2}
+
+    th {
+        background-color: #333;
+        color: white;
+    }
+
+    .command {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.5em;
+    }
+
+    .command-key {
+        font-weight: bold;
+        margin-right: 0.5em;
+    }
+
+    .command-value {
+        color: #666;
+    }
+</style>
+
+<h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
+
+<input type="text" id="search" onkeyup="searchTable()" placeholder="Search for aliases..">
+
+<table id="aliases">
+    <tr>
+        <th>Alias</th>
+        <th>Description</th>
+    </tr>
+    {% for (alias, description_parts) in alias_to_description %}
+    <tr>
+        <td>{{ alias }}</td>
+        <td>
+            {% for command in description_parts %}
+            <div class="command">
+                <span class="command-key">{{ command }}</span>
+            </div>
+            {% endfor %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<script>
+function searchTable() {
+  // Declare variables
+  var input, filter, table, tr, td, i, txtValue;
+  input = document.getElementById("search");
+  filter = input.value.toUpperCase();
+  table = document.getElementById("aliases");
+  tr = table.getElementsByTagName("tr");
+
+  // Loop through all table rows, and hide those who don't match the search query
+  for (i = 0; i < tr.length; i++) {
+    td1 = tr[i].getElementsByTagName("td")[0];
+    td2 = tr[i].getElementsByTagName("td")[1];
+    if (td1 || td2) {
+      txtValue1 = td1.textContent || td1.innerText;
+      txtValue2 = td2.textContent || td2.innerText;
+      if ((txtValue1.toUpperCase().indexOf(filter) > -1) || (txtValue2.toUpperCase().indexOf(filter) > -1)) {
+        tr[i].style.display = "";
+      } else {
+        tr[i].style.display = "none";
+      }
+    }
+  }
+}
+</script>
+
+{% endblock %}

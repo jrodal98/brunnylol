@@ -1,17 +1,36 @@
 [package]
 name = "brunnylol"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Jacob Rodal <jrodal98@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rocket = "0.5.0-rc.2"
-serde = "1.0.152"
+# Web framework - Axum
+axum = "0.8"
+tokio = { version = "1", features = ["full"] }
+tower = "0.5"
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+
+# Templates - Askama
+askama = "0.12"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.16"
+
+# CLI
 clap = "4.0.32"
 
-[dependencies.rocket_dyn_templates]
-version = "0.1.0-rc.2"
-features = ["tera"]
+# URL encoding
+urlencoding = "2.1"
+
+# Error handling
+anyhow = "1.0"
+
+[dev-dependencies]
+# Axum testing
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"
+
