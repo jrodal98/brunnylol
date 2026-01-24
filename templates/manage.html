@@ -210,9 +210,6 @@
             <h1>Bookmark Management</h1>
             <p>Welcome, {{ user.username }}{% if user.is_admin %} (Admin){% endif %}</p>
         </div>
-        <form method="post" action="/logout">
-            <button type="submit" class="btn-secondary">Logout</button>
-        </form>
     </div>
 
     {% if has_conflicts %}
