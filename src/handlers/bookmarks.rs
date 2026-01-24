@@ -308,7 +308,7 @@ pub async fn update_bookmark(
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark
 pub async fn create_nested_bookmark(
-    current_user: CurrentUser,
+    _current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<CreateNestedForm>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -334,7 +334,10 @@ pub async fn create_nested_bookmark(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
 
-    Ok(Html("<div>Nested bookmark added successfully!</div>"))
+    Ok(Html(format!(
+        r#"<div class="success-message">Sub-command '{}' added successfully!</div>"#,
+        form.alias
+    )))
 }
 
 // DELETE /manage/nested/:id - Delete nested bookmark

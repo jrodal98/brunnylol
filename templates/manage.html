@@ -178,7 +178,10 @@
         <h2>Create New Bookmark</h2>
         <div id="create-result"></div>
 
-        <form hx-post="/manage/bookmark" hx-target="#create-result" hx-swap="innerHTML" id="create-bookmark-form" onsubmit="return prepareNestedCommands()">
+        <form hx-post="/manage/bookmark"
+              hx-target="#create-result"
+              hx-swap="innerHTML"
+              id="create-bookmark-form">
             <div class="form-group">
                 <label for="alias">Alias *</label>
                 <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
@@ -516,7 +519,9 @@ function prepareNestedCommands() {
     const bookmarkType = document.getElementById('bookmark_type').value;
 
     if (bookmarkType !== 'nested') {
-        return true; // Not a nested bookmark, proceed normally
+        // Not a nested bookmark, clear the JSON field
+        document.getElementById('nested_commands_json').value = '';
+        return;
     }
 
     // Collect all nested command data
@@ -546,8 +551,6 @@ function prepareNestedCommands() {
     document.getElementById('nested_commands_json').value = JSON.stringify(nestedCommands);
 
     console.log('Prepared nested commands:', nestedCommands);
-
-    return true; // Allow form to submit
 }
 
 function showNestedManager(bookmarkId, alias) {
@@ -556,22 +559,32 @@ function showNestedManager(bookmarkId, alias) {
     // Load existing nested commands via HTMX
     const contentDiv = document.getElementById('nested-manager-content');
     contentDiv.innerHTML = `
-        <div hx-get="/manage/bookmark/${bookmarkId}/nested/list"
-             hx-trigger="load"
-             hx-target="this"
+        <div id="nested-list" hx-get="/manage/bookmark/${bookmarkId}/nested/list"
+             hx-trigger="load, nested-added from:body"
              hx-swap="innerHTML">
             Loading...
         </div>
 
         <h4 style="margin-top: 20px;">Add New Sub-command</h4>
+        <div id="nested-add-result" style="margin-bottom: 15px;"></div>
         <form hx-post="/manage/bookmark/${bookmarkId}/nested"
-              hx-target="#nested-manager-content > div"
-              hx-swap="beforeend"
+              hx-target="#nested-add-result"
+              hx-swap="innerHTML"
+              hx-on::after-request="if(event.detail.successful) { htmx.trigger('#nested-list', 'nested-added'); this.reset(); }"
               style="margin-top: 15px;">
+            <input type="hidden" name="parent_id" value="${bookmarkId}">
+
             <div class="form-group">
                 <label>Sub-alias:</label>
                 <input type="text" name="alias" required placeholder="e.g., r">
-                <input type="hidden" name="parent_id" value="${bookmarkId}">
+            </div>
+
+            <div class="form-group">
+                <label>Type:</label>
+                <select name="nested_type" onchange="toggleNestedFormFields(this)">
+                    <option value="simple">Simple Bookmark</option>
+                    <option value="templated">Search Template</option>
+                </select>
             </div>
 
             <div class="form-group">
@@ -584,12 +597,12 @@ function showNestedManager(bookmarkId, alias) {
                 <input type="text" name="description" required>
             </div>
 
-            <div class="form-group">
-                <label>Template (optional, use {} for query):</label>
+            <div class="form-group nested-template-field" style="display: none;">
+                <label>Template (with {}):</label>
                 <input type="text" name="command_template" placeholder="https://example.com/search?q={}">
             </div>
 
-            <div class="form-group">
+            <div class="form-group nested-encode-field" style="display: none;">
                 <label>
                     <input type="checkbox" name="encode_query" value="true" checked>
                     URL-encode query
@@ -604,6 +617,20 @@ function showNestedManager(bookmarkId, alias) {
 
     // Re-initialize HTMX on the new content
     htmx.process(contentDiv);
+}
+
+function toggleNestedFormFields(selectElement) {
+    const form = selectElement.closest('form');
+    const templateField = form.querySelector('.nested-template-field');
+    const encodeField = form.querySelector('.nested-encode-field');
+
+    if (selectElement.value === 'templated') {
+        templateField.style.display = 'block';
+        encodeField.style.display = 'block';
+    } else {
+        templateField.style.display = 'none';
+        encodeField.style.display = 'none';
+    }
 }
 
 function hideNestedManager() {
@@ -633,6 +660,14 @@ function hideEditForm() {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     toggleFields();
+
+    // Add HTMX event listener to prepare nested commands before submission
+    const createForm = document.getElementById('create-bookmark-form');
+    if (createForm) {
+        createForm.addEventListener('htmx:configRequest', function(event) {
+            prepareNestedCommands();
+        });
+    }
 });
 </script>
 
