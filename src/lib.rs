@@ -3,18 +3,22 @@ extern crate clap;
 mod domain;
 mod config;
 mod error;
+mod db;
+mod auth;
+mod handlers;
 
 use askama::Template;
 use axum::{
     extract::{Query, State},
     response::{Html, IntoResponse, Redirect},
-    routing::get,
+    routing::{delete, get, post},
     Router,
 };
 use domain::Command;
 use config::commands::AliasAndCommand;
 use error::AppError;
 use serde::Deserialize;
+use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
 use clap::Arg;
 
@@ -42,6 +46,7 @@ struct SearchParams {
 pub struct AppState {
     pub alias_to_bookmark_map: HashMap<String, Box<dyn Command>>,
     pub default_alias: String,
+    pub db_pool: SqlitePool,
 }
 
 // Route handlers
@@ -72,6 +77,7 @@ async fn help(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, A
 }
 
 async fn redirect(
+    optional_user: auth::middleware::OptionalUser,
     Query(params): Query<SearchParams>,
     State(state): State<Arc<AppState>>,
 ) -> impl IntoResponse {
@@ -79,7 +85,22 @@ async fn redirect(
     let bookmark_alias = splitted.next().unwrap_or("");
     let query = splitted.next().unwrap_or_default();
 
-    let redirect_url = match state.alias_to_bookmark_map.get(bookmark_alias) {
+    // Load user bookmarks if logged in
+    let user_bookmarks = if let Some(user) = &optional_user.0 {
+        db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+            .await
+            .ok()
+    } else {
+        None
+    };
+
+    // Try user bookmarks first (if logged in), then global bookmarks
+    let command = user_bookmarks
+        .as_ref()
+        .and_then(|user_map| user_map.get(bookmark_alias))
+        .or_else(|| state.alias_to_bookmark_map.get(bookmark_alias));
+
+    let redirect_url = match command {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => {
             let default_alias = params
@@ -87,9 +108,13 @@ async fn redirect(
                 .as_deref()
                 .unwrap_or(&state.default_alias);
 
-            state
-                .alias_to_bookmark_map
-                .get(default_alias)
+            // Try user bookmarks first for default alias too
+            let default_command = user_bookmarks
+                .as_ref()
+                .and_then(|user_map| user_map.get(default_alias))
+                .or_else(|| state.alias_to_bookmark_map.get(default_alias));
+
+            default_command
                 .map(|cmd| cmd.get_redirect_url(&params.q))
                 .unwrap_or_else(|| {
                     // Fallback to Google if default alias not found
@@ -102,7 +127,7 @@ async fn redirect(
 }
 
 // Public function to create the router
-pub fn create_router() -> Router {
+pub async fn create_router() -> Router {
     // Parse CLI arguments
     let matches = clap::Command::new("Brunnylol")
         .arg(
@@ -119,6 +144,14 @@ pub fn create_router() -> Router {
                 .value_name("DEFAULT_ALIAS")
                 .help("Default alias to use when none is provided"),
         )
+        .arg(
+            Arg::new("database")
+                .short('d')
+                .long("database")
+                .value_name("DATABASE")
+                .help("Path to SQLite database file")
+                .default_value("brunnylol.db"),
+        )
         .get_matches();
 
     let yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
@@ -128,16 +161,45 @@ pub fn create_router() -> Router {
         .unwrap_or(DEFAULT_ALIAS)
         .to_string();
 
+    let db_path = matches
+        .get_one::<String>("database")
+        .map(|s| s.as_str())
+        .unwrap_or("brunnylol.db");
+
+    // Initialize database
+    let db_pool = db::init_db(db_path)
+        .await
+        .expect("Failed to initialize database");
+
     let alias_to_bookmark_map = AliasAndCommand::get_alias_to_bookmark_map(yaml_path);
 
     let state = Arc::new(AppState {
         alias_to_bookmark_map,
         default_alias,
+        db_pool: db_pool.clone(),
     });
 
     Router::new()
+        // Public routes
         .route("/", get(index))
         .route("/help", get(help))
         .route("/search", get(redirect))
+
+        // Auth routes
+        .route("/login", get(handlers::auth::login_page).post(handlers::auth::login_submit))
+        .route("/register", get(handlers::auth::register_page).post(handlers::auth::register_submit))
+        .route("/logout", post(handlers::auth::logout))
+
+        // Bookmark management routes (require authentication)
+        .route("/manage", get(handlers::bookmarks::manage_page))
+        .route("/manage/bookmark", post(handlers::bookmarks::create_bookmark))
+        .route("/manage/bookmark/{id}", delete(handlers::bookmarks::delete_bookmark))
+        .route("/manage/bookmark/{id}/nested", post(handlers::bookmarks::create_nested_bookmark))
+        .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
+
+        // Admin routes (require admin authentication)
+        .route("/admin", get(handlers::admin::admin_page))
+        .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
+
         .with_state(state)
 }

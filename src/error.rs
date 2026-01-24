@@ -10,8 +10,11 @@ use std::fmt;
 #[derive(Debug)]
 pub enum AppError {
     TemplateRender(String),
-    #[allow(dead_code)] // Reserved for future use
     NotFound(String),
+    Unauthorized(String),
+    Forbidden(String),
+    BadRequest(String),
+    Internal(String),
 }
 
 impl fmt::Display for AppError {
@@ -19,6 +22,10 @@ impl fmt::Display for AppError {
         match self {
             AppError::TemplateRender(msg) => write!(f, "Template rendering error: {}", msg),
             AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
+            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
+            AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
+            AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
+            AppError::Internal(msg) => write!(f, "Internal error: {}", msg),
         }
     }
 }
@@ -34,6 +41,10 @@ impl IntoResponse for AppError {
                 format!("Template error: {}", msg),
             ),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, format!("Not found: {}", msg)),
+            AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "Please log in to continue".to_string()),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, format!("Forbidden: {}", msg)),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("Bad request: {}", msg)),
+            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal error: {}", msg)),
         };
 
         // Return a simple HTML error page

@@ -10,7 +10,7 @@ use tower::ServiceExt; // for `oneshot`
 async fn create_test_app() -> axum::Router {
     // Temporarily override CLI args for testing
     // For now, use the default commands.yml
-    brunnylol::create_router()
+    brunnylol::create_router().await
 }
 
 #[tokio::test]

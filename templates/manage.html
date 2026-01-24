@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block content %}
+<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 0 20px;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #333;
+    }
+
+    .tabs {
+        display: flex;
+        gap: 10px;
+        border-bottom: 2px solid #e0e0e0;
+        margin-bottom: 20px;
+    }
+
+    .tab {
+        padding: 12px 24px;
+        cursor: pointer;
+        border: none;
+        background: none;
+        font-size: 16px;
+        color: #666;
+        border-bottom: 3px solid transparent;
+    }
+
+    .tab.active {
+        color: #333;
+        font-weight: bold;
+        border-bottom-color: #333;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .form-group textarea {
+        min-height: 60px;
+        resize: vertical;
+    }
+
+    button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    .btn-primary {
+        background-color: #333;
+        color: white;
+    }
+
+    .btn-danger {
+        background-color: #d32f2f;
+        color: white;
+    }
+
+    .btn-secondary {
+        background-color: #757575;
+        color: white;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    th, td {
+        text-align: left;
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    th {
+        background-color: #f5f5f5;
+        font-weight: bold;
+    }
+
+    .conflict-warning {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
+
+    .nested-commands {
+        margin-left: 20px;
+        padding-left: 20px;
+        border-left: 3px solid #e0e0e0;
+    }
+
+    .dynamic-field {
+        display: none;
+    }
+
+    .dynamic-field.show {
+        display: block;
+    }
+</style>
+
+<div class="container">
+    <div class="header">
+        <div>
+            <h1>Bookmark Management</h1>
+            <p>Welcome, {{ user.username }}{% if user.is_admin %} (Admin){% endif %}</p>
+        </div>
+        <form method="post" action="/logout">
+            <button type="submit" class="btn-secondary">Logout</button>
+        </form>
+    </div>
+
+    {% if has_conflicts %}
+    <div class="conflict-warning">
+        <strong>⚠️ Alias Conflicts Detected:</strong>
+        Your personal bookmarks are overriding these built-in aliases: {{ conflicts_text }}
+    </div>
+    {% endif %}
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('create')">Create Bookmark</button>
+        <button class="tab" onclick="showTab('personal')">My Bookmarks ({{ personal_count }})</button>
+        <button class="tab" onclick="showTab('global')">Built-in Bookmarks</button>
+        {% if user.is_admin %}
+        <button class="tab" onclick="showTab('admin')">Admin Panel</button>
+        {% endif %}
+    </div>
+
+    <!-- Tab 1: Create Bookmark -->
+    <div id="create" class="tab-content active">
+        <h2>Create New Bookmark</h2>
+        <div id="create-result"></div>
+
+        <form hx-post="/manage/bookmark" hx-target="#create-result" hx-swap="innerHTML">
+            <div class="form-group">
+                <label for="alias">Alias *</label>
+                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
+                <small>Shortcut you'll type to use this bookmark</small>
+            </div>
+
+            <div class="form-group">
+                <label for="bookmark_type">Bookmark Type *</label>
+                <select id="bookmark_type" name="bookmark_type" required onchange="toggleFields()">
+                    <option value="simple">Simple Bookmark (static URL)</option>
+                    <option value="templated">Search Template (URL with query)</option>
+                    <option value="nested">Nested Commands</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="url">Base URL *</label>
+                <input type="url" id="url" name="url" required placeholder="https://example.com">
+                <small>The URL to redirect to (or base URL for search templates)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <input type="text" id="description" name="description" required placeholder="What this bookmark does">
+            </div>
+
+            <!-- Fields for templated bookmarks -->
+            <div id="templated-fields" class="dynamic-field">
+                <div class="form-group">
+                    <label for="command_template">Search Template *</label>
+                    <input type="text" id="command_template" name="command_template" placeholder="https://example.com/search?q={}">
+                    <small>Use {} as placeholder for search query</small>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" name="encode_query" value="true" checked>
+                        URL-encode the query (uncheck for GitHub-style URLs with slashes)
+                    </label>
+                </div>
+            </div>
+
+            <!-- Info for nested bookmarks -->
+            <div id="nested-info" class="dynamic-field">
+                <p><em>Note: You'll be able to add sub-commands after creating the parent bookmark.</em></p>
+            </div>
+
+            <button type="submit" class="btn-primary">Create Bookmark</button>
+        </form>
+    </div>
+
+    <!-- Tab 2: Personal Bookmarks -->
+    <div id="personal" class="tab-content">
+        <h2>My Personal Bookmarks</h2>
+
+        {% if personal_count == 0 %}
+        <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
+        {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Alias</th>
+                    <th>Type</th>
+                    <th>URL/Template</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bookmark in personal_bookmarks %}
+                <tr id="bookmark-{{ bookmark.id }}">
+                    <td><strong>{{ bookmark.alias }}</strong></td>
+                    <td>{{ bookmark.bookmark_type }}</td>
+                    <td>
+                        {% if bookmark.command_template != "" %}
+                            {{ bookmark.command_template }}
+                        {% else %}
+                            {{ bookmark.url }}
+                        {% endif %}
+                    </td>
+                    <td>{{ bookmark.description }}</td>
+                    <td>
+                        <button class="btn-danger"
+                                hx-delete="/manage/bookmark/{{ bookmark.id }}"
+                                hx-target="#bookmark-{{ bookmark.id }}"
+                                hx-swap="outerHTML"
+                                hx-confirm="Are you sure you want to delete '{{ bookmark.alias }}'?">
+                            Delete
+                        </button>
+                        {% if bookmark.bookmark_type == "nested" %}
+                        <button class="btn-secondary" onclick="showNestedManager({{ bookmark.id }}, '{{ bookmark.alias }}')">
+                            Manage Nested ({{ bookmark.nested_count }})
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+
+    <!-- Tab 3: Global Bookmarks -->
+    <div id="global" class="tab-content">
+        <h2>Built-in Bookmarks</h2>
+        <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Alias</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bookmark in global_bookmarks %}
+                <tr>
+                    <td><strong>{{ bookmark.alias }}</strong></td>
+                    <td>Built-in bookmark</td>
+                    <td>
+                        {% if bookmark.is_overridden %}
+                        <span style="color: #ff9800;">⚠️ Overridden by your personal bookmark</span>
+                        {% else %}
+                        <span style="color: #4caf50;">✓ Active</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Tab 4: Admin Panel -->
+    {% if user.is_admin %}
+    <div id="admin" class="tab-content">
+        <h2>Admin Panel</h2>
+        <p>Manage users, view system statistics, and perform maintenance tasks.</p>
+        <p><a href="/admin" class="btn-primary">Go to Admin Panel</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Nested Command Manager Modal (will be shown via JavaScript) -->
+<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: white; border: 2px solid #333; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
+    <h3 id="nested-manager-title">Manage Nested Commands</h3>
+    <div id="nested-manager-content"></div>
+    <button onclick="hideNestedManager()" class="btn-secondary">Close</button>
+</div>
+
+<script>
+function showTab(tabName) {
+    // Hide all tabs
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+
+    // Show selected tab
+    document.getElementById(tabName).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function toggleFields() {
+    const bookmarkType = document.getElementById('bookmark_type').value;
+    const templatedFields = document.getElementById('templated-fields');
+    const nestedInfo = document.getElementById('nested-info');
+
+    // Hide all dynamic fields
+    templatedFields.classList.remove('show');
+    nestedInfo.classList.remove('show');
+
+    // Show relevant fields
+    if (bookmarkType === 'templated') {
+        templatedFields.classList.add('show');
+    } else if (bookmarkType === 'nested') {
+        nestedInfo.classList.add('show');
+    }
+}
+
+function showNestedManager(bookmarkId, alias) {
+    document.getElementById('nested-manager-title').textContent = `Manage Nested Commands for '${alias}'`;
+    // TODO: Load nested commands via HTMX
+    document.getElementById('nested-manager-content').innerHTML = `
+        <p>Nested command management for bookmark ID: ${bookmarkId}</p>
+        <p><em>Full nested command UI coming soon...</em></p>
+    `;
+    document.getElementById('nested-manager').style.display = 'block';
+}
+
+function hideNestedManager() {
+    document.getElementById('nested-manager').style.display = 'none';
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    toggleFields();
+});
+</script>
+
+{% endblock %}

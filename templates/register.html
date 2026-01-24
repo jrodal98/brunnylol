@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto;">
+    <h1>Register for Brunnylol</h1>
+
+    {% if error != "" %}
+    <div style="background-color: #ffebee; color: #c62828; padding: 10px; margin-bottom: 20px; border-radius: 4px;">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    {% if is_first_user %}
+    <div style="background-color: #e8f5e9; color: #2e7d32; padding: 10px; margin-bottom: 20px; border-radius: 4px;">
+        You are the first user! You will be granted admin privileges.
+    </div>
+    {% endif %}
+
+    <form method="post" action="/register" style="display: flex; flex-direction: column; gap: 15px;">
+        <div>
+            <label for="username" style="display: block; margin-bottom: 5px; font-weight: bold;">Username:</label>
+            <input type="text" id="username" name="username" required
+                   minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]+"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <small style="color: #666;">3-30 characters, letters, numbers, underscore, or hyphen</small>
+        </div>
+
+        <div>
+            <label for="password" style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
+            <input type="password" id="password" name="password" required
+                   minlength="8" maxlength="128"
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <small style="color: #666;">At least 8 characters</small>
+        </div>
+
+        <div>
+            <label for="confirm_password" style="display: block; margin-bottom: 5px; font-weight: bold;">Confirm Password:</label>
+            <input type="password" id="confirm_password" name="confirm_password" required
+                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <button type="submit" style="padding: 10px; background-color: #333; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px;">
+            Register
+        </button>
+    </form>
+
+    <p style="text-align: center; margin-top: 20px;">
+        Already have an account? <a href="/login">Login here</a>
+    </p>
+</div>
+
+<script>
+// Client-side password confirmation validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm_password').value;
+    if (password !== confirm) {
+        e.preventDefault();
+        alert('Passwords do not match!');
+    }
+});
+</script>
+{% endblock %}
