@@ -1,5 +1,25 @@
 {% extends "base.html" %}
 
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">Home</a>
+        <a href="/help">Help</a>
+        <a href="/manage">My Bookmarks</a>
+        {% if user.is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+    </div>
+    <div>
+        <span style="margin-right: 15px; color: #666;">{{ user.username }}</span>
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" style="display: inline; margin-left: 10px;">
+            <button type="submit" style="background: none; border: none; color: #333; font-weight: bold; cursor: pointer; text-decoration: underline;">Logout</button>
+        </form>
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
 

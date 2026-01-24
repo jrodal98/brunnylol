@@ -1,5 +1,23 @@
 {% extends "base.html" %}
 
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">Home</a>
+        <a href="/help">Help</a>
+        <a href="/manage">My Bookmarks</a>
+        <a href="/admin">Admin</a>
+    </div>
+    <div>
+        <span style="margin-right: 15px; color: #666;">{{ user.username }}</span>
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" style="display: inline; margin-left: 10px;">
+            <button type="submit" style="background: none; border: none; color: #333; font-weight: bold; cursor: pointer; text-decoration: underline;">Logout</button>
+        </form>
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
 
@@ -60,6 +78,24 @@
         border-radius: 3px;
         font-size: 12px;
     }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+    }
+
+    .success-message {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+    }
 </style>
 
 <div class="container">
@@ -99,6 +135,42 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <div style="margin-top: 40px;">
+        <h2>Create New User</h2>
+        <div id="create-user-result"></div>
+        <form hx-post="/admin/create-user"
+              hx-target="#create-user-result"
+              hx-swap="innerHTML"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }"
+              style="max-width: 500px;">
+            <div class="form-group">
+                <label for="new_username">Username *</label>
+                <input type="text" id="new_username" name="username" required
+                       minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]+"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>3-30 characters, letters, numbers, underscore, or hyphen</small>
+            </div>
+            <div class="form-group">
+                <label for="new_password">Password *</label>
+                <input type="password" id="new_password" name="password" required minlength="8"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>At least 8 characters</small>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password *</label>
+                <input type="password" id="confirm_password" name="confirm_password" required
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_admin" value="true">
+                    Make this user an administrator
+                </label>
+            </div>
+            <button type="submit" class="btn-primary">Create User</button>
+        </form>
+    </div>
 
     <div style="margin-top: 40px;">
         <h2>System Maintenance</h2>

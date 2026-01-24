@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <title>Brunnylol</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
         <style type="text/css" media="screen">
 
     body {
@@ -63,6 +64,7 @@
     </style>
     </head>
     <body>
+        {% block nav %}
         <nav>
             <div>
                 <a href="/">Home</a>
@@ -74,6 +76,7 @@
                 <a href="/manage">My Bookmarks</a>
             </div>
         </nav>
+        {% endblock %}
         {% block content %}{% endblock %}
     </body>
     <div class="footer">

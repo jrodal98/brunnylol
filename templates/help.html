@@ -1,5 +1,32 @@
 {% extends "base.html" %}
 
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">Home</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div>
+        {% if has_user %}
+        <span style="margin-right: 15px; color: #666;">{{ username }}</span>
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" style="display: inline; margin-left: 10px;">
+            <button type="submit" style="background: none; border: none; color: #333; font-weight: bold; cursor: pointer; text-decoration: underline;">Logout</button>
+        </form>
+        {% else %}
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 
 <style>
@@ -46,6 +73,30 @@
 <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
 
 <input type="text" id="search" onkeyup="searchTable()" placeholder="Search for aliases..">
+
+{% if !personal_aliases.is_empty() %}
+<h2 style="margin-top: 30px; color: #333;">Your Personal Bookmarks</h2>
+<table id="personal-aliases">
+    <tr>
+        <th>Alias</th>
+        <th>Description</th>
+    </tr>
+    {% for (alias, description_parts) in personal_aliases %}
+    <tr>
+        <td>{{ alias }}</td>
+        <td>
+            {% for command in description_parts %}
+            <div class="command">
+                <span class="command-key">{{ command }}</span>
+            </div>
+            {% endfor %}
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2 style="margin-top: 30px; color: #333;">Global Bookmarks</h2>
+{% endif %}
 
 <table id="aliases">
     <tr>

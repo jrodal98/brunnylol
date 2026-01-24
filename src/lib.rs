@@ -33,6 +33,10 @@ struct IndexTemplate;
 #[template(path = "help.html")]
 struct HelpTemplate {
     alias_to_description: Vec<(String, Vec<String>)>,
+    personal_aliases: Vec<(String, Vec<String>)>,
+    has_user: bool,
+    username: String,
+    is_admin: bool,
 }
 
 // Query parameter struct for search
@@ -50,13 +54,16 @@ pub struct AppState {
 }
 
 // Route handlers
-async fn index() -> Result<impl IntoResponse, AppError> {
+async fn index(_optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
     let template = IndexTemplate;
     Ok(Html(template.render()?))
 }
 
-async fn help(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, AppError> {
-    // Pre-process descriptions: split by "|" for nested command descriptions
+async fn help(
+    optional_user: auth::middleware::OptionalUser,
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Pre-process global descriptions: split by "|" for nested command descriptions
     let alias_to_description: Vec<(String, Vec<String>)> = state
         .alias_to_bookmark_map
         .iter()
@@ -70,8 +77,36 @@ async fn help(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, A
         })
         .collect();
 
+    // Load personal aliases if logged in
+    let (personal_aliases, has_user, username, is_admin) = if let Some(ref user) = optional_user.0 {
+        let user_bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+            .await
+            .ok();
+
+        let aliases = user_bookmarks
+            .map(|bookmarks| {
+                bookmarks
+                    .iter()
+                    .map(|(alias, cmd)| {
+                        let description = cmd.description();
+                        let parts: Vec<String> = description.split('|').map(|s| s.to_string()).collect();
+                        (alias.clone(), parts)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        (aliases, true, user.username.clone(), user.is_admin)
+    } else {
+        (Vec::new(), false, String::new(), false)
+    };
+
     let template = HelpTemplate {
         alias_to_description,
+        personal_aliases,
+        has_user,
+        username,
+        is_admin,
     };
     Ok(Html(template.render()?))
 }
@@ -232,9 +267,15 @@ pub async fn create_router() -> Router {
         .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
         .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
 
+        // User settings routes (require authentication)
+        .route("/settings", get(handlers::auth::settings_page))
+        .route("/settings/username", post(handlers::auth::change_username))
+        .route("/settings/password", post(handlers::auth::change_password))
+
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
+        .route("/admin/create-user", post(handlers::admin::create_user))
 
         .with_state(state)
 }

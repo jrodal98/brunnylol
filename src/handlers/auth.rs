@@ -9,7 +9,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth, db, error::AppError};
+use crate::{auth, auth::middleware::CurrentUser, db, error::AppError};
 
 // Template structs
 #[derive(Template)]
@@ -200,4 +200,118 @@ pub async fn logout(
     let jar = jar.remove(Cookie::from("session_id"));
 
     (jar, Redirect::to("/")).into_response()
+}
+
+// Template for settings page
+#[derive(Template)]
+#[template(path = "settings.html")]
+struct SettingsTemplate {
+    user: db::User,
+}
+
+// GET /settings - User settings page
+pub async fn settings_page(
+    current_user: CurrentUser,
+) -> Result<Html<String>, AppError> {
+    let template = SettingsTemplate {
+        user: current_user.0,
+    };
+    Ok(Html(template.render()?))
+}
+
+// Form structs for settings
+#[derive(Deserialize)]
+pub struct ChangeUsernameForm {
+    new_username: String,
+}
+
+#[derive(Deserialize)]
+pub struct ChangePasswordForm {
+    current_password: String,
+    new_password: String,
+    confirm_password: String,
+}
+
+// POST /settings/username - Change username
+pub async fn change_username(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<ChangeUsernameForm>,
+) -> Result<impl IntoResponse, AppError> {
+    // Validate new username
+    if let Err(e) = auth::validate_username(&form.new_username) {
+        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+    }
+
+    // Update username in database
+    sqlx::query("UPDATE users SET username = ? WHERE id = ?")
+        .bind(&form.new_username)
+        .bind(current_user.0.id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| {
+            if e.to_string().contains("UNIQUE constraint") {
+                AppError::BadRequest("Username already taken".to_string())
+            } else {
+                AppError::Internal(format!("Database error: {}", e))
+            }
+        })?;
+
+    Ok(Html(format!(
+        r#"<div class="success-message">Username updated to '{}'! Please <a href="/logout">log out</a> and log back in.</div>"#,
+        form.new_username
+    )))
+}
+
+// POST /settings/password - Change password
+pub async fn change_password(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<ChangePasswordForm>,
+) -> Result<impl IntoResponse, AppError> {
+    // Get current password hash from database
+    let user_data = db::get_user_by_username(&state.db_pool, &current_user.0.username)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or(AppError::Internal("User not found".to_string()))?;
+
+    let (_user_id, password_hash, _is_admin) = user_data;
+
+    // Verify current password
+    let valid = auth::verify_password(&form.current_password, &password_hash)
+        .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?;
+
+    if !valid {
+        return Ok(Html(
+            r#"<div style="color: #d32f2f;">Current password is incorrect</div>"#.to_string()
+        ));
+    }
+
+    // Validate new passwords match
+    if form.new_password != form.confirm_password {
+        return Ok(Html(
+            r#"<div style="color: #d32f2f;">New passwords do not match</div>"#.to_string()
+        ));
+    }
+
+    // Validate new password strength
+    if let Err(e) = auth::validate_password(&form.new_password) {
+        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+    }
+
+    // Hash new password
+    let new_hash = auth::hash_password(&form.new_password)
+        .map_err(|e| AppError::Internal(format!("Password hashing error: {}", e)))?;
+
+    // Update password in database
+    sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+        .bind(&new_hash)
+        .bind(current_user.0.id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    Ok(Html(
+        r#"<div class="success-message">Password updated successfully!</div>"#.to_string()
+    ))
 }
