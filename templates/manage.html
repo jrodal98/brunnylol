@@ -166,7 +166,7 @@
 
     <div class="tabs">
         <button class="tab active" onclick="showTab('create')">Create Bookmark</button>
-        <button class="tab" onclick="showTab('personal')">My Bookmarks ({{ personal_count }})</button>
+        <button class="tab" onclick="showTab('personal')">My Bookmarks</button>
         <button class="tab" onclick="showTab('global')">Built-in Bookmarks</button>
         {% if user.is_admin %}
         <button class="tab" onclick="showTab('admin')">Admin Panel</button>
@@ -182,7 +182,8 @@
               hx-target="#create-result"
               hx-swap="innerHTML"
               id="create-bookmark-form"
-              hx-on::before-request="prepareNestedCommands()">
+              hx-on::before-request="prepareNestedCommands()"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }">
             <div class="form-group">
                 <label for="alias">Alias *</label>
                 <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
@@ -234,7 +235,7 @@
                     <!-- Dynamic nested command rows will be added here -->
                 </div>
 
-                <button type="button" onclick="addNestedRow(); return false;" class="btn-secondary" style="margin-top: 10px;">
+                <button type="button" onclick="addNestedRow();" class="btn-secondary" style="margin-top: 10px;">
                     + Add Sub-command
                 </button>
 
@@ -284,7 +285,7 @@
                         <button class="btn-danger"
                                 hx-delete="/manage/bookmark/{{ bookmark.id }}"
                                 hx-target="#bookmark-{{ bookmark.id }}"
-                                hx-swap="outerHTML"
+                                hx-swap="outerHTML swap:500ms"
                                 hx-confirm="Are you sure you want to delete '{{ bookmark.alias }}'?">
                             Delete
                         </button>
