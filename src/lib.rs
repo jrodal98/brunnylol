@@ -32,7 +32,7 @@ struct IndexTemplate;
 #[derive(Template)]
 #[template(path = "help.html")]
 struct HelpTemplate {
-    alias_to_description: Vec<(String, Vec<String>)>,
+    alias_to_description: Vec<(String, Vec<String>, bool)>, // (alias, description_parts, is_disabled)
     personal_aliases: Vec<(String, Vec<String>)>,
     has_user: bool,
     username: String,
@@ -55,11 +55,6 @@ pub struct AppState {
 
 // Route handlers
 async fn index(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
-    // If logged in, redirect to manage page
-    if optional_user.0.is_some() {
-        return Ok(Redirect::to("/manage").into_response());
-    }
-
     let template = IndexTemplate;
     Ok(Html(template.render()?).into_response())
 }
@@ -73,18 +68,8 @@ async fn help(
     optional_user: auth::middleware::OptionalUser,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Pre-process global descriptions: split by "|" for nested command descriptions
-    let alias_to_description: Vec<(String, Vec<String>)> = state
-        .alias_to_bookmark_map
-        .iter()
-        .map(|(alias, cmd)| {
-            let parts = split_command_description(&cmd.description());
-            (alias.clone(), parts)
-        })
-        .collect();
-
-    // Load personal aliases if logged in
-    let (personal_aliases, has_user, username, is_admin) = if let Some(ref user) = optional_user.0 {
+    // Load disabled aliases if logged in
+    let (personal_aliases, disabled_set, has_user, username, is_admin) = if let Some(ref user) = optional_user.0 {
         let user_bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
             .await
             .ok();
@@ -101,10 +86,33 @@ async fn help(
             })
             .unwrap_or_default();
 
-        (aliases, true, user.username.clone(), user.is_admin)
+        // Get disabled global aliases
+        let overrides = db::get_user_overrides(&state.db_pool, user.id)
+            .await
+            .ok()
+            .unwrap_or_default();
+
+        let disabled: std::collections::HashSet<String> = overrides
+            .iter()
+            .filter(|(_, is_disabled, _, _)| *is_disabled)
+            .map(|(alias, _, _, _)| alias.clone())
+            .collect();
+
+        (aliases, disabled, true, user.username.clone(), user.is_admin)
     } else {
-        (Vec::new(), false, String::new(), false)
+        (Vec::new(), std::collections::HashSet::new(), false, String::new(), false)
     };
+
+    // Pre-process global descriptions with disabled status
+    let alias_to_description: Vec<(String, Vec<String>, bool)> = state
+        .alias_to_bookmark_map
+        .iter()
+        .map(|(alias, cmd)| {
+            let parts = split_command_description(&cmd.description());
+            let is_disabled = disabled_set.contains(alias);
+            (alias.clone(), parts, is_disabled)
+        })
+        .collect();
 
     let template = HelpTemplate {
         alias_to_description,

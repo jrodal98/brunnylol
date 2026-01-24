@@ -54,10 +54,10 @@
     tr:nth-child(even){background-color: #f8f9fa}
 
     th {
-        background-color: #495057;
+        background-color: #343a40;
         color: #ffffff;
         font-weight: 600;
-        font-size: 14px;
+        font-size: 13px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
@@ -111,9 +111,14 @@
         <th>Alias</th>
         <th>Description</th>
     </tr>
-    {% for (alias, description_parts) in alias_to_description %}
-    <tr>
-        <td>{{ alias }}</td>
+    {% for (alias, description_parts, is_disabled) in alias_to_description %}
+    <tr {% if is_disabled %}style="opacity: 0.5; text-decoration: line-through;"{% endif %}>
+        <td>
+            {{ alias }}
+            {% if is_disabled %}
+            <span style="color: #dc3545; font-size: 11px; margin-left: 5px;">(disabled)</span>
+            {% endif %}
+        </td>
         <td>
             {% for command in description_parts %}
             <div class="command">
