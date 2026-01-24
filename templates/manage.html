@@ -181,7 +181,8 @@
         <form hx-post="/manage/bookmark"
               hx-target="#create-result"
               hx-swap="innerHTML"
-              id="create-bookmark-form">
+              id="create-bookmark-form"
+              hx-on::before-request="prepareNestedCommands()">
             <div class="form-group">
                 <label for="alias">Alias *</label>
                 <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
@@ -233,7 +234,7 @@
                     <!-- Dynamic nested command rows will be added here -->
                 </div>
 
-                <button type="button" onclick="addNestedRow()" class="btn-secondary" style="margin-top: 10px;">
+                <button type="button" onclick="addNestedRow(); return false;" class="btn-secondary" style="margin-top: 10px;">
                     + Add Sub-command
                 </button>
 
@@ -441,8 +442,15 @@ function toggleFields() {
 let nestedCounter = 0;
 
 function addNestedRow() {
+    console.log('addNestedRow called, counter:', nestedCounter);
     const container = document.getElementById('nested-commands-list');
+    console.log('Container found:', container);
+    if (!container) {
+        alert('ERROR: nested-commands-list not found!');
+        return;
+    }
     const rowId = `nested-row-${nestedCounter++}`;
+    console.log('Creating row:', rowId);
 
     const row = document.createElement('div');
     row.id = rowId;
@@ -495,6 +503,7 @@ function addNestedRow() {
     `;
 
     container.appendChild(row);
+    console.log('Row appended to container, total children:', container.children.length);
 }
 
 function removeNestedRow(rowId) {
@@ -516,11 +525,14 @@ function toggleNestedTemplate(selectElement) {
 }
 
 function prepareNestedCommands() {
+    console.log('prepareNestedCommands called');
     const bookmarkType = document.getElementById('bookmark_type').value;
+    console.log('Bookmark type:', bookmarkType);
 
     if (bookmarkType !== 'nested') {
         // Not a nested bookmark, clear the JSON field
         document.getElementById('nested_commands_json').value = '';
+        console.log('Not nested, cleared JSON');
         return;
     }
 
@@ -528,6 +540,7 @@ function prepareNestedCommands() {
     const nestedCommands = [];
     const container = document.getElementById('nested-commands-list');
     const rows = container.querySelectorAll('div[id^="nested-row-"]');
+    console.log('Found rows:', rows.length);
 
     rows.forEach((row, index) => {
         const aliasInput = row.querySelector('input[name="nested_alias[]"]');
@@ -548,9 +561,10 @@ function prepareNestedCommands() {
     });
 
     // Serialize to JSON and set in hidden field
-    document.getElementById('nested_commands_json').value = JSON.stringify(nestedCommands);
-
+    const jsonValue = JSON.stringify(nestedCommands);
+    document.getElementById('nested_commands_json').value = jsonValue;
     console.log('Prepared nested commands:', nestedCommands);
+    console.log('JSON value:', jsonValue);
 }
 
 function showNestedManager(bookmarkId, alias) {
@@ -659,14 +673,18 @@ function hideEditForm() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOMContentLoaded fired');
     toggleFields();
 
     // Add HTMX event listener to prepare nested commands before submission
     const createForm = document.getElementById('create-bookmark-form');
+    console.log('Create form found:', createForm !== null);
     if (createForm) {
         createForm.addEventListener('htmx:configRequest', function(event) {
+            console.log('htmx:configRequest event fired');
             prepareNestedCommands();
         });
+        console.log('HTMX event listener added');
     }
 });
 </script>
