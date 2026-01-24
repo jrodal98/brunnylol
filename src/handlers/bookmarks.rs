@@ -194,6 +194,16 @@ pub async fn create_bookmark(
         return Err(AppError::BadRequest("Invalid alias length".to_string()));
     }
 
+    // Validate templated bookmarks have a valid template with {}
+    if form.bookmark_type == "templated" {
+        let template = form.command_template.as_deref().unwrap_or(&form.url);
+        if !template.contains("{}") {
+            return Err(AppError::BadRequest(
+                "Templated bookmarks must have a template containing {} placeholder".to_string()
+            ));
+        }
+    }
+
     let encode_query = form.encode_query.is_some();
 
     // Create parent bookmark in database
@@ -232,6 +242,16 @@ pub async fn create_bookmark(
                 } else {
                     None
                 };
+
+                // Validate nested templated bookmarks have a valid template with {}
+                if nested_cmd.cmd_type == "templated" {
+                    let template = nested_template.unwrap_or(&nested_cmd.url);
+                    if !template.contains("{}") {
+                        return Err(AppError::BadRequest(
+                            format!("Nested bookmark '{}' is templated but template doesn't contain {{}} placeholder", nested_cmd.alias)
+                        ));
+                    }
+                }
 
                 eprintln!("  Creating nested #{}: alias={}, type={}, url={}",
                          i, nested_cmd.alias, nested_cmd.cmd_type, nested_cmd.url);
@@ -287,6 +307,15 @@ pub async fn update_bookmark(
 ) -> Result<impl IntoResponse, AppError> {
     let encode_query = form.encode_query.is_some();
 
+    // Validate command template if provided
+    if let Some(ref template) = form.command_template {
+        if !template.is_empty() && !template.contains("{}") {
+            return Err(AppError::BadRequest(
+                "Template must contain {} placeholder".to_string()
+            ));
+        }
+    }
+
     db::update_bookmark(
         &state.db_pool,
         bookmark_id,
@@ -313,6 +342,15 @@ pub async fn create_nested_bookmark(
     Form(form): Form<CreateNestedForm>,
 ) -> Result<impl IntoResponse, AppError> {
     let encode_query = form.encode_query.is_some();
+
+    // Validate templated nested bookmarks have a valid template with {}
+    if let Some(ref template) = form.command_template {
+        if !template.is_empty() && !template.contains("{}") {
+            return Err(AppError::BadRequest(
+                "Templated bookmarks must have a template containing {} placeholder".to_string()
+            ));
+        }
+    }
 
     // Get the next display order
     let existing_nested = db::get_nested_bookmarks(&state.db_pool, form.parent_id)

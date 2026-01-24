@@ -13,18 +13,18 @@ use crate::domain::{
 use crate::db::{self, UserBookmark, NestedBookmark};
 
 // Convert a database bookmark to a Command trait object
-pub fn bookmark_to_command(bookmark: &UserBookmark, nested: Vec<NestedBookmark>) -> Box<dyn Command> {
+pub fn bookmark_to_command(bookmark: &UserBookmark, nested: Vec<NestedBookmark>) -> Result<Box<dyn Command>> {
     match bookmark.bookmark_type.as_str() {
         "simple" => {
-            Box::new(BookmarkCommand::new(&bookmark.url, &bookmark.description))
+            Ok(Box::new(BookmarkCommand::new(&bookmark.url, &bookmark.description)))
         }
         "templated" => {
             let template = bookmark.command_template.as_deref().unwrap_or(&bookmark.url);
-            let cmd = TemplatedCommand::new(&bookmark.url, template, &bookmark.description);
+            let cmd = TemplatedCommand::new(&bookmark.url, template, &bookmark.description)?;
             if bookmark.encode_query {
-                Box::new(cmd)
+                Ok(Box::new(cmd))
             } else {
-                Box::new(cmd.with_no_query_encode())
+                Ok(Box::new(cmd.with_no_query_encode()))
             }
         }
         "nested" => {
@@ -33,7 +33,7 @@ pub fn bookmark_to_command(bookmark: &UserBookmark, nested: Vec<NestedBookmark>)
             for nested_bm in nested {
                 let nested_cmd: Box<dyn Command> = if nested_bm.command_template.is_some() {
                     let template = nested_bm.command_template.as_ref().unwrap();
-                    let cmd = TemplatedCommand::new(&nested_bm.url, template, &nested_bm.description);
+                    let cmd = TemplatedCommand::new(&nested_bm.url, template, &nested_bm.description)?;
                     if nested_bm.encode_query {
                         Box::new(cmd)
                     } else {
@@ -44,11 +44,11 @@ pub fn bookmark_to_command(bookmark: &UserBookmark, nested: Vec<NestedBookmark>)
                 };
                 nested_commands.insert(nested_bm.alias.clone(), nested_cmd);
             }
-            Box::new(NestedCommand::new(&bookmark.url, nested_commands, &bookmark.description))
+            Ok(Box::new(NestedCommand::new(&bookmark.url, nested_commands, &bookmark.description)))
         }
         _ => {
             // Fallback to simple bookmark
-            Box::new(BookmarkCommand::new(&bookmark.url, &bookmark.description))
+            Ok(Box::new(BookmarkCommand::new(&bookmark.url, &bookmark.description)))
         }
     }
 }
@@ -66,8 +66,14 @@ pub async fn load_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<Hash
             vec![]
         };
 
-        let command = bookmark_to_command(&bookmark, nested);
-        commands.insert(bookmark.alias.clone(), command);
+        match bookmark_to_command(&bookmark, nested) {
+            Ok(command) => {
+                commands.insert(bookmark.alias.clone(), command);
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load bookmark '{}': {}. Skipping.", bookmark.alias, e);
+            }
+        }
     }
 
     Ok(commands)

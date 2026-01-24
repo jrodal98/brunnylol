@@ -64,7 +64,7 @@ mod tests {
                 "www.template.com",
                 "www.template.com/{}",
                 "templated command",
-            )),
+            ).unwrap()),
         );
         // an entire word should work as well
         commands.insert(

@@ -23,7 +23,8 @@ impl From<YmlSettings> for AliasAndCommand {
                 Box::new(BookmarkCommand::new(&value.url, &value.description)) as Box<dyn Command>
             }
             (Some(command), maybe_encode, None) => {
-                let tc = TemplatedCommand::new(&value.url, &command, &value.description);
+                let tc = TemplatedCommand::new(&value.url, &command, &value.description)
+                    .unwrap_or_else(|e| panic!("Invalid template '{}' in commands.yml: {}", command, e));
                 Box::new(if !maybe_encode.unwrap_or(true) {
                     tc.with_no_query_encode()
                 } else {
