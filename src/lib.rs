@@ -55,8 +55,13 @@ pub struct AppState {
 
 // Route handlers
 async fn index(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
+    // If logged in, redirect to manage page
+    if optional_user.0.is_some() {
+        return Ok(Redirect::to("/manage").into_response());
+    }
+
     let template = IndexTemplate;
-    Ok(Html(template.render()?))
+    Ok(Html(template.render()?).into_response())
 }
 
 // Helper function to split command descriptions by pipe

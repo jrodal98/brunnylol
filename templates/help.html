@@ -12,12 +12,12 @@
         {% endif %}
         {% endif %}
     </div>
-    <div>
+    <div style="display: flex; align-items: center; gap: 15px;">
         {% if has_user %}
-        <span style="margin-right: 15px; color: #666;">{{ username }}</span>
+        <span style="margin-right: 5px; color: #ffffff;">{{ username }}</span>
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="display: inline; margin-left: 10px;">
-            <button type="submit" style="background: none; border: none; color: #333; font-weight: bold; cursor: pointer; text-decoration: underline;">Logout</button>
+        <form method="post" action="/logout" style="margin: 0;">
+            <button type="submit" style="background: none; border: none; color: #ffffff; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 8px 12px; border-radius: 4px;">Logout</button>
         </form>
         {% else %}
         <a href="/login">Login</a>
@@ -54,7 +54,7 @@
     tr:nth-child(even){background-color: #f8f9fa}
 
     th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background-color: #495057;
         color: #ffffff;
         font-weight: 600;
         font-size: 14px;
@@ -127,27 +127,33 @@
 
 <script>
 function searchTable() {
-  // Declare variables
-  var input, filter, table, tr, td, i, txtValue;
+  var input, filter;
   input = document.getElementById("search");
   filter = input.value.toUpperCase();
-  table = document.getElementById("aliases");
-  tr = table.getElementsByTagName("tr");
 
-  // Loop through all table rows, and hide those who don't match the search query
-  for (i = 0; i < tr.length; i++) {
-    td1 = tr[i].getElementsByTagName("td")[0];
-    td2 = tr[i].getElementsByTagName("td")[1];
-    if (td1 || td2) {
-      txtValue1 = td1.textContent || td1.innerText;
-      txtValue2 = td2.textContent || td2.innerText;
-      if ((txtValue1.toUpperCase().indexOf(filter) > -1) || (txtValue2.toUpperCase().indexOf(filter) > -1)) {
-        tr[i].style.display = "";
-      } else {
-        tr[i].style.display = "none";
+  // Search both personal and global tables
+  var tables = ["personal-aliases", "aliases"];
+
+  tables.forEach(function(tableId) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+
+    var tr = table.getElementsByTagName("tr");
+
+    for (var i = 0; i < tr.length; i++) {
+      var td1 = tr[i].getElementsByTagName("td")[0];
+      var td2 = tr[i].getElementsByTagName("td")[1];
+      if (td1 || td2) {
+        var txtValue1 = td1 ? (td1.textContent || td1.innerText) : "";
+        var txtValue2 = td2 ? (td2.textContent || td2.innerText) : "";
+        if ((txtValue1.toUpperCase().indexOf(filter) > -1) || (txtValue2.toUpperCase().indexOf(filter) > -1)) {
+          tr[i].style.display = "";
+        } else {
+          tr[i].style.display = "none";
+        }
       }
     }
-  }
+  });
 }
 </script>
 

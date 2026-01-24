@@ -10,11 +10,11 @@
         <a href="/admin">Admin</a>
         {% endif %}
     </div>
-    <div>
-        <span style="margin-right: 15px; color: #666;">{{ user.username }}</span>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <span style="margin-right: 5px; color: #ffffff;">{{ user.username }}</span>
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="display: inline; margin-left: 10px;">
-            <button type="submit" style="background: none; border: none; color: #333; font-weight: bold; cursor: pointer; text-decoration: underline;">Logout</button>
+        <form method="post" action="/logout" style="margin: 0;">
+            <button type="submit" style="background: none; border: none; color: #ffffff; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 8px 12px; border-radius: 4px;">Logout</button>
         </form>
     </div>
 </nav>
@@ -378,7 +378,7 @@
                 {% for bookmark in global_bookmarks %}
                 <tr id="global-{{ bookmark.alias }}">
                     <td><strong>{{ bookmark.alias }}</strong></td>
-                    <td>Built-in bookmark</td>
+                    <td>{{ bookmark.description }}</td>
                     <td id="status-{{ bookmark.alias }}">
                         {% if bookmark.is_overridden %}
                         <span style="color: #ff9800;">⚠️ Overridden by your personal bookmark</span>

@@ -37,6 +37,7 @@ struct BookmarkDisplay {
 #[derive(Clone)]
 struct GlobalBookmarkDisplay {
     alias: String,
+    description: String,
     is_overridden: bool,
     is_disabled: bool,
 }
@@ -146,7 +147,7 @@ pub async fn manage_page(
     let mut global_bookmarks = Vec::new();
     let mut conflicts = Vec::new();
 
-    for alias in state.alias_to_bookmark_map.keys() {
+    for (alias, command) in state.alias_to_bookmark_map.iter() {
         let is_overridden = user_aliases.contains(alias);
         let is_disabled = disabled_aliases.contains(alias);
 
@@ -156,6 +157,7 @@ pub async fn manage_page(
 
         global_bookmarks.push(GlobalBookmarkDisplay {
             alias: alias.clone(),
+            description: command.description(),
             is_overridden,
             is_disabled,
         });
@@ -481,6 +483,12 @@ pub async fn toggle_global_bookmark(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update override: {}", e)))?;
 
+    // Get description from command map
+    let description = state.alias_to_bookmark_map
+        .get(&form.builtin_alias)
+        .map(|cmd| cmd.description())
+        .unwrap_or_else(|| "Built-in bookmark".to_string());
+
     // Return updated table row
     let status_html = if is_disabled {
         "<span style=\"color: #d32f2f;\">✗ Disabled</span>"
@@ -510,10 +518,10 @@ pub async fn toggle_global_bookmark(
     Ok(Html(format!(
         "<tr id=\"global-{}\">
             <td><strong>{}</strong></td>
-            <td>Built-in bookmark</td>
+            <td>{}</td>
             <td id=\"status-{}\">{}</td>
             <td>{}</td>
         </tr>",
-        form.builtin_alias, form.builtin_alias, form.builtin_alias, status_html, button_html
+        form.builtin_alias, form.builtin_alias, description, form.builtin_alias, status_html, button_html
     )))
 }
