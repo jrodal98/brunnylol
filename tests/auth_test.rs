@@ -13,7 +13,7 @@ async fn create_test_app() -> axum::Router {
 }
 
 #[tokio::test]
-async fn test_register_page_loads() {
+async fn test_register_page_blocked_after_first_user() {
     let app = create_test_app().await;
 
     let response = app
@@ -21,15 +21,15 @@ async fn test_register_page_loads() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
+    // Should return Forbidden since admin user already exists
+    assert_eq!(response.status(), StatusCode::FORBIDDEN);
 
     let body = axum::body::to_bytes(response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
 
-    assert!(body_str.contains("Register"));
-    assert!(body_str.contains("first user"));
+    assert!(body_str.contains("Registration is closed") || body_str.contains("Forbidden"));
 }
 
 #[tokio::test]

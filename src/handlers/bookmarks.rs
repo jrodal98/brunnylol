@@ -38,6 +38,7 @@ struct BookmarkDisplay {
 struct GlobalBookmarkDisplay {
     alias: String,
     is_overridden: bool,
+    is_disabled: bool,
 }
 
 // Form structs
@@ -49,6 +50,34 @@ pub struct CreateBookmarkForm {
     description: String,
     command_template: Option<String>,
     encode_query: Option<String>, // checkbox value
+    // Nested command arrays
+    #[serde(default)]
+    nested_alias: Vec<String>,
+    #[serde(default)]
+    nested_type: Vec<String>,
+    #[serde(default)]
+    nested_url: Vec<String>,
+    #[serde(default)]
+    nested_description: Vec<String>,
+    #[serde(default)]
+    nested_template: Vec<String>,
+    #[serde(default)]
+    nested_encode: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct UpdateBookmarkForm {
+    alias: String,
+    url: String,
+    description: String,
+    command_template: Option<String>,
+    encode_query: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct DisableGlobalForm {
+    builtin_alias: String,
+    is_disabled: Option<String>, // checkbox
 }
 
 #[derive(Deserialize)]
@@ -96,23 +125,39 @@ pub async fn manage_page(
         });
     }
 
-    // Get global alias list for conflict detection
+    // Get global alias list and user overrides for conflict/disable detection
     let user_aliases: std::collections::HashSet<String> = personal_bookmarks
         .iter()
         .map(|b| b.alias.clone())
         .collect();
+
+    // Get user's disabled bookmarks
+    let overrides = db::get_user_overrides(&state.db_pool, current_user.0.id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    let mut disabled_aliases = std::collections::HashSet::new();
+    for (builtin_alias, is_disabled, _, _) in overrides {
+        if is_disabled {
+            disabled_aliases.insert(builtin_alias);
+        }
+    }
 
     let mut global_bookmarks = Vec::new();
     let mut conflicts = Vec::new();
 
     for alias in state.alias_to_bookmark_map.keys() {
         let is_overridden = user_aliases.contains(alias);
+        let is_disabled = disabled_aliases.contains(alias);
+
         if is_overridden {
             conflicts.push(alias.clone());
         }
+
         global_bookmarks.push(GlobalBookmarkDisplay {
             alias: alias.clone(),
             is_overridden,
+            is_disabled,
         });
     }
 
@@ -147,7 +192,7 @@ pub async fn create_bookmark(
 
     let encode_query = form.encode_query.is_some();
 
-    // Create bookmark in database
+    // Create parent bookmark in database
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
         current_user.0.id,
@@ -166,6 +211,37 @@ pub async fn create_bookmark(
             AppError::Internal(format!("Failed to create bookmark: {}", e))
         }
     })?;
+
+    // If nested bookmark, create sub-commands
+    if form.bookmark_type == "nested" && !form.nested_alias.is_empty() {
+        for i in 0..form.nested_alias.len() {
+            let nested_alias = &form.nested_alias[i];
+            let nested_url = form.nested_url.get(i).map(|s| s.as_str()).unwrap_or("");
+            let nested_desc = form.nested_description.get(i).map(|s| s.as_str()).unwrap_or("");
+            let nested_type = form.nested_type.get(i).map(|s| s.as_str()).unwrap_or("simple");
+
+            let nested_template = if nested_type == "templated" {
+                form.nested_template.get(i).map(|s| s.as_str())
+            } else {
+                None
+            };
+
+            let nested_encode = form.nested_encode.get(i).is_some();
+
+            db::create_nested_bookmark(
+                &state.db_pool,
+                bookmark_id,
+                nested_alias,
+                nested_url,
+                nested_desc,
+                nested_template,
+                nested_encode,
+                i as i32,
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
+        }
+    }
 
     // Return success message as HTMX fragment
     Ok(Html(format!(
@@ -186,6 +262,34 @@ pub async fn delete_bookmark(
 
     // Return empty HTML (HTMX will remove the row)
     Ok(Html(""))
+}
+
+// PUT /manage/bookmark/:id - Update a bookmark
+pub async fn update_bookmark(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Path(bookmark_id): Path<i64>,
+    Form(form): Form<UpdateBookmarkForm>,
+) -> Result<impl IntoResponse, AppError> {
+    let encode_query = form.encode_query.is_some();
+
+    db::update_bookmark(
+        &state.db_pool,
+        bookmark_id,
+        current_user.0.id,
+        &form.alias,
+        &form.url,
+        &form.description,
+        form.command_template.as_deref(),
+        encode_query,
+    )
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to update bookmark: {}", e)))?;
+
+    Ok(Html(format!(
+        r#"<div class="success-message">Bookmark '{}' updated successfully!</div>"#,
+        form.alias
+    )))
 }
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark
@@ -230,4 +334,30 @@ pub async fn delete_nested_bookmark(
         .map_err(|e| AppError::Internal(format!("Failed to delete nested bookmark: {}", e)))?;
 
     Ok(Html(""))
+}
+
+// POST /manage/override - Disable/enable global bookmark
+pub async fn toggle_global_bookmark(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<DisableGlobalForm>,
+) -> Result<impl IntoResponse, AppError> {
+    let is_disabled = form.is_disabled.is_some();
+
+    db::upsert_override(
+        &state.db_pool,
+        current_user.0.id,
+        &form.builtin_alias,
+        is_disabled,
+        None, // custom_alias
+        None, // additional_aliases
+    )
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to update override: {}", e)))?;
+
+    let status = if is_disabled { "disabled" } else { "enabled" };
+    Ok(Html(format!(
+        r#"<div class="success-message">Global bookmark '{}' {}</div>"#,
+        form.builtin_alias, status
+    )))
 }

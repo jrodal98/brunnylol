@@ -86,15 +86,22 @@ pub async fn login_submit(
     Ok((jar.add(cookie), Redirect::to("/manage")).into_response())
 }
 
-// GET /register - Show registration page
+// GET /register - Show registration page (only if no users exist)
 pub async fn register_page(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
-    // Check if this would be the first user
+    // Check if any users exist
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db_pool)
         .await
         .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    // If users exist, registration is closed
+    if count > 0 {
+        return Err(AppError::Forbidden(
+            "Registration is closed. Please contact an administrator to create an account.".to_string()
+        ));
+    }
 
     let template = RegisterTemplate {
         error: String::new(),
@@ -103,17 +110,24 @@ pub async fn register_page(
     Ok(Html(template.render()?))
 }
 
-// POST /register - Process registration
+// POST /register - Process registration (only if no users exist)
 pub async fn register_submit(
     jar: CookieJar,
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<RegisterForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Check if this would be the first user
+    // Check if any users exist
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db_pool)
         .await
         .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    // If users exist, registration is closed
+    if count > 0 {
+        return Err(AppError::Forbidden(
+            "Registration is closed. Please contact an administrator.".to_string()
+        ));
+    }
 
     // Validate passwords match
     if form.password != form.confirm_password {

@@ -1,6 +1,7 @@
 // Database module for user management and bookmarks
 
 pub mod bookmarks;
+pub mod seed;
 
 use sqlx::{sqlite::SqlitePool, Row};
 use anyhow::{Context, Result};

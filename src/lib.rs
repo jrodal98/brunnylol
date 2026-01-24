@@ -11,7 +11,7 @@ use askama::Template;
 use axum::{
     extract::{Query, State},
     response::{Html, IntoResponse, Redirect},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use domain::Command;
@@ -85,20 +85,40 @@ async fn redirect(
     let bookmark_alias = splitted.next().unwrap_or("");
     let query = splitted.next().unwrap_or_default();
 
-    // Load user bookmarks if logged in
-    let user_bookmarks = if let Some(user) = &optional_user.0 {
-        db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+    // Load user bookmarks and disabled global bookmarks if logged in
+    let (user_bookmarks, disabled_globals) = if let Some(user) = &optional_user.0 {
+        let bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+            .await
+            .ok();
+
+        let overrides = db::get_user_overrides(&state.db_pool, user.id)
             .await
             .ok()
+            .unwrap_or_default();
+
+        let disabled: std::collections::HashSet<String> = overrides
+            .iter()
+            .filter(|(_, is_disabled, _, _)| *is_disabled)
+            .map(|(alias, _, _, _)| alias.clone())
+            .collect();
+
+        (bookmarks, disabled)
     } else {
-        None
+        (None, std::collections::HashSet::new())
     };
 
-    // Try user bookmarks first (if logged in), then global bookmarks
+    // Try user bookmarks first (if logged in), then global bookmarks (if not disabled)
     let command = user_bookmarks
         .as_ref()
         .and_then(|user_map| user_map.get(bookmark_alias))
-        .or_else(|| state.alias_to_bookmark_map.get(bookmark_alias));
+        .or_else(|| {
+            // Check if global bookmark is disabled
+            if disabled_globals.contains(bookmark_alias) {
+                None
+            } else {
+                state.alias_to_bookmark_map.get(bookmark_alias)
+            }
+        });
 
     let redirect_url = match command {
         Some(bookmark) => bookmark.get_redirect_url(query),
@@ -112,7 +132,13 @@ async fn redirect(
             let default_command = user_bookmarks
                 .as_ref()
                 .and_then(|user_map| user_map.get(default_alias))
-                .or_else(|| state.alias_to_bookmark_map.get(default_alias));
+                .or_else(|| {
+                    if disabled_globals.contains(default_alias) {
+                        None
+                    } else {
+                        state.alias_to_bookmark_map.get(default_alias)
+                    }
+                });
 
             default_command
                 .map(|cmd| cmd.get_redirect_url(&params.q))
@@ -171,6 +197,11 @@ pub async fn create_router() -> Router {
         .await
         .expect("Failed to initialize database");
 
+    // Seed test user in development
+    if cfg!(debug_assertions) {
+        let _ = db::seed::seed_test_user(&db_pool).await;
+    }
+
     let alias_to_bookmark_map = AliasAndCommand::get_alias_to_bookmark_map(yaml_path);
 
     let state = Arc::new(AppState {
@@ -193,9 +224,12 @@ pub async fn create_router() -> Router {
         // Bookmark management routes (require authentication)
         .route("/manage", get(handlers::bookmarks::manage_page))
         .route("/manage/bookmark", post(handlers::bookmarks::create_bookmark))
-        .route("/manage/bookmark/{id}", delete(handlers::bookmarks::delete_bookmark))
+        .route("/manage/bookmark/{id}",
+            delete(handlers::bookmarks::delete_bookmark)
+            .put(handlers::bookmarks::update_bookmark))
         .route("/manage/bookmark/{id}/nested", post(handlers::bookmarks::create_nested_bookmark))
         .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
+        .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
 
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))

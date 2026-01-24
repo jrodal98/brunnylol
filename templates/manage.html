@@ -223,7 +223,16 @@
 
             <!-- Info for nested bookmarks -->
             <div id="nested-info" class="dynamic-field">
-                <p><em>Note: You'll be able to add sub-commands after creating the parent bookmark.</em></p>
+                <h3>Sub-commands</h3>
+                <p><em>Add sub-commands that will be accessible as: alias sub-alias query</em></p>
+
+                <div id="nested-commands-list">
+                    <!-- Dynamic nested command rows will be added here -->
+                </div>
+
+                <button type="button" onclick="addNestedRow()" class="btn-secondary" style="margin-top: 10px;">
+                    + Add Sub-command
+                </button>
             </div>
 
             <button type="submit" class="btn-primary">Create Bookmark</button>
@@ -261,6 +270,10 @@
                     </td>
                     <td>{{ bookmark.description }}</td>
                     <td>
+                        <button class="btn-secondary"
+                                onclick="showEditForm({{ bookmark.id }}, '{{ bookmark.alias }}', '{{ bookmark.url }}', '{{ bookmark.description }}', '{{ bookmark.command_template }}', {{ bookmark.encode_query }})">
+                            Edit
+                        </button>
                         <button class="btn-danger"
                                 hx-delete="/manage/bookmark/{{ bookmark.id }}"
                                 hx-target="#bookmark-{{ bookmark.id }}"
@@ -292,19 +305,36 @@
                     <th>Alias</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
                 {% for bookmark in global_bookmarks %}
-                <tr>
+                <tr id="global-{{ bookmark.alias }}">
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>Built-in bookmark</td>
                     <td>
                         {% if bookmark.is_overridden %}
                         <span style="color: #ff9800;">⚠️ Overridden by your personal bookmark</span>
                         {% else %}
-                        <span style="color: #4caf50;">✓ Active</span>
+                            {% if bookmark.is_disabled %}
+                            <span style="color: #d32f2f;">✗ Disabled</span>
+                            {% else %}
+                            <span style="color: #4caf50;">✓ Active</span>
+                            {% endif %}
                         {% endif %}
+                    </td>
+                    <td>
+                        <form hx-post="/manage/override" hx-target="#override-result-{{ bookmark.alias }}" style="display: inline;">
+                            <input type="hidden" name="builtin_alias" value="{{ bookmark.alias }}">
+                            {% if bookmark.is_disabled %}
+                            <button type="submit" class="btn-primary">Enable</button>
+                            {% else %}
+                            <input type="hidden" name="is_disabled" value="true">
+                            <button type="submit" class="btn-secondary">Disable</button>
+                            {% endif %}
+                        </form>
+                        <div id="override-result-{{ bookmark.alias }}"></div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -323,10 +353,49 @@
 </div>
 
 <!-- Nested Command Manager Modal (will be shown via JavaScript) -->
-<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: white; border: 2px solid #333; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%;">
+<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: white; border: 2px solid #333; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%; z-index: 1000;">
     <h3 id="nested-manager-title">Manage Nested Commands</h3>
     <div id="nested-manager-content"></div>
     <button onclick="hideNestedManager()" class="btn-secondary">Close</button>
+</div>
+
+<!-- Edit Bookmark Modal -->
+<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: white; border: 2px solid #333; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); max-width: 600px; width: 90%; z-index: 1000;">
+    <h3>Edit Bookmark</h3>
+    <div id="edit-result"></div>
+    <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: 15px;">
+        <input type="hidden" id="edit-id" name="edit-id">
+
+        <div class="form-group">
+            <label>Alias:</label>
+            <input type="text" id="edit-alias" name="alias" required>
+        </div>
+
+        <div class="form-group">
+            <label>Base URL:</label>
+            <input type="url" id="edit-url" name="url" required>
+        </div>
+
+        <div class="form-group">
+            <label>Description:</label>
+            <input type="text" id="edit-description" name="description" required>
+        </div>
+
+        <div class="form-group">
+            <label>Search Template (optional):</label>
+            <input type="text" id="edit-template" name="command_template">
+        </div>
+
+        <div class="form-group">
+            <label>
+                <input type="checkbox" id="edit-encode" name="encode_query" value="true">
+                URL-encode query
+            </label>
+        </div>
+
+        <button type="submit" class="btn-primary">Save Changes</button>
+        <button type="button" onclick="hideEditForm()" class="btn-secondary">Cancel</button>
+    </form>
 </div>
 
 <script>
@@ -361,6 +430,83 @@ function toggleFields() {
     }
 }
 
+let nestedCounter = 0;
+
+function addNestedRow() {
+    const container = document.getElementById('nested-commands-list');
+    const rowId = `nested-row-${nestedCounter++}`;
+
+    const row = document.createElement('div');
+    row.id = rowId;
+    row.style.border = '1px solid #e0e0e0';
+    row.style.padding = '15px';
+    row.style.marginBottom = '10px';
+    row.style.borderRadius = '4px';
+    row.style.backgroundColor = '#f9f9f9';
+
+    row.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h4 style="margin: 0;">Sub-command #${nestedCounter}</h4>
+            <button type="button" onclick="removeNestedRow('${rowId}')" class="btn-danger" style="padding: 4px 8px; font-size: 12px;">Remove</button>
+        </div>
+
+        <div class="form-group">
+            <label>Sub-alias:</label>
+            <input type="text" name="nested_alias[]" required placeholder="e.g., r" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div class="form-group">
+            <label>Type:</label>
+            <select name="nested_type[]" onchange="toggleNestedTemplate(this)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <option value="simple">Simple Bookmark</option>
+                <option value="templated">Search Template</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>URL:</label>
+            <input type="url" name="nested_url[]" required placeholder="https://example.com" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div class="form-group">
+            <label>Description:</label>
+            <input type="text" name="nested_description[]" required placeholder="What this sub-command does" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div class="form-group nested-template-field" style="display: none;">
+            <label>Template (with {}):</label>
+            <input type="text" name="nested_template[]" placeholder="https://example.com/search?q={}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        </div>
+
+        <div class="form-group nested-encode-field" style="display: none;">
+            <label>
+                <input type="checkbox" name="nested_encode[]" value="true" checked>
+                URL-encode query
+            </label>
+        </div>
+    `;
+
+    container.appendChild(row);
+}
+
+function removeNestedRow(rowId) {
+    document.getElementById(rowId).remove();
+}
+
+function toggleNestedTemplate(selectElement) {
+    const row = selectElement.closest('div[id^="nested-row-"]');
+    const templateField = row.querySelector('.nested-template-field');
+    const encodeField = row.querySelector('.nested-encode-field');
+
+    if (selectElement.value === 'templated') {
+        templateField.style.display = 'block';
+        encodeField.style.display = 'block';
+    } else {
+        templateField.style.display = 'none';
+        encodeField.style.display = 'none';
+    }
+}
+
 function showNestedManager(bookmarkId, alias) {
     document.getElementById('nested-manager-title').textContent = `Manage Nested Commands for '${alias}'`;
     // TODO: Load nested commands via HTMX
@@ -373,6 +519,26 @@ function showNestedManager(bookmarkId, alias) {
 
 function hideNestedManager() {
     document.getElementById('nested-manager').style.display = 'none';
+}
+
+function showEditForm(id, alias, url, description, template, encodeQuery) {
+    document.getElementById('edit-id').value = id;
+    document.getElementById('edit-alias').value = alias;
+    document.getElementById('edit-url').value = url;
+    document.getElementById('edit-description').value = description;
+    document.getElementById('edit-template').value = template || '';
+    document.getElementById('edit-encode').checked = encodeQuery;
+
+    // Set the form action URL
+    document.getElementById('edit-form').setAttribute('hx-put', `/manage/bookmark/${id}`);
+    htmx.process(document.getElementById('edit-form'));
+
+    document.getElementById('edit-modal').style.display = 'block';
+}
+
+function hideEditForm() {
+    document.getElementById('edit-modal').style.display = 'none';
+    document.getElementById('edit-result').innerHTML = '';
 }
 
 // Initialize
