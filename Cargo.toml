@@ -14,14 +14,15 @@ tower = "0.5"
 tower-http = { version = "0.6", features = ["fs", "trace"] }
 
 # Templates - Askama
-askama = "0.12"
+askama = "0.15.1"
+askama_axum = "0.4"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9.16"
 
 # CLI
-clap = "4.0.32"
+clap = "4.5.54"
 
 # URL encoding
 urlencoding = "2.1"
@@ -30,11 +31,11 @@ urlencoding = "2.1"
 anyhow = "1.0"
 
 # Database
-sqlx = { version = "0.7", features = ["runtime-tokio-native-tls", "sqlite", "chrono", "uuid"] }
+sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "sqlite", "chrono", "uuid"] }
 
 # Authentication & Sessions
-bcrypt = "0.15"
-uuid = { version = "1.0", features = ["v4", "serde"] }
+bcrypt = "0.16"
+uuid = { version = "1.19", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 axum-extra = { version = "0.12", features = ["cookie"] }
 async-trait = "0.1"
