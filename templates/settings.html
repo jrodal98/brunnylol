@@ -68,16 +68,27 @@
         cursor: pointer;
         font-size: 14px;
         margin-right: 10px;
+        transition: all 0.2s ease;
     }
 
     .btn-primary {
-        background-color: #333;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
     }
 
+    .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+    }
+
     .btn-secondary {
-        background-color: #757575;
+        background-color: #6c757d;
         color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+        transform: translateY(-1px);
     }
 
     .success-message {

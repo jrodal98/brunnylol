@@ -185,10 +185,6 @@ pub async fn create_bookmark(
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<CreateBookmarkForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Debug logging
-    eprintln!("Creating bookmark: alias={}, type={}", form.alias, form.bookmark_type);
-    eprintln!("Nested JSON: {:?}", form.nested_commands_json);
-
     // Validate alias
     if form.alias.is_empty() || form.alias.len() > 50 {
         return Err(AppError::BadRequest("Invalid alias length".to_string()));
@@ -226,15 +222,11 @@ pub async fn create_bookmark(
         }
     })?;
 
-    eprintln!("Created parent bookmark with ID: {}", bookmark_id);
-
     // If nested bookmark, create sub-commands from JSON
     if form.bookmark_type == "nested" {
         if let Some(json_str) = &form.nested_commands_json {
             let nested_commands: Vec<NestedCommandData> = serde_json::from_str(json_str)
                 .map_err(|e| AppError::Internal(format!("Failed to parse nested commands: {}", e)))?;
-
-            eprintln!("Parsed {} nested commands from JSON", nested_commands.len());
 
             for (i, nested_cmd) in nested_commands.iter().enumerate() {
                 let nested_template = if nested_cmd.cmd_type == "templated" {
@@ -253,9 +245,6 @@ pub async fn create_bookmark(
                     }
                 }
 
-                eprintln!("  Creating nested #{}: alias={}, type={}, url={}",
-                         i, nested_cmd.alias, nested_cmd.cmd_type, nested_cmd.url);
-
                 db::create_nested_bookmark(
                     &state.db_pool,
                     bookmark_id,
@@ -267,12 +256,7 @@ pub async fn create_bookmark(
                     i as i32,
                 )
                 .await
-                .map_err(|e| {
-                    eprintln!("Failed to create nested bookmark: {}", e);
-                    AppError::Internal(format!("Failed to create nested bookmark: {}", e))
-                })?;
-
-                eprintln!("  Nested #{} created successfully", i);
+                .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
             }
         }
     }
@@ -337,10 +321,20 @@ pub async fn update_bookmark(
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark
 pub async fn create_nested_bookmark(
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<CreateNestedForm>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Verify parent bookmark belongs to current user
+    let parent = db::get_bookmark_by_id(&state.db_pool, form.parent_id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or(AppError::NotFound("Parent bookmark not found".to_string()))?;
+
+    if parent.user_id != current_user.0.id {
+        return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
+    }
+
     let encode_query = form.encode_query.is_some();
 
     // Validate templated nested bookmarks have a valid template with {}
@@ -380,10 +374,25 @@ pub async fn create_nested_bookmark(
 
 // DELETE /manage/nested/:id - Delete nested bookmark
 pub async fn delete_nested_bookmark(
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
     Path(nested_id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Verify nested bookmark's parent belongs to current user
+    let nested = db::get_nested_bookmark_by_id(&state.db_pool, nested_id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or(AppError::NotFound("Nested bookmark not found".to_string()))?;
+
+    let parent = db::get_bookmark_by_id(&state.db_pool, nested.parent_bookmark_id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or(AppError::Internal("Parent bookmark not found".to_string()))?;
+
+    if parent.user_id != current_user.0.id {
+        return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
+    }
+
     db::delete_nested_bookmark(&state.db_pool, nested_id)
         .await
         .map_err(|e| AppError::Internal(format!("Failed to delete nested bookmark: {}", e)))?;
@@ -393,10 +402,20 @@ pub async fn delete_nested_bookmark(
 
 // GET /manage/bookmark/:id/nested/list - List nested bookmarks
 pub async fn list_nested_bookmarks(
-    _current_user: CurrentUser,
+    current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
     Path(bookmark_id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Verify bookmark belongs to current user
+    let parent = db::get_bookmark_by_id(&state.db_pool, bookmark_id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .ok_or(AppError::NotFound("Bookmark not found".to_string()))?;
+
+    if parent.user_id != current_user.0.id {
+        return Err(AppError::Forbidden("Cannot access bookmarks you don't own".to_string()));
+    }
+
     let nested = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
         .await
         .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;

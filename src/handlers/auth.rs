@@ -311,7 +311,12 @@ pub async fn change_password(
         .await
         .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
 
+    // Invalidate all sessions for security (user will need to log in again)
+    db::delete_all_user_sessions(&state.db_pool, current_user.0.id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to invalidate sessions: {}", e)))?;
+
     Ok(Html(
-        r#"<div class="success-message">Password updated successfully!</div>"#.to_string()
+        r#"<div class="success-message">Password updated successfully! You have been logged out. Please <a href="/login">log in again</a>.</div>"#.to_string()
     ))
 }

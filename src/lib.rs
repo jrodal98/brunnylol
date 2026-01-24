@@ -54,9 +54,14 @@ pub struct AppState {
 }
 
 // Route handlers
-async fn index(_optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
+async fn index(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
     let template = IndexTemplate;
     Ok(Html(template.render()?))
+}
+
+// Helper function to split command descriptions by pipe
+fn split_command_description(description: &str) -> Vec<String> {
+    description.split('|').map(|s| s.to_string()).collect()
 }
 
 async fn help(
@@ -68,11 +73,7 @@ async fn help(
         .alias_to_bookmark_map
         .iter()
         .map(|(alias, cmd)| {
-            let description = cmd.description();
-            let parts: Vec<String> = description
-                .split('|')
-                .map(|s| s.to_string())
-                .collect();
+            let parts = split_command_description(&cmd.description());
             (alias.clone(), parts)
         })
         .collect();
@@ -88,8 +89,7 @@ async fn help(
                 bookmarks
                     .iter()
                     .map(|(alias, cmd)| {
-                        let description = cmd.description();
-                        let parts: Vec<String> = description.split('|').map(|s| s.to_string()).collect();
+                        let parts = split_command_description(&cmd.description());
                         (alias.clone(), parts)
                     })
                     .collect::<Vec<_>>()

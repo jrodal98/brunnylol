@@ -150,6 +150,16 @@ pub async fn delete_session(pool: &SqlitePool, session_id: &str) -> Result<()> {
     Ok(())
 }
 
+// Delete all sessions for a user (for password changes)
+pub async fn delete_all_user_sessions(pool: &SqlitePool, user_id: i64) -> Result<()> {
+    sqlx::query("DELETE FROM sessions WHERE user_id = ?")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
 // Cleanup expired sessions
 pub async fn cleanup_expired_sessions(pool: &SqlitePool) -> Result<u64> {
     let result = sqlx::query("DELETE FROM sessions WHERE expires_at < datetime('now')")
@@ -237,6 +247,29 @@ pub async fn get_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<Vec<U
     }).collect())
 }
 
+// Get a single bookmark by ID
+pub async fn get_bookmark_by_id(pool: &SqlitePool, bookmark_id: i64) -> Result<Option<UserBookmark>> {
+    let row = sqlx::query(
+        "SELECT id, user_id, alias, bookmark_type, url, description, command_template, encode_query
+         FROM user_bookmarks
+         WHERE id = ?"
+    )
+    .bind(bookmark_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|row| UserBookmark {
+        id: row.get("id"),
+        user_id: row.get("user_id"),
+        alias: row.get("alias"),
+        bookmark_type: row.get("bookmark_type"),
+        url: row.get("url"),
+        description: row.get("description"),
+        command_template: row.get("command_template"),
+        encode_query: row.get("encode_query"),
+    }))
+}
+
 // Get nested bookmarks for a parent bookmark
 pub async fn get_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: i64) -> Result<Vec<NestedBookmark>> {
     let rows = sqlx::query(
@@ -259,6 +292,29 @@ pub async fn get_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: i64) ->
         encode_query: row.get("encode_query"),
         display_order: row.get("display_order"),
     }).collect())
+}
+
+// Get a single nested bookmark by ID
+pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Result<Option<NestedBookmark>> {
+    let row = sqlx::query(
+        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+         FROM nested_bookmarks
+         WHERE id = ?"
+    )
+    .bind(nested_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|row| NestedBookmark {
+        id: row.get("id"),
+        parent_bookmark_id: row.get("parent_bookmark_id"),
+        alias: row.get("alias"),
+        url: row.get("url"),
+        description: row.get("description"),
+        command_template: row.get("command_template"),
+        encode_query: row.get("encode_query"),
+        display_order: row.get("display_order"),
+    }))
 }
 
 // Update a bookmark

@@ -40,18 +40,26 @@
     table {
         border-collapse: collapse;
         width: 100%;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-top: 20px;
     }
 
     th, td {
         text-align: left;
-        padding: 8px;
+        padding: 14px;
     }
 
-    tr:nth-child(even){background-color: #f2f2f2}
+    tr:nth-child(even){background-color: #f8f9fa}
 
     th {
-        background-color: #333;
-        color: white;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #ffffff;
+        font-weight: 600;
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .command {
