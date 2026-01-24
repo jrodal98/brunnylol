@@ -2,7 +2,7 @@
 
 use askama::Template;
 use axum::{
-    extract::{Path, State},
+    extract::State,
     response::{Html, IntoResponse},
 };
 use std::sync::Arc;

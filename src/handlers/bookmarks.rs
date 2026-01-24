@@ -3,7 +3,7 @@
 use askama::Template;
 use axum::{
     extract::{Form, Path, State},
-    response::{Html, IntoResponse, Redirect},
+    response::{Html, IntoResponse},
 };
 use serde::Deserialize;
 use std::sync::Arc;

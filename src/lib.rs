@@ -11,7 +11,7 @@ use askama::Template;
 use axum::{
     extract::{Query, State},
     response::{Html, IntoResponse, Redirect},
-    routing::{delete, get, post, put},
+    routing::{delete, get, post},
     Router,
 };
 use domain::Command;
