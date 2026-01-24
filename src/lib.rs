@@ -228,6 +228,7 @@ pub async fn create_router() -> Router {
             delete(handlers::bookmarks::delete_bookmark)
             .put(handlers::bookmarks::update_bookmark))
         .route("/manage/bookmark/{id}/nested", post(handlers::bookmarks::create_nested_bookmark))
+        .route("/manage/bookmark/{id}/nested/list", get(handlers::bookmarks::list_nested_bookmarks))
         .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
         .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
 

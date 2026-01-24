@@ -42,6 +42,17 @@ struct GlobalBookmarkDisplay {
 }
 
 // Form structs
+#[derive(Deserialize, Debug)]
+pub struct NestedCommandData {
+    alias: String,
+    #[serde(rename = "type")]
+    cmd_type: String,
+    url: String,
+    description: String,
+    template: Option<String>,
+    encode: bool,
+}
+
 #[derive(Deserialize)]
 pub struct CreateBookmarkForm {
     alias: String,
@@ -50,19 +61,8 @@ pub struct CreateBookmarkForm {
     description: String,
     command_template: Option<String>,
     encode_query: Option<String>, // checkbox value
-    // Nested command arrays
-    #[serde(default)]
-    nested_alias: Vec<String>,
-    #[serde(default)]
-    nested_type: Vec<String>,
-    #[serde(default)]
-    nested_url: Vec<String>,
-    #[serde(default)]
-    nested_description: Vec<String>,
-    #[serde(default)]
-    nested_template: Vec<String>,
-    #[serde(default)]
-    nested_encode: Vec<String>,
+    // Nested commands as JSON string
+    nested_commands_json: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -185,6 +185,10 @@ pub async fn create_bookmark(
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<CreateBookmarkForm>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Debug logging
+    eprintln!("Creating bookmark: alias={}, type={}", form.alias, form.bookmark_type);
+    eprintln!("Nested JSON: {:?}", form.nested_commands_json);
+
     // Validate alias
     if form.alias.is_empty() || form.alias.len() > 50 {
         return Err(AppError::BadRequest("Invalid alias length".to_string()));
@@ -212,34 +216,44 @@ pub async fn create_bookmark(
         }
     })?;
 
-    // If nested bookmark, create sub-commands
-    if form.bookmark_type == "nested" && !form.nested_alias.is_empty() {
-        for i in 0..form.nested_alias.len() {
-            let nested_alias = &form.nested_alias[i];
-            let nested_url = form.nested_url.get(i).map(|s| s.as_str()).unwrap_or("");
-            let nested_desc = form.nested_description.get(i).map(|s| s.as_str()).unwrap_or("");
-            let nested_type = form.nested_type.get(i).map(|s| s.as_str()).unwrap_or("simple");
+    eprintln!("Created parent bookmark with ID: {}", bookmark_id);
 
-            let nested_template = if nested_type == "templated" {
-                form.nested_template.get(i).map(|s| s.as_str())
-            } else {
-                None
-            };
+    // If nested bookmark, create sub-commands from JSON
+    if form.bookmark_type == "nested" {
+        if let Some(json_str) = &form.nested_commands_json {
+            let nested_commands: Vec<NestedCommandData> = serde_json::from_str(json_str)
+                .map_err(|e| AppError::Internal(format!("Failed to parse nested commands: {}", e)))?;
 
-            let nested_encode = form.nested_encode.get(i).is_some();
+            eprintln!("Parsed {} nested commands from JSON", nested_commands.len());
 
-            db::create_nested_bookmark(
-                &state.db_pool,
-                bookmark_id,
-                nested_alias,
-                nested_url,
-                nested_desc,
-                nested_template,
-                nested_encode,
-                i as i32,
-            )
-            .await
-            .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
+            for (i, nested_cmd) in nested_commands.iter().enumerate() {
+                let nested_template = if nested_cmd.cmd_type == "templated" {
+                    nested_cmd.template.as_deref()
+                } else {
+                    None
+                };
+
+                eprintln!("  Creating nested #{}: alias={}, type={}, url={}",
+                         i, nested_cmd.alias, nested_cmd.cmd_type, nested_cmd.url);
+
+                db::create_nested_bookmark(
+                    &state.db_pool,
+                    bookmark_id,
+                    &nested_cmd.alias,
+                    &nested_cmd.url,
+                    &nested_cmd.description,
+                    nested_template,
+                    nested_cmd.encode,
+                    i as i32,
+                )
+                .await
+                .map_err(|e| {
+                    eprintln!("Failed to create nested bookmark: {}", e);
+                    AppError::Internal(format!("Failed to create nested bookmark: {}", e))
+                })?;
+
+                eprintln!("  Nested #{} created successfully", i);
+            }
         }
     }
 
@@ -336,6 +350,58 @@ pub async fn delete_nested_bookmark(
     Ok(Html(""))
 }
 
+// GET /manage/bookmark/:id/nested/list - List nested bookmarks
+pub async fn list_nested_bookmarks(
+    _current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Path(bookmark_id): Path<i64>,
+) -> Result<impl IntoResponse, AppError> {
+    let nested = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    let mut html = String::from("<div class='nested-commands'>");
+
+    if nested.is_empty() {
+        html.push_str("<p><em>No sub-commands yet. Add one below.</em></p>");
+    } else {
+        html.push_str("<table style='width: 100%; border-collapse: collapse;'>");
+        html.push_str("<thead><tr><th>Alias</th><th>URL/Template</th><th>Description</th><th>Actions</th></tr></thead>");
+        html.push_str("<tbody>");
+
+        for n in nested {
+            let url_display = if let Some(ref template) = n.command_template {
+                template.clone()
+            } else {
+                n.url.clone()
+            };
+
+            html.push_str(&format!(
+                "<tr id=\"nested-{}\">
+                    <td><strong>{}</strong></td>
+                    <td>{}</td>
+                    <td>{}</td>
+                    <td>
+                        <button class=\"btn-danger\"
+                                hx-delete=\"/manage/nested/{}\"
+                                hx-target=\"#nested-{}\"
+                                hx-swap=\"outerHTML\"
+                                hx-confirm=\"Delete sub-command '{}'?\">
+                            Delete
+                        </button>
+                    </td>
+                </tr>",
+                n.id, n.alias, url_display, n.description, n.id, n.id, n.alias
+            ));
+        }
+
+        html.push_str("</tbody></table>");
+    }
+
+    html.push_str("</div>");
+    Ok(Html(html))
+}
+
 // POST /manage/override - Disable/enable global bookmark
 pub async fn toggle_global_bookmark(
     current_user: CurrentUser,
@@ -355,9 +421,39 @@ pub async fn toggle_global_bookmark(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update override: {}", e)))?;
 
-    let status = if is_disabled { "disabled" } else { "enabled" };
+    // Return updated table row
+    let status_html = if is_disabled {
+        "<span style=\"color: #d32f2f;\">✗ Disabled</span>"
+    } else {
+        "<span style=\"color: #4caf50;\">✓ Active</span>"
+    };
+
+    let button_html = if is_disabled {
+        format!(
+            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"display: inline;\">
+                <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
+                <button type=\"submit\" class=\"btn-primary\">Enable</button>
+            </form>",
+            form.builtin_alias, form.builtin_alias
+        )
+    } else {
+        format!(
+            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"display: inline;\">
+                <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
+                <input type=\"hidden\" name=\"is_disabled\" value=\"true\">
+                <button type=\"submit\" class=\"btn-secondary\">Disable</button>
+            </form>",
+            form.builtin_alias, form.builtin_alias
+        )
+    };
+
     Ok(Html(format!(
-        r#"<div class="success-message">Global bookmark '{}' {}</div>"#,
-        form.builtin_alias, status
+        "<tr id=\"global-{}\">
+            <td><strong>{}</strong></td>
+            <td>Built-in bookmark</td>
+            <td id=\"status-{}\">{}</td>
+            <td>{}</td>
+        </tr>",
+        form.builtin_alias, form.builtin_alias, form.builtin_alias, status_html, button_html
     )))
 }

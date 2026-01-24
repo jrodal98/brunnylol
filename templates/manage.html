@@ -178,7 +178,7 @@
         <h2>Create New Bookmark</h2>
         <div id="create-result"></div>
 
-        <form hx-post="/manage/bookmark" hx-target="#create-result" hx-swap="innerHTML">
+        <form hx-post="/manage/bookmark" hx-target="#create-result" hx-swap="innerHTML" id="create-bookmark-form" onsubmit="return prepareNestedCommands()">
             <div class="form-group">
                 <label for="alias">Alias *</label>
                 <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
@@ -233,6 +233,9 @@
                 <button type="button" onclick="addNestedRow()" class="btn-secondary" style="margin-top: 10px;">
                     + Add Sub-command
                 </button>
+
+                <!-- Hidden field for JSON data -->
+                <input type="hidden" id="nested_commands_json" name="nested_commands_json">
             </div>
 
             <button type="submit" class="btn-primary">Create Bookmark</button>
@@ -313,7 +316,7 @@
                 <tr id="global-{{ bookmark.alias }}">
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>Built-in bookmark</td>
-                    <td>
+                    <td id="status-{{ bookmark.alias }}">
                         {% if bookmark.is_overridden %}
                         <span style="color: #ff9800;">⚠️ Overridden by your personal bookmark</span>
                         {% else %}
@@ -325,7 +328,10 @@
                         {% endif %}
                     </td>
                     <td>
-                        <form hx-post="/manage/override" hx-target="#override-result-{{ bookmark.alias }}" style="display: inline;">
+                        <form hx-post="/manage/override"
+                              hx-target="#global-{{ bookmark.alias }}"
+                              hx-swap="outerHTML"
+                              style="display: inline;">
                             <input type="hidden" name="builtin_alias" value="{{ bookmark.alias }}">
                             {% if bookmark.is_disabled %}
                             <button type="submit" class="btn-primary">Enable</button>
@@ -334,7 +340,6 @@
                             <button type="submit" class="btn-secondary">Disable</button>
                             {% endif %}
                         </form>
-                        <div id="override-result-{{ bookmark.alias }}"></div>
                     </td>
                 </tr>
                 {% endfor %}
@@ -507,14 +512,98 @@ function toggleNestedTemplate(selectElement) {
     }
 }
 
+function prepareNestedCommands() {
+    const bookmarkType = document.getElementById('bookmark_type').value;
+
+    if (bookmarkType !== 'nested') {
+        return true; // Not a nested bookmark, proceed normally
+    }
+
+    // Collect all nested command data
+    const nestedCommands = [];
+    const container = document.getElementById('nested-commands-list');
+    const rows = container.querySelectorAll('div[id^="nested-row-"]');
+
+    rows.forEach((row, index) => {
+        const aliasInput = row.querySelector('input[name="nested_alias[]"]');
+        const typeSelect = row.querySelector('select[name="nested_type[]"]');
+        const urlInput = row.querySelector('input[name="nested_url[]"]');
+        const descInput = row.querySelector('input[name="nested_description[]"]');
+        const templateInput = row.querySelector('input[name="nested_template[]"]');
+        const encodeCheckbox = row.querySelector('input[name="nested_encode[]"]');
+
+        nestedCommands.push({
+            alias: aliasInput ? aliasInput.value : '',
+            type: typeSelect ? typeSelect.value : 'simple',
+            url: urlInput ? urlInput.value : '',
+            description: descInput ? descInput.value : '',
+            template: templateInput ? templateInput.value : null,
+            encode: encodeCheckbox ? encodeCheckbox.checked : true
+        });
+    });
+
+    // Serialize to JSON and set in hidden field
+    document.getElementById('nested_commands_json').value = JSON.stringify(nestedCommands);
+
+    console.log('Prepared nested commands:', nestedCommands);
+
+    return true; // Allow form to submit
+}
+
 function showNestedManager(bookmarkId, alias) {
     document.getElementById('nested-manager-title').textContent = `Manage Nested Commands for '${alias}'`;
-    // TODO: Load nested commands via HTMX
-    document.getElementById('nested-manager-content').innerHTML = `
-        <p>Nested command management for bookmark ID: ${bookmarkId}</p>
-        <p><em>Full nested command UI coming soon...</em></p>
+
+    // Load existing nested commands via HTMX
+    const contentDiv = document.getElementById('nested-manager-content');
+    contentDiv.innerHTML = `
+        <div hx-get="/manage/bookmark/${bookmarkId}/nested/list"
+             hx-trigger="load"
+             hx-target="this"
+             hx-swap="innerHTML">
+            Loading...
+        </div>
+
+        <h4 style="margin-top: 20px;">Add New Sub-command</h4>
+        <form hx-post="/manage/bookmark/${bookmarkId}/nested"
+              hx-target="#nested-manager-content > div"
+              hx-swap="beforeend"
+              style="margin-top: 15px;">
+            <div class="form-group">
+                <label>Sub-alias:</label>
+                <input type="text" name="alias" required placeholder="e.g., r">
+                <input type="hidden" name="parent_id" value="${bookmarkId}">
+            </div>
+
+            <div class="form-group">
+                <label>URL:</label>
+                <input type="url" name="url" required placeholder="https://example.com">
+            </div>
+
+            <div class="form-group">
+                <label>Description:</label>
+                <input type="text" name="description" required>
+            </div>
+
+            <div class="form-group">
+                <label>Template (optional, use {} for query):</label>
+                <input type="text" name="command_template" placeholder="https://example.com/search?q={}">
+            </div>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="encode_query" value="true" checked>
+                    URL-encode query
+                </label>
+            </div>
+
+            <button type="submit" class="btn-primary">Add Sub-command</button>
+        </form>
     `;
+
     document.getElementById('nested-manager').style.display = 'block';
+
+    // Re-initialize HTMX on the new content
+    htmx.process(contentDiv);
 }
 
 function hideNestedManager() {
