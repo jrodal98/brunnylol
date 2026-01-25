@@ -566,9 +566,21 @@ pub async fn import_bookmarks(
     let content = match form.source.as_str() {
         "paste" => form.content.ok_or(AppError::BadRequest("No content provided".to_string()))?,
         "url" => {
-            // URL import disabled - requires reqwest dependency
-            let _url = form.url.ok_or(AppError::BadRequest("No URL provided".to_string()))?;
-            return Err(AppError::BadRequest("URL import not yet implemented - use paste instead".to_string()));
+            // Fetch from URL
+            let url = form.url.ok_or(AppError::BadRequest("No URL provided".to_string()))?;
+
+            // Use reqwest to fetch URL content
+            let response = reqwest::get(&url)
+                .await
+                .map_err(|e| AppError::Internal(format!("Failed to fetch URL: {}", e)))?;
+
+            if !response.status().is_success() {
+                return Err(AppError::Internal(format!("URL returned status {}", response.status())));
+            }
+
+            response.text()
+                .await
+                .map_err(|e| AppError::Internal(format!("Failed to read URL content: {}", e)))?
         }
         _ => return Err(AppError::BadRequest("Invalid import source".to_string())),
     };

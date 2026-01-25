@@ -20,6 +20,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to connect to database")?;
 
+    // Enable foreign keys
+    sqlx::query("PRAGMA foreign_keys = ON")
+        .execute(&pool)
+        .await
+        .context("Failed to enable foreign keys")?;
+
     // Run migrations
     let migration_sql = include_str!("../../migrations/001_initial_schema.sql");
     sqlx::query(migration_sql)

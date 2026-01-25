@@ -44,6 +44,9 @@ time = "0.3"
 # JSON for bookmark config storage
 serde_json = "1.0"
 
+# HTTP client for URL imports
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
 [dev-dependencies]
 # Axum testing
 tower = { version = "0.5", features = ["util"] }

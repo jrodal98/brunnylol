@@ -1,12 +1,12 @@
 extern crate clap;
 
 mod domain;
-mod config;
+pub mod config;
 mod error;
-mod db;
+pub mod db;
 mod auth;
 mod handlers;
-mod services;
+pub mod services;
 
 use askama::Template;
 use axum::{
