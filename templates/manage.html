@@ -418,15 +418,15 @@
 </div>
 
 <!-- Nested Command Manager Modal (will be shown via JavaScript) -->
-<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #ffffff; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 id="nested-manager-title" style="color: #667eea; margin-bottom: 20px;">Manage Nested Commands</h3>
+<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #2a2d3a; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5); max-width: 700px; width: 90%; z-index: 1000;">
+    <h3 id="nested-manager-title" style="color: #8b9aff; margin-bottom: 20px;">Manage Nested Commands</h3>
     <div id="nested-manager-content"></div>
     <button onclick="hideNestedManager()" class="btn-secondary" style="margin-top: 15px;">Close</button>
 </div>
 
 <!-- Edit Bookmark Modal -->
-<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #ffffff; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 style="color: #667eea; margin-bottom: 20px;">Edit Bookmark</h3>
+<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #2a2d3a; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5); max-width: 700px; width: 90%; z-index: 1000;">
+    <h3 style="color: #8b9aff; margin-bottom: 20px;">Edit Bookmark</h3>
     <div id="edit-result"></div>
     <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: 15px;">
         <input type="hidden" id="edit-id" name="edit-id">
@@ -514,12 +514,12 @@ function addNestedRow() {
     row.style.padding = '20px';
     row.style.marginBottom = '15px';
     row.style.borderRadius = '8px';
-    row.style.backgroundColor = '#f8f9ff';
-    row.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.15)';
+    row.style.backgroundColor = '#2a2d3a';
+    row.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
 
     row.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h4 style="margin: 0; color: #667eea;">Sub-command #${nestedCounter}</h4>
+            <h4 style="margin: 0; color: #8b9aff;">Sub-command #${nestedCounter}</h4>
             <button type="button" onclick="removeNestedRow('${rowId}')" class="btn-danger" style="padding: 6px 12px; font-size: 13px;">Remove</button>
         </div>
 
