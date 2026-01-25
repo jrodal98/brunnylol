@@ -27,7 +27,10 @@ const DEFAULT_ALIAS: &str = "g";
 // Template structs
 #[derive(Template)]
 #[template(path = "index.html")]
-struct IndexTemplate;
+struct IndexTemplate {
+    has_user: bool,
+    is_admin: bool,
+}
 
 #[derive(Template)]
 #[template(path = "help.html")]
@@ -55,12 +58,13 @@ pub struct AppState {
 
 // Route handlers
 async fn index(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
-    // If logged in, redirect to manage page
-    if optional_user.0.is_some() {
-        return Ok(Redirect::to("/manage").into_response());
-    }
+    let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
+        (true, user.is_admin)
+    } else {
+        (false, false)
+    };
 
-    let template = IndexTemplate;
+    let template = IndexTemplate { has_user, is_admin };
     Ok(Html(template.render()?).into_response())
 }
 

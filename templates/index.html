@@ -1,5 +1,31 @@
 {% extends "base.html" %}
 
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        {% if has_user %}
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" style="margin: 0;">
+            <button type="submit">Logout</button>
+        </form>
+        {% else %}
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
 {% block content %}
 <div class="container" style="margin-top: var(--space-8);">
     <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
