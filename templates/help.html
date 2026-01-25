@@ -14,10 +14,10 @@
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
         {% if has_user %}
-        <span style="margin-right: 5px; color: #ffffff;">{{ username }}</span>
+        <span style="color: #ffffff;">{{ username }}</span>
         <a href="/settings">Settings</a>
         <form method="post" action="/logout" style="margin: 0;">
-            <button type="submit" style="background: none; border: none; color: #ffffff; font-weight: 600; cursor: pointer; text-decoration: underline; padding: 8px 12px; border-radius: 4px;">Logout</button>
+            <button type="submit">Logout</button>
         </form>
         {% else %}
         <a href="/login">Login</a>
@@ -33,14 +33,14 @@
     h1 {
         font-size: 2em;
         text-align: center;
-        color: #000000;
+        color: #ffffff;
         margin-bottom: 0.5em;
         font-weight: 700;
     }
 
     h2 {
         margin-top: 30px;
-        color: #000000;
+        color: #ffffff;
         font-weight: 700;
         font-size: 1.5em;
     }
