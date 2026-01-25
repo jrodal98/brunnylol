@@ -32,60 +32,41 @@
 <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
 
 <style>
-    h1 {
-        font-size: 2em;
-        text-align: center;
-        color: #ffffff;
-        margin-bottom: 0.5em;
-        font-weight: 700;
-    }
-
     h2 {
-        margin-top: 30px;
-        color: #8b9aff !important;
+        margin-top: var(--space-8);
+        color: var(--text-accent) !important;
         font-weight: 700;
-        font-size: 1.6em;
         text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
 
-    table {
-        border-collapse: collapse;
+    #search {
         width: 100%;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-radius: 8px;
-        overflow: hidden;
-        margin-top: 20px;
+        padding: var(--space-3);
+        margin-bottom: var(--space-5);
+        border: 1px solid var(--color-border);
+        border-radius: var(--radius-sm);
+        font-size: var(--font-size-base);
+        background-color: var(--bg-white);
+        color: var(--text-dark);
+        transition: var(--transition-base);
     }
 
-    th, td {
-        text-align: left;
-        padding: 14px;
-    }
-
-    tr:nth-child(even){background-color: #f8f9fa}
-
-    th {
-        background-color: #343a40;
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 13px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
+    #search:focus {
+        outline: none;
+        border-color: var(--gradient-start);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
     }
 
     .command {
         display: flex;
         align-items: center;
-        margin-bottom: 0.5em;
+        margin-bottom: var(--space-2);
     }
 
     .command-key {
-        font-weight: bold;
-        margin-right: 0.5em;
-    }
-
-    .command-value {
-        color: #666;
+        font-weight: 600;
+        margin-right: var(--space-2);
+        color: var(--text-primary);
     }
 </style>
 
@@ -94,7 +75,7 @@
 <input type="text" id="search" onkeyup="searchTable()" placeholder="Search for aliases..">
 
 {% if !personal_aliases.is_empty() %}
-<h2 style="margin-top: 30px; color: #333;">Your Personal Bookmarks</h2>
+<h2>Your Personal Bookmarks</h2>
 <table id="personal-aliases">
     <tr>
         <th>Alias</th>
@@ -114,7 +95,7 @@
     {% endfor %}
 </table>
 
-<h2 style="margin-top: 30px; color: #333;">Global Bookmarks</h2>
+<h2>Global Bookmarks</h2>
 {% endif %}
 
 <table id="aliases">

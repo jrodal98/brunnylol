@@ -1,35 +1,33 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div style="max-width: 400px; margin: 50px auto;">
+<div class="container-sm" style="margin-top: var(--space-12);">
     <h1>Login to Brunnylol</h1>
 
     {% if error != "" %}
-    <div style="background-color: #ffebee; color: #c62828; padding: 10px; margin-bottom: 20px; border-radius: 4px;">
+    <div style="background-color: var(--color-error-bg); color: var(--color-error-text); padding: var(--space-3); margin-bottom: var(--space-5); border-radius: var(--radius-sm);">
         {{ error }}
     </div>
     {% endif %}
 
-    <form method="post" action="/login" style="display: flex; flex-direction: column; gap: 15px;">
-        <div>
-            <label for="username" style="display: block; margin-bottom: 5px; font-weight: bold;">Username:</label>
-            <input type="text" id="username" name="username" required
-                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+    <form method="post" action="/login" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
         </div>
 
-        <div>
-            <label for="password" style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
-            <input type="password" id="password" name="password" required
-                   style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
         </div>
 
-        <button type="submit" style="padding: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; transition: all 0.2s ease; width: 100%;">
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: var(--space-3);">
             Login
         </button>
     </form>
 
-    <p style="text-align: center; margin-top: 20px;">
-        Don't have an account? <a href="/register" style="color: #667eea; font-weight: 600;">Register here</a>
+    <p class="text-center" style="margin-top: var(--space-5);">
+        Don't have an account? <a href="/register" style="color: var(--gradient-start); font-weight: 600;">Register here</a>
     </p>
 </div>
 {% endblock %}

@@ -1,36 +1,40 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1 style="text-align: center">Brunnylol - Smart Bookmarking + Searching Tool</h1>
-<form id="search-form-Brunnylol" class="mb-3" action="/search?q=%25s" method="get" style="text-align: center">
-    <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus type="text" placeholder="Search Brunnylol" name="q" alt="Search Brunnylol" onkeydown="if(event.keyCode === 13) { this.form.submit(); return false; }">
-</form>
-<ul>
-    <li>Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
-    <li>Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.</li>
-    <li>A complete list of bookmarks can be found <a href="help">here</a>. You can also type <code>help</code> if you have already installed brunnylol.</li>
-    <li>The source code for brunnylol, which is written in rust, is hosted in the following github repository: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
-</ul>
+<div class="container" style="margin-top: var(--space-8);">
+    <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
 
-<h2 style="text-align: center">How to install brunnylol</h2>
+    <form id="search-form-Brunnylol" class="form-inline mb-6 mt-6" action="/search?q=%25s" method="get">
+        <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus placeholder="Search Brunnylol" name="q" alt="Search Brunnylol" onkeydown="if(event.keyCode === 13) { this.form.submit(); return false; }">
+    </form>
 
-<p>To install brunnylol, you need to add it as your default search engine. Google "how to change default search engine" for whatever browser you use. In chromium browsers, you go to settings and scroll down until you find search engines. Set the name to whatever you want (I suggest brunnylol) and set the keyword to whatever you want (I suggest bl).</p>
+    <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
+        <li style="margin-bottom: var(--space-3);">Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
+        <li style="margin-bottom: var(--space-3);">Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.</li>
+        <li style="margin-bottom: var(--space-3);">A complete list of bookmarks can be found <a href="help">here</a>. You can also type <code>help</code> if you have already installed brunnylol.</li>
+        <li style="margin-bottom: var(--space-3);">The source code for brunnylol, which is written in rust, is hosted in the following github repository: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
+    </ul>
 
-<p>Then, put the following as your search engine: <code>https://brunnylol.jrodal.com/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
+    <h2 class="mt-8">How to install brunnylol</h2>
 
-<p>By default, brunnylol will search google if you forget to provide an alias. If you wish to change this, pass the <code>default=ALIAS_HERE</code> parameter when specifying your search engine. For example, here is a search engine that will default to duckduckgo instead of google: <code>https://brunnylol.jrodal.com/search?q=%s&default=d</code></p>
+    <p style="margin-bottom: var(--space-4);">To install brunnylol, you need to add it as your default search engine. Google "how to change default search engine" for whatever browser you use. In chromium browsers, you go to settings and scroll down until you find search engines. Set the name to whatever you want (I suggest brunnylol) and set the keyword to whatever you want (I suggest bl).</p>
 
-<h2 style="text-align: center">How to use brunnylol once it's installed</h2>
+    <p style="margin-bottom: var(--space-4);">Then, put the following as your search engine: <code>https://brunnylol.jrodal.com/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
 
-<p>tldr; type <code>ALIAS QUERY</code> (eg <code>yt minecraft videos</code>, where "yt" is the alias and "minecraft videos" is the query.)</p>
+    <p style="margin-bottom: var(--space-4);">By default, brunnylol will search google if you forget to provide an alias. If you wish to change this, pass the <code>default=ALIAS_HERE</code> parameter when specifying your search engine. For example, here is a search engine that will default to duckduckgo instead of google: <code>https://brunnylol.jrodal.com/search?q=%s&default=d</code></p>
 
-<p>
-Brunnylol has a few concepts to understand: bookmarks, aliases, and queries. A bookmark is the site and/or search engine you wish to use. For example, youtube.com is a bookmark. An alias is the shortname for a bookmark. For example, yt is an alias for the youtube.com bookmark. A query is the input you provide after the alias. For example, searching <code>yt minecraft videos</code> searches the youtube.com bookmark using the yt alias with "minecraft videos" as the query.
-</p>
+    <h2 class="mt-8">How to use brunnylol once it's installed</h2>
 
-<p>Some bookmarks don't support queries. For example, typing just <code>sis</code> will take you to the University of Virginia's student information service. Bookmarks that also support queries don't require a query either - for example, you can search just <code>yt</code> to go to the youtube homepage if you wish.</p>
+    <p style="margin-bottom: var(--space-4);"><strong>tldr;</strong> type <code>ALIAS QUERY</code> (eg <code>yt minecraft videos</code>, where "yt" is the alias and "minecraft videos" is the query.)</p>
 
-<p>
-You can see a list of aliases by searching <code>help</code>.
-</p>
+    <p style="margin-bottom: var(--space-4);">
+    Brunnylol has a few concepts to understand: bookmarks, aliases, and queries. A bookmark is the site and/or search engine you wish to use. For example, youtube.com is a bookmark. An alias is the shortname for a bookmark. For example, yt is an alias for the youtube.com bookmark. A query is the input you provide after the alias. For example, searching <code>yt minecraft videos</code> searches the youtube.com bookmark using the yt alias with "minecraft videos" as the query.
+    </p>
+
+    <p style="margin-bottom: var(--space-4);">Some bookmarks don't support queries. For example, typing just <code>sis</code> will take you to the University of Virginia's student information service. Bookmarks that also support queries don't require a query either - for example, you can search just <code>yt</code> to go to the youtube homepage if you wish.</p>
+
+    <p style="margin-bottom: var(--space-4);">
+    You can see a list of aliases by searching <code>help</code>.
+    </p>
+</div>
 {% endblock %}

@@ -24,54 +24,48 @@
 <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
 
 <style>
-    .container {
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 0 20px;
-    }
-
     .header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 30px;
-        padding-bottom: 15px;
-        border-bottom: 2px solid #333;
+        margin-bottom: var(--space-8);
+        padding-bottom: var(--space-4);
+        border-bottom: 2px solid var(--color-border-dark);
     }
 
     .tabs {
         display: flex;
-        gap: 10px;
-        border-bottom: 3px solid #667eea;
-        margin-bottom: 20px;
-        background-color: #f8f9fa;
-        padding: 10px;
-        border-radius: 8px 8px 0 0;
+        gap: var(--space-3);
+        border-bottom: 3px solid var(--gradient-start);
+        margin-bottom: var(--space-5);
+        background-color: var(--bg-secondary);
+        padding: var(--space-3);
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
     }
 
     .tab {
-        padding: 12px 24px;
+        padding: var(--space-3) var(--space-6);
         cursor: pointer;
         border: none;
         background: none;
-        font-size: 16px;
-        color: #495057;
+        font-size: var(--font-size-base);
+        color: var(--text-secondary);
         font-weight: 500;
         border-bottom: 3px solid transparent;
-        border-radius: 4px 4px 0 0;
-        transition: all 0.2s ease;
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        transition: var(--transition-base);
     }
 
     .tab:hover {
         background-color: rgba(102, 126, 234, 0.1);
-        color: #667eea;
+        color: var(--gradient-start);
     }
 
     .tab.active {
-        color: #667eea;
+        color: var(--text-primary);
         font-weight: bold;
-        border-bottom-color: #667eea;
-        background-color: #ffffff;
+        border-bottom-color: var(--gradient-start);
+        background-color: var(--bg-elevated);
     }
 
     .tab-content {
@@ -82,117 +76,26 @@
         display: block;
     }
 
-    .form-group {
-        margin-bottom: 15px;
-    }
-
-    .form-group label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-    }
-
-    .form-group input,
-    .form-group select,
-    .form-group textarea {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-
-    .form-group textarea {
-        min-height: 60px;
-        resize: vertical;
-    }
-
-    button {
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        transition: all 0.2s ease;
-    }
-
-    .btn-primary:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
-    }
-
-    .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        transition: all 0.2s ease;
-    }
-
-    .btn-danger:hover {
-        background-color: #c82333;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
-    }
-
-    .btn-secondary {
-        background-color: #6c757d;
-        color: white;
-        transition: all 0.2s ease;
-    }
-
-    .btn-secondary:hover {
-        background-color: #5a6268;
-        transform: translateY(-1px);
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        border-radius: 8px;
-        overflow: hidden;
-    }
-
-    th, td {
-        text-align: left;
-        padding: 14px;
-        border-bottom: 1px solid #e0e0e0;
-    }
-
-    th {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #ffffff;
-        font-weight: 600;
-        font-size: 14px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
     .conflict-warning {
-        background-color: #fff3cd;
-        color: #856404;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 20px;
+        background-color: var(--color-warning-bg);
+        color: var(--color-warning-text);
+        padding: var(--space-3);
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--space-5);
     }
 
     .success-message {
-        background-color: #d4edda;
-        color: #155724;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 20px;
+        background-color: var(--color-success-bg);
+        color: var(--color-success-text);
+        padding: var(--space-3);
+        border-radius: var(--radius-sm);
+        margin-bottom: var(--space-5);
     }
 
     .nested-commands {
-        margin-left: 20px;
-        padding-left: 20px;
-        border-left: 3px solid #e0e0e0;
+        margin-left: var(--space-5);
+        padding-left: var(--space-5);
+        border-left: 3px solid var(--color-border);
     }
 
     .dynamic-field {
@@ -418,17 +321,17 @@
 </div>
 
 <!-- Nested Command Manager Modal (will be shown via JavaScript) -->
-<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #2a2d3a; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 id="nested-manager-title" style="color: #8b9aff; margin-bottom: 20px;">Manage Nested Commands</h3>
+<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--bg-secondary); border: 2px solid var(--gradient-start); padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow-glow-lg); max-width: 700px; width: 90%; z-index: 1000;">
+    <h3 id="nested-manager-title" style="color: var(--text-accent); margin-bottom: var(--space-5);">Manage Nested Commands</h3>
     <div id="nested-manager-content"></div>
-    <button onclick="hideNestedManager()" class="btn-secondary" style="margin-top: 15px;">Close</button>
+    <button onclick="hideNestedManager()" class="btn-secondary" style="margin-top: var(--space-4);">Close</button>
 </div>
 
 <!-- Edit Bookmark Modal -->
-<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: #2a2d3a; border: 2px solid #667eea; padding: 25px; border-radius: 12px; box-shadow: 0 8px 24px rgba(102, 126, 234, 0.5); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 style="color: #8b9aff; margin-bottom: 20px;">Edit Bookmark</h3>
+<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--bg-secondary); border: 2px solid var(--gradient-start); padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow-glow-lg); max-width: 700px; width: 90%; z-index: 1000;">
+    <h3 style="color: var(--text-accent); margin-bottom: var(--space-5);">Edit Bookmark</h3>
     <div id="edit-result"></div>
-    <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: 15px;">
+    <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: var(--space-4);">
         <input type="hidden" id="edit-id" name="edit-id">
 
         <div class="form-group">
