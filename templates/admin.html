@@ -9,7 +9,6 @@
         <a href="/admin">Admin</a>
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span style="color: #ffffff;">{{ user.username }}</span>
         <a href="/settings">Settings</a>
         <form method="post" action="/logout" style="margin: 0;">
             <button type="submit">Logout</button>
@@ -23,9 +22,6 @@
 
 <style>
     .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: var(--space-8);
     }
 
@@ -39,13 +35,9 @@
     }
 </style>
 
-<div class="container" style="margin-top: var(--space-5);">
+<div class="container" style="margin-top: var(--space-8);">
     <div class="header">
-        <div>
-            <h1>Admin Panel</h1>
-            <p>Logged in as: {{ user.username }} (Admin)</p>
-        </div>
-        <a href="/manage" class="btn-secondary">← Back to Bookmarks</a>
+        <h1>Admin Panel</h1>
     </div>
 
     <h2>User Management</h2>

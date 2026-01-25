@@ -11,7 +11,6 @@
         {% endif %}
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span style="color: #ffffff;">{{ user.username }}</span>
         <a href="/settings">Settings</a>
         <form method="post" action="/logout" style="margin: 0;">
             <button type="submit">Logout</button>
@@ -25,9 +24,6 @@
 
 <style>
     .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
         margin-bottom: var(--space-8);
         padding-bottom: var(--space-4);
         border-bottom: 2px solid var(--color-border-dark);
@@ -107,12 +103,9 @@
     }
 </style>
 
-<div class="container">
+<div class="container" style="margin-top: var(--space-8);">
     <div class="header">
-        <div>
-            <h1>Bookmark Management</h1>
-            <p>Welcome, {{ user.username }}{% if user.is_admin %} (Admin){% endif %}</p>
-        </div>
+        <h1>Bookmark Management</h1>
     </div>
 
     {% if has_conflicts %}
