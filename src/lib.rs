@@ -6,6 +6,7 @@ mod error;
 mod db;
 mod auth;
 mod handlers;
+mod services;
 
 use askama::Template;
 use axum::{
@@ -54,6 +55,7 @@ pub struct AppState {
     pub alias_to_bookmark_map: HashMap<String, Box<dyn Command>>,
     pub default_alias: String,
     pub db_pool: SqlitePool,
+    pub bookmark_service: std::sync::Arc<services::bookmark_service::BookmarkService>,
 }
 
 // Route handlers
@@ -259,12 +261,31 @@ pub async fn create_router() -> Router {
         let _ = db::seed::seed_test_user(&db_pool).await;
     }
 
-    let alias_to_bookmark_map = AliasAndCommand::get_alias_to_bookmark_map(yaml_path);
+    // Create bookmark service
+    let bookmark_service = std::sync::Arc::new(services::bookmark_service::BookmarkService::new(db_pool.clone()));
+
+    // Seed global bookmarks from embedded commands.yml if DB is empty
+    match bookmark_service.seed_global_bookmarks().await {
+        Ok(count) => {
+            if count > 0 {
+                println!("Seeded {} global bookmarks from commands.yml", count);
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to seed global bookmarks: {}", e);
+        }
+    }
+
+    // Load global bookmarks from database
+    let alias_to_bookmark_map = bookmark_service.load_global_bookmarks()
+        .await
+        .expect("Failed to load global bookmarks");
 
     let state = Arc::new(AppState {
         alias_to_bookmark_map,
         default_alias,
         db_pool: db_pool.clone(),
+        bookmark_service,
     });
 
     Router::new()
@@ -288,6 +309,8 @@ pub async fn create_router() -> Router {
         .route("/manage/bookmark/{id}/nested/list", get(handlers::bookmarks::list_nested_bookmarks))
         .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
         .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
+        .route("/manage/import", post(handlers::bookmarks::import_bookmarks))
+        .route("/manage/export", get(handlers::bookmarks::export_bookmarks))
 
         // User settings routes (require authentication)
         .route("/settings", get(handlers::auth::settings_page))

@@ -196,6 +196,80 @@
 
             <button type="submit" class="btn-primary" style="margin-top: var(--space-6);">Create Bookmark</button>
         </form>
+
+        <!-- Import/Export Section -->
+        <hr style="margin: var(--space-8) 0; border: none; border-top: 2px solid var(--color-border);">
+
+        <h2 style="margin-top: var(--space-8);">Import Bookmarks</h2>
+        <div id="import-result"></div>
+
+        <form hx-post="/manage/import"
+              hx-target="#import-result"
+              hx-swap="innerHTML"
+              id="import-form"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1500); }">
+
+            <div class="form-group">
+                <label for="import-source">Import From *</label>
+                <select id="import-source" name="source" required onchange="toggleImportFields()">
+                    <option value="paste">Paste YAML/JSON Content</option>
+                    <option value="url">Fetch from URL</option>
+                </select>
+            </div>
+
+            <div id="import-paste" class="form-group">
+                <label for="import-content">YAML/JSON Content *</label>
+                <textarea id="import-content" name="content" rows="10"
+                          placeholder="Paste your YAML or JSON bookmark configuration here..."></textarea>
+                <small>Paste the bookmark data in YAML or JSON format</small>
+            </div>
+
+            <div id="import-url" class="form-group" style="display: none;">
+                <label for="import-url-field">URL to Bookmark File *</label>
+                <input type="url" id="import-url-field" name="url"
+                       placeholder="https://example.com/bookmarks.yml">
+                <small>URL to a YAML or JSON file containing bookmarks</small>
+            </div>
+
+            <div class="form-group">
+                <label for="import-format">Format *</label>
+                <select id="import-format" name="format" required>
+                    <option value="yaml">YAML</option>
+                    <option value="json">JSON</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="import-scope">Scope *</label>
+                <select id="import-scope" name="scope" required>
+                    <option value="personal">Personal Bookmarks</option>
+                    {% if user.is_admin %}
+                    <option value="global">Global Bookmarks (Admin Only)</option>
+                    {% endif %}
+                </select>
+                <small>Global bookmarks are shared with all users (admin only)</small>
+            </div>
+
+            <button type="submit" class="btn-primary">Import Bookmarks</button>
+        </form>
+
+        <h2 style="margin-top: var(--space-8);">Export Bookmarks</h2>
+        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+            <a href="/manage/export?scope=personal&format=yaml" class="btn-primary" download>
+                Export Personal (YAML)
+            </a>
+            <a href="/manage/export?scope=personal&format=json" class="btn-secondary" download>
+                Export Personal (JSON)
+            </a>
+            {% if user.is_admin %}
+            <a href="/manage/export?scope=global&format=yaml" class="btn-primary" download>
+                Export Global (YAML)
+            </a>
+            <a href="/manage/export?scope=global&format=json" class="btn-secondary" download>
+                Export Global (JSON)
+            </a>
+            {% endif %}
+        </div>
     </div>
 
     <!-- Tab 2: Personal Bookmarks -->
@@ -622,6 +696,20 @@ function showEditForm(id, alias, url, description, template, encodeQuery) {
 function hideEditForm() {
     document.getElementById('edit-modal').style.display = 'none';
     document.getElementById('edit-result').innerHTML = '';
+}
+
+function toggleImportFields() {
+    const source = document.getElementById('import-source').value;
+    const pasteDiv = document.getElementById('import-paste');
+    const urlDiv = document.getElementById('import-url');
+
+    if (source === 'paste') {
+        pasteDiv.style.display = 'block';
+        urlDiv.style.display = 'none';
+    } else if (source === 'url') {
+        pasteDiv.style.display = 'none';
+        urlDiv.style.display = 'block';
+    }
 }
 
 // Initialize

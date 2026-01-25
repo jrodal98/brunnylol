@@ -27,6 +27,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to run migrations")?;
 
+    let migration_sql_2 = include_str!("../../migrations/002_global_bookmarks.sql");
+    sqlx::query(migration_sql_2)
+        .execute(&pool)
+        .await
+        .context("Failed to run migration 002")?;
+
     Ok(pool)
 }
 
@@ -184,6 +190,31 @@ pub struct UserBookmark {
 
 #[derive(Debug, Clone)]
 pub struct NestedBookmark {
+    pub id: i64,
+    pub parent_bookmark_id: i64,
+    pub alias: String,
+    pub url: String,
+    pub description: String,
+    pub command_template: Option<String>,
+    pub encode_query: bool,
+    pub display_order: i32,
+}
+
+// Global bookmark models
+#[derive(Debug, Clone)]
+pub struct GlobalBookmark {
+    pub id: i64,
+    pub alias: String,
+    pub bookmark_type: String,
+    pub url: String,
+    pub description: String,
+    pub command_template: Option<String>,
+    pub encode_query: bool,
+    pub created_by: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GlobalNestedBookmark {
     pub id: i64,
     pub parent_bookmark_id: i64,
     pub alias: String,
@@ -455,6 +486,190 @@ pub async fn delete_override(pool: &SqlitePool, user_id: i64, builtin_alias: &st
     .bind(builtin_alias)
     .execute(pool)
     .await?;
+
+    Ok(())
+}
+
+// Global bookmark functions
+
+// Check if global bookmarks table is empty
+pub async fn is_global_bookmarks_empty(pool: &SqlitePool) -> Result<bool> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM global_bookmarks")
+        .fetch_one(pool)
+        .await?;
+    Ok(count == 0)
+}
+
+// Get all global bookmarks
+pub async fn get_all_global_bookmarks(pool: &SqlitePool) -> Result<Vec<GlobalBookmark>> {
+    let rows = sqlx::query(
+        "SELECT id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+         FROM global_bookmarks
+         ORDER BY alias"
+    )
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|row| GlobalBookmark {
+        id: row.get("id"),
+        alias: row.get("alias"),
+        bookmark_type: row.get("bookmark_type"),
+        url: row.get("url"),
+        description: row.get("description"),
+        command_template: row.get("command_template"),
+        encode_query: row.get("encode_query"),
+        created_by: row.get("created_by"),
+    }).collect())
+}
+
+// Get single global bookmark by ID
+pub async fn get_global_bookmark_by_id(pool: &SqlitePool, bookmark_id: i64) -> Result<Option<GlobalBookmark>> {
+    let row = sqlx::query(
+        "SELECT id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+         FROM global_bookmarks
+         WHERE id = ?"
+    )
+    .bind(bookmark_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(row.map(|row| GlobalBookmark {
+        id: row.get("id"),
+        alias: row.get("alias"),
+        bookmark_type: row.get("bookmark_type"),
+        url: row.get("url"),
+        description: row.get("description"),
+        command_template: row.get("command_template"),
+        encode_query: row.get("encode_query"),
+        created_by: row.get("created_by"),
+    }))
+}
+
+// Create global bookmark
+pub async fn create_global_bookmark(
+    pool: &SqlitePool,
+    alias: &str,
+    bookmark_type: &str,
+    url: &str,
+    description: &str,
+    command_template: Option<&str>,
+    encode_query: bool,
+    created_by: Option<i64>,
+) -> Result<i64> {
+    let result = sqlx::query(
+        "INSERT INTO global_bookmarks
+         (alias, bookmark_type, url, description, command_template, encode_query, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(alias)
+    .bind(bookmark_type)
+    .bind(url)
+    .bind(description)
+    .bind(command_template)
+    .bind(encode_query)
+    .bind(created_by)
+    .execute(pool)
+    .await?;
+
+    Ok(result.last_insert_rowid())
+}
+
+// Update global bookmark
+pub async fn update_global_bookmark(
+    pool: &SqlitePool,
+    bookmark_id: i64,
+    alias: &str,
+    url: &str,
+    description: &str,
+    command_template: Option<&str>,
+    encode_query: bool,
+) -> Result<()> {
+    sqlx::query(
+        "UPDATE global_bookmarks
+         SET alias = ?, url = ?, description = ?, command_template = ?, encode_query = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?"
+    )
+    .bind(alias)
+    .bind(url)
+    .bind(description)
+    .bind(command_template)
+    .bind(encode_query)
+    .bind(bookmark_id)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+// Delete global bookmark
+pub async fn delete_global_bookmark(pool: &SqlitePool, bookmark_id: i64) -> Result<()> {
+    sqlx::query("DELETE FROM global_bookmarks WHERE id = ?")
+        .bind(bookmark_id)
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+// Get nested bookmarks for a global bookmark
+pub async fn get_global_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: i64) -> Result<Vec<GlobalNestedBookmark>> {
+    let rows = sqlx::query(
+        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+         FROM global_nested_bookmarks
+         WHERE parent_bookmark_id = ?
+         ORDER BY display_order, alias"
+    )
+    .bind(parent_bookmark_id)
+    .fetch_all(pool)
+    .await?;
+
+    Ok(rows.into_iter().map(|row| GlobalNestedBookmark {
+        id: row.get("id"),
+        parent_bookmark_id: row.get("parent_bookmark_id"),
+        alias: row.get("alias"),
+        url: row.get("url"),
+        description: row.get("description"),
+        command_template: row.get("command_template"),
+        encode_query: row.get("encode_query"),
+        display_order: row.get("display_order"),
+    }).collect())
+}
+
+// Create global nested bookmark
+pub async fn create_global_nested_bookmark(
+    pool: &SqlitePool,
+    parent_bookmark_id: i64,
+    alias: &str,
+    url: &str,
+    description: &str,
+    command_template: Option<&str>,
+    encode_query: bool,
+    display_order: i32,
+) -> Result<i64> {
+    let result = sqlx::query(
+        "INSERT INTO global_nested_bookmarks
+         (parent_bookmark_id, alias, url, description, command_template, encode_query, display_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    .bind(parent_bookmark_id)
+    .bind(alias)
+    .bind(url)
+    .bind(description)
+    .bind(command_template)
+    .bind(encode_query)
+    .bind(display_order)
+    .execute(pool)
+    .await?;
+
+    Ok(result.last_insert_rowid())
+}
+
+// Delete global nested bookmark
+pub async fn delete_global_nested_bookmark(pool: &SqlitePool, nested_id: i64) -> Result<()> {
+    sqlx::query("DELETE FROM global_nested_bookmarks WHERE id = ?")
+        .bind(nested_id)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

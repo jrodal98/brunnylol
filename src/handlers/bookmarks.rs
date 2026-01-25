@@ -3,7 +3,8 @@
 use askama::Template;
 use axum::{
     extract::{Form, Path, State},
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Response},
+    http::{header, StatusCode},
 };
 use serde::Deserialize;
 use std::sync::Arc;
@@ -524,4 +525,134 @@ pub async fn toggle_global_bookmark(
         </tr>",
         form.builtin_alias, form.builtin_alias, description, form.builtin_alias, status_html, button_html
     )))
+}
+
+// Form structs for import/export
+#[derive(Deserialize)]
+pub struct ImportForm {
+    source: String,          // "paste", "file", or "url"
+    content: Option<String>, // For paste
+    url: Option<String>,     // For URL
+    format: String,          // "yaml" or "json"
+    scope: String,           // "personal" or "global"
+}
+
+#[derive(Deserialize)]
+pub struct ExportParams {
+    scope: String,  // "personal" or "global"
+    format: String, // "yaml" or "json"
+}
+
+// POST /manage/import - Import bookmarks
+pub async fn import_bookmarks(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<ImportForm>,
+) -> Result<impl IntoResponse, AppError> {
+    use crate::services::bookmark_service::BookmarkScope;
+    use crate::services::serializers::{YamlSerializer, JsonSerializer};
+
+    // Determine scope - only admins can import global
+    let scope = if form.scope == "global" {
+        if !current_user.0.is_admin {
+            return Err(AppError::Forbidden("Only admins can import global bookmarks".to_string()));
+        }
+        BookmarkScope::Global
+    } else {
+        BookmarkScope::Personal
+    };
+
+    // Get content based on source
+    let content = match form.source.as_str() {
+        "paste" => form.content.ok_or(AppError::BadRequest("No content provided".to_string()))?,
+        "url" => {
+            // URL import disabled - requires reqwest dependency
+            let _url = form.url.ok_or(AppError::BadRequest("No URL provided".to_string()))?;
+            return Err(AppError::BadRequest("URL import not yet implemented - use paste instead".to_string()));
+        }
+        _ => return Err(AppError::BadRequest("Invalid import source".to_string())),
+    };
+
+    // Select serializer
+    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match form.format.as_str() {
+        "json" => Box::new(JsonSerializer),
+        _ => Box::new(YamlSerializer), // Default to YAML
+    };
+
+    // Import bookmarks
+    let result = state.bookmark_service.import_bookmarks(
+        &content,
+        serializer.as_ref(),
+        scope,
+        Some(current_user.0.id),
+    ).await
+    .map_err(|e| AppError::Internal(format!("Import failed: {}", e)))?;
+
+    let message = if result.errors.is_empty() {
+        format!(
+            "Successfully imported {} bookmarks ({} skipped as duplicates)",
+            result.imported, result.skipped
+        )
+    } else {
+        format!(
+            "Imported {} bookmarks ({} skipped). Errors: {}",
+            result.imported, result.skipped, result.errors.join(", ")
+        )
+    };
+
+    Ok(Html(format!(
+        r#"<div class="success-message">{} <a href="/manage">Refresh to see changes</a></div>"#,
+        message
+    )))
+}
+
+// GET /manage/export - Export bookmarks
+pub async fn export_bookmarks(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    axum::extract::Query(params): axum::extract::Query<ExportParams>,
+) -> Result<Response, AppError> {
+    use crate::services::bookmark_service::BookmarkScope;
+    use crate::services::serializers::{YamlSerializer, JsonSerializer};
+
+    // Check permissions for global export
+    if params.scope == "global" && !current_user.0.is_admin {
+        return Err(AppError::Forbidden("Only admins can export global bookmarks".to_string()));
+    }
+
+    let scope = if params.scope == "global" {
+        BookmarkScope::Global
+    } else {
+        BookmarkScope::Personal
+    };
+
+    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match params.format.as_str() {
+        "json" => Box::new(JsonSerializer),
+        _ => Box::new(YamlSerializer),
+    };
+
+    let content = state.bookmark_service.export_bookmarks(
+        scope,
+        Some(current_user.0.id),
+        serializer.as_ref(),
+    ).await
+    .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?;
+
+    let filename = format!(
+        "bookmarks_{}.{}",
+        if scope == BookmarkScope::Global { "global" } else { "personal" },
+        serializer.file_extension()
+    );
+
+    let mut response = Response::new(content.into());
+    response.headers_mut().insert(
+        header::CONTENT_TYPE,
+        serializer.content_type().parse().unwrap(),
+    );
+    response.headers_mut().insert(
+        header::CONTENT_DISPOSITION,
+        format!("attachment; filename=\"{}\"", filename).parse().unwrap(),
+    );
+
+    Ok(response)
 }
