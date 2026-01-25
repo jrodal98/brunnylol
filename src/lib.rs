@@ -234,22 +234,26 @@ pub async fn create_router() -> Router {
                 .short('d')
                 .long("database")
                 .value_name("DATABASE")
-                .help("Path to SQLite database file")
-                .default_value("brunnylol.db"),
+                .help("Path to SQLite database file (default: brunnylol.db, env: BRUNNYLOL_DB)"),
         )
         .get_matches();
 
-    let yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
+    let _yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
     let default_alias = matches
         .get_one("default_alias")
         .map(|c: &String| c.as_str())
         .unwrap_or(DEFAULT_ALIAS)
         .to_string();
 
+    // Priority: CLI arg > ENV var > Default value
+    let env_db = std::env::var("BRUNNYLOL_DB").ok();
     let db_path = matches
         .get_one::<String>("database")
         .map(|s| s.as_str())
+        .or_else(|| env_db.as_deref())
         .unwrap_or("brunnylol.db");
+
+    eprintln!("Using database: {}", db_path);
 
     // Initialize database
     let db_pool = db::init_db(db_path)
