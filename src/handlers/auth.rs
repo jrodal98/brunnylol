@@ -40,9 +40,14 @@ pub struct RegisterForm {
 }
 
 // GET /login - Show login page
-pub async fn login_page() -> Result<Html<String>, AppError> {
+pub async fn login_page(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
+    // If already logged in, redirect to manage
+    if optional_user.0.is_some() {
+        return Ok(Redirect::to("/manage").into_response());
+    }
+
     let template = LoginTemplate { error: String::new() };
-    Ok(Html(template.render()?))
+    Ok(Html(template.render()?).into_response())
 }
 
 // POST /login - Process login
