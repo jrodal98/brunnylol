@@ -1,43 +1,107 @@
 // End-to-end tests using actual HTTP requests
-// Run with: cargo test --test e2e_test -- --test-threads=1
+// Each test uses a unique available port to allow parallel execution
 
 use std::time::Duration;
 use std::process::{Command, Child};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::net::TcpListener;
 use tokio::time::sleep as tokio_sleep;
+
+// Start port allocation from 8100
+static NEXT_PORT: AtomicU16 = AtomicU16::new(8100);
+
+// Helper to find an available port
+fn find_available_port() -> u16 {
+    for _ in 0..100 {
+        let port = NEXT_PORT.fetch_add(1, Ordering::SeqCst);
+
+        // Try to bind to the port to see if it's available
+        if TcpListener::bind(format!("127.0.0.1:{}", port)).is_ok() {
+            return port;
+        }
+    }
+    panic!("Could not find an available port after 100 attempts");
+}
 
 struct TestApp {
     process: Child,
     base_url: String,
     db_path: String,
+    port: u16,
 }
 
 impl TestApp {
     async fn start() -> Self {
-        let db_path = format!("test_e2e_{}.db", std::process::id());
+        // Get unique available port for this test
+        let port = find_available_port();
+
+        // Use timestamp + port to ensure unique database path
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis();
+        let db_path = format!("test_e2e_{}_{}.db", timestamp, port);
 
         // Remove old database if exists
         let _ = std::fs::remove_file(&db_path);
 
-        // Start the application with explicit environment variable
-        let process = Command::new("./target/release/brunnylol")
+        // Use the correct binary based on build configuration
+        let binary_path = if cfg!(debug_assertions) {
+            "./target/debug/brunnylol"
+        } else {
+            "./target/release/brunnylol"
+        };
+
+        // Start the application with explicit environment variables for db and port
+        let mut process = Command::new(binary_path)
             .env("BRUNNYLOL_DB", &db_path)
-            .stdout(std::process::Stdio::null())
-            .stderr(std::process::Stdio::null())
+            .env("BRUNNYLOL_PORT", port.to_string())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
             .spawn()
             .expect("Failed to start application");
 
         // Wait for server to start
-        tokio_sleep(Duration::from_secs(4)).await;
+        tokio_sleep(Duration::from_secs(5)).await;
+
+        // Check if process is still running
+        match process.try_wait() {
+            Ok(Some(status)) => {
+                // Process exited, get output
+                let output = process.wait_with_output().unwrap();
+                eprintln!("=== APPLICATION STARTUP FAILED ===");
+                eprintln!("Exit status: {:?}", status);
+                eprintln!("STDOUT: {}", String::from_utf8_lossy(&output.stdout));
+                eprintln!("STDERR: {}", String::from_utf8_lossy(&output.stderr));
+                eprintln!("Database path: {}", db_path);
+                eprintln!("Binary: {}", binary_path);
+                eprintln!("Port: {}", port);
+                panic!("Application exited prematurely with status: {:?}", status);
+            }
+            Ok(None) => {
+                // Process is still running - good!
+            }
+            Err(e) => {
+                panic!("Failed to check process status: {}", e);
+            }
+        }
 
         // Verify database was created
         if !std::path::Path::new(&db_path).exists() {
+            // Try to get error output
+            let _ = process.kill();
+            if let Ok(output) = process.wait_with_output() {
+                eprintln!("STDOUT: {}", String::from_utf8_lossy(&output.stdout));
+                eprintln!("STDERR: {}", String::from_utf8_lossy(&output.stderr));
+            }
             panic!("Database {} was not created!", db_path);
         }
 
         TestApp {
             process,
-            base_url: "http://localhost:8000".to_string(),
+            base_url: format!("http://localhost:{}", port),
             db_path,
+            port,
         }
     }
 
@@ -70,7 +134,6 @@ impl Drop for TestApp {
 }
 
 #[tokio::test]
-#[ignore] // Run with: cargo test --test e2e_test -- --ignored --test-threads=1
 async fn test_e2e_comprehensive() {
     let mut app = TestApp::start().await;
     let client = reqwest::Client::builder()
@@ -490,7 +553,6 @@ async fn test_e2e_comprehensive() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_e2e_search_redirects() {
     let mut app = TestApp::start().await;
     let client = reqwest::Client::builder()
@@ -539,7 +601,6 @@ async fn test_e2e_search_redirects() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_e2e_import_export_formats() {
     let mut app = TestApp::start().await;
     let client = reqwest::Client::builder()
@@ -638,7 +699,6 @@ async fn test_e2e_import_export_formats() {
 }
 
 #[tokio::test]
-#[ignore]
 async fn test_e2e_nested_global_bookmarks() {
     let mut app = TestApp::start().await;
     let client = reqwest::Client::builder()
