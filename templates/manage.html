@@ -3,7 +3,7 @@
 {% block nav %}
 <nav>
     <div>
-        <a href="/">Home</a>
+        <a href="/">About</a>
         <a href="/help">Help</a>
         <a href="/manage">My Bookmarks</a>
         {% if user.is_admin %}
@@ -186,7 +186,7 @@
                     <!-- Dynamic nested command rows will be added here -->
                 </div>
 
-                <button type="button" onclick="addNestedRow();" class="btn-secondary" style="margin-top: 10px;">
+                <button type="button" onclick="addNestedRow();" class="btn-secondary" style="margin-top: var(--space-3);">
                     + Add Sub-command
                 </button>
 
@@ -194,7 +194,7 @@
                 <input type="hidden" id="nested_commands_json" name="nested_commands_json">
             </div>
 
-            <button type="submit" class="btn-primary">Create Bookmark</button>
+            <button type="submit" class="btn-primary" style="margin-top: var(--space-6);">Create Bookmark</button>
         </form>
     </div>
 
