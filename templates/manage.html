@@ -384,26 +384,28 @@
                         {% endif %}
                     </td>
                     <td>
-                        <form hx-post="/manage/override"
-                              hx-target="#global-{{ bookmark.alias }}"
-                              hx-swap="outerHTML"
-                              style="display: inline;">
-                            <input type="hidden" name="builtin_alias" value="{{ bookmark.alias }}">
-                            {% if bookmark.is_disabled %}
-                            <button type="submit" class="btn-primary">Enable</button>
-                            {% else %}
-                            <input type="hidden" name="is_disabled" value="true">
-                            <button type="submit" class="btn-secondary">Disable</button>
-                            {% endif %}
-                        </form>
-                        <div id="fork-result-{{ bookmark.alias }}" style="display: inline;"></div>
-                        <form hx-post="/manage/fork-global"
-                              hx-target="#fork-result-{{ bookmark.alias }}"
-                              hx-swap="innerHTML"
-                              style="display: inline;">
-                            <input type="hidden" name="alias" value="{{ bookmark.alias }}">
-                            <button type="submit" class="btn-secondary" style="margin-left: 0.5em;">Fork</button>
-                        </form>
+                        <div style="display: flex; gap: 0.5em; align-items: center;">
+                            <form hx-post="/manage/override"
+                                  hx-target="#global-{{ bookmark.alias }}"
+                                  hx-swap="outerHTML"
+                                  style="margin: 0;">
+                                <input type="hidden" name="builtin_alias" value="{{ bookmark.alias }}">
+                                {% if bookmark.is_disabled %}
+                                <button type="submit" class="btn-primary">Enable</button>
+                                {% else %}
+                                <input type="hidden" name="is_disabled" value="true">
+                                <button type="submit" class="btn-secondary">Disable</button>
+                                {% endif %}
+                            </form>
+                            <form hx-post="/manage/fork-global"
+                                  hx-target="#fork-result-{{ bookmark.alias }}"
+                                  hx-swap="innerHTML"
+                                  style="margin: 0;">
+                                <input type="hidden" name="alias" value="{{ bookmark.alias }}">
+                                <button type="submit" class="btn-secondary">Fork</button>
+                            </form>
+                        </div>
+                        <div id="fork-result-{{ bookmark.alias }}"></div>
                     </td>
                 </tr>
                 {% endfor %}

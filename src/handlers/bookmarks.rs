@@ -500,7 +500,7 @@ pub async fn toggle_global_bookmark(
 
     let button_html = if is_disabled {
         format!(
-            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"display: inline;\">
+            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"margin: 0;\">
                 <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
                 <button type=\"submit\" class=\"btn-primary\">Enable</button>
             </form>",
@@ -508,7 +508,7 @@ pub async fn toggle_global_bookmark(
         )
     } else {
         format!(
-            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"display: inline;\">
+            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"margin: 0;\">
                 <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
                 <input type=\"hidden\" name=\"is_disabled\" value=\"true\">
                 <button type=\"submit\" class=\"btn-secondary\">Disable</button>
@@ -525,7 +525,19 @@ pub async fn toggle_global_bookmark(
             <td><strong>{}</strong></td>
             <td>{}</td>
             <td id=\"status-{}\">{}</td>
-            <td>{}</td>
+            <td>
+                <div style=\"display: flex; gap: 0.5em; align-items: center;\">
+                    {}
+                    <form hx-post=\"/manage/fork-global\"
+                          hx-target=\"#fork-result-{}\"
+                          hx-swap=\"innerHTML\"
+                          style=\"margin: 0;\">
+                        <input type=\"hidden\" name=\"alias\" value=\"{}\">
+                        <button type=\"submit\" class=\"btn-secondary\">Fork</button>
+                    </form>
+                </div>
+                <div id=\"fork-result-{}\"></div>
+            </td>
         </tr>",
         form.builtin_alias,
         form.builtin_alias,
@@ -533,7 +545,10 @@ pub async fn toggle_global_bookmark(
         description,
         form.builtin_alias,
         status_html,
-        button_html
+        button_html,
+        form.builtin_alias,
+        form.builtin_alias,
+        form.builtin_alias
     )))
 }
 
