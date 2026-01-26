@@ -206,28 +206,29 @@ async fn test_redirect_no_encoding_github() {
     assert!(!location.contains("jrodal98%2Fbrunnylol"));
 }
 
-#[tokio::test]
-async fn test_redirect_nested_command() {
-    let app = create_test_app().await;
-
-    // Test nested command structure (if aoc alias exists in commands.yml)
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri("/search?q=aoc%20j%205")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
-
-    // Should route through nested command structure
-    assert!(location.contains("github.com") || location.contains("advent-of-code"));
-}
+// There is no nested command in commands.yml right now
+// #[tokio::test]
+// async fn test_redirect_nested_command() {
+//     let app = create_test_app().await;
+//
+//     // Test nested command structure (if aoc alias exists in commands.yml)
+//     let response = app
+//         .oneshot(
+//             Request::builder()
+//                 .uri("/search?q=aoc%20j%205")
+//                 .body(Body::empty())
+//                 .unwrap(),
+//         )
+//         .await
+//         .unwrap();
+//
+//     assert_eq!(response.status(), StatusCode::SEE_OTHER);
+//
+//     let location = response.headers().get("Location").unwrap().to_str().unwrap();
+//
+//     // Should route through nested command structure
+//     assert!(location.contains("github.com") || location.contains("advent-of-code"));
+// }
 
 #[tokio::test]
 async fn test_redirect_special_characters() {
