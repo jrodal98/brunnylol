@@ -85,7 +85,7 @@ pub async fn login_submit(
     let cookie = Cookie::build(("session_id", session_id.clone()))
         .path("/")
         .http_only(true)
-        .max_age(time::Duration::hours(24))
+        .max_age(time::Duration::days(3650)) // 10 years - essentially permanent
         .build();
 
     Ok((jar.add(cookie), Redirect::to("/manage")).into_response())
@@ -185,7 +185,7 @@ pub async fn register_submit(
     let cookie = Cookie::build(("session_id", session_id.clone()))
         .path("/")
         .http_only(true)
-        .max_age(time::Duration::hours(24))
+        .max_age(time::Duration::days(3650)) // 10 years - essentially permanent
         .build();
 
     Ok((jar.add(cookie), Redirect::to("/manage")).into_response())

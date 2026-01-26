@@ -152,7 +152,8 @@ pub async fn manage_page(
         let is_overridden = user_aliases.contains(alias);
         let is_disabled = disabled_aliases.contains(alias);
 
-        if is_overridden {
+        // Only show conflict if overridden AND not disabled
+        if is_overridden && !is_disabled {
             conflicts.push(alias.clone());
         }
 

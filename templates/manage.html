@@ -109,10 +109,12 @@
     </div>
 
     {% if has_conflicts %}
-    <div class="conflict-warning">
+    <div id="conflict-warning" class="conflict-warning">
         <strong>⚠️ Alias Conflicts Detected:</strong>
         Your personal bookmarks are overriding these built-in aliases: {{ conflicts_text }}
     </div>
+    {% else %}
+    <div id="conflict-warning" style="display: none;"></div>
     {% endif %}
 
     <div class="tabs">
@@ -252,24 +254,6 @@
 
             <button type="submit" class="btn-primary">Import Bookmarks</button>
         </form>
-
-        <h2 style="margin-top: var(--space-8);">Export Bookmarks</h2>
-        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
-            <a href="/manage/export?scope=personal&format=yaml" class="btn-primary" download>
-                Export Personal (YAML)
-            </a>
-            <a href="/manage/export?scope=personal&format=json" class="btn-secondary" download>
-                Export Personal (JSON)
-            </a>
-            {% if user.is_admin %}
-            <a href="/manage/export?scope=global&format=yaml" class="btn-primary" download>
-                Export Global (YAML)
-            </a>
-            <a href="/manage/export?scope=global&format=json" class="btn-secondary" download>
-                Export Global (JSON)
-            </a>
-            {% endif %}
-        </div>
     </div>
 
     <!-- Tab 2: Personal Bookmarks -->
@@ -324,6 +308,16 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <h3 style="margin-top: var(--space-6);">Export Personal Bookmarks</h3>
+        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-3);">
+            <button onclick="window.location.href='/manage/export?scope=personal&format=yaml'" class="btn-primary">
+                Export as YAML
+            </button>
+            <button onclick="window.location.href='/manage/export?scope=personal&format=json'" class="btn-secondary">
+                Export as JSON
+            </button>
+        </div>
         {% endif %}
     </div>
 
@@ -375,6 +369,18 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        {% if user.is_admin %}
+        <h3 style="margin-top: var(--space-6);">Export Global Bookmarks (Admin)</h3>
+        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-3);">
+            <button onclick="window.location.href='/manage/export?scope=global&format=yaml'" class="btn-primary">
+                Export as YAML
+            </button>
+            <button onclick="window.location.href='/manage/export?scope=global&format=json'" class="btn-secondary">
+                Export as JSON
+            </button>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Tab 4: Admin Panel -->

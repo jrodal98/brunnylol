@@ -126,7 +126,8 @@ pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
 // Session management
 pub async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<String> {
     let session_id = uuid::Uuid::new_v4().to_string();
-    let expires_at = chrono::Utc::now() + chrono::Duration::hours(24);
+    // Set expiration to 10 years (essentially permanent until logout/password change)
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(3650);
 
     sqlx::query(
         "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)"
