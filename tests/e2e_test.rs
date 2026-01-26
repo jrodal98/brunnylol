@@ -1043,3 +1043,117 @@ async fn test_e2e_bulk_operations() {
 
     app.stop().await;
 }
+
+#[tokio::test]
+async fn test_e2e_fork_global_bookmarks() {
+    let mut app = TestApp::start().await;
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    // Ensure admin user exists
+    let user_count = app.db_query_count("SELECT COUNT(*) FROM users;");
+    if user_count == 0 {
+        client
+            .post(format!("{}/register", app.base_url))
+            .form(&[
+                ("username", "admin"),
+                ("password", "admin123"),
+                ("confirm_password", "admin123"),
+            ])
+            .send()
+            .await
+            .unwrap();
+    }
+
+    // Login
+    client
+        .post(format!("{}/login", app.base_url))
+        .form(&[("username", "admin"), ("password", "admin123")])
+        .send()
+        .await
+        .unwrap();
+
+    println!("✓ Admin logged in");
+
+    // Verify no personal bookmarks initially
+    let initial_personal = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(initial_personal, 0, "Should have no personal bookmarks initially");
+    println!("✓ No personal bookmarks initially");
+
+    // Fork a simple global bookmark (Google)
+    let fork_simple = client
+        .post(format!("{}/manage/fork-global", app.base_url))
+        .form(&[("alias", "g")])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(fork_simple.text().await.unwrap().contains("Forked 'g'"));
+    println!("✓ Forked simple global bookmark 'g'");
+
+    // Verify bookmark was created in user bookmarks
+    let g_exists = app.db_query("SELECT alias FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    assert_eq!(g_exists, "g", "Forked bookmark should exist");
+
+    let g_type = app.db_query("SELECT bookmark_type FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    assert_eq!(g_type, "templated", "Should preserve bookmark type");
+
+    let g_url = app.db_query("SELECT url FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    assert!(g_url.contains("google.com"), "Should preserve URL");
+    println!("✓ Forked bookmark has correct data");
+
+    // Try to fork the same bookmark again (should fail)
+    let fork_duplicate = client
+        .post(format!("{}/manage/fork-global", app.base_url))
+        .form(&[("alias", "g")])
+        .send()
+        .await
+        .unwrap();
+
+    let dup_text = fork_duplicate.text().await.unwrap();
+    assert!(dup_text.contains("already have"), "Should prevent duplicate forks");
+    println!("✓ Cannot fork same bookmark twice");
+
+    // Fork a nested global bookmark (aoc)
+    let fork_nested = client
+        .post(format!("{}/manage/fork-global", app.base_url))
+        .form(&[("alias", "aoc")])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(fork_nested.text().await.unwrap().contains("Forked 'aoc'"));
+    println!("✓ Forked nested global bookmark 'aoc'");
+
+    // Verify nested bookmarks were copied
+    let aoc_id = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='aoc';");
+    let nested_count = app.db_query_count(
+        &format!("SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};", aoc_id.trim())
+    );
+
+    // 'aoc' should have nested bookmarks
+    assert!(nested_count > 0, "Forked nested bookmark should have sub-commands");
+    println!("✓ Nested bookmark forked with {} sub-commands", nested_count);
+
+    // Verify the user now has 2 personal bookmarks
+    let final_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(final_count, 2, "Should have 2 forked bookmarks");
+    println!("✓ Total personal bookmarks: 2");
+
+    // Test forking non-existent bookmark
+    let fork_invalid = client
+        .post(format!("{}/manage/fork-global", app.base_url))
+        .form(&[("alias", "nonexistent123")])
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(fork_invalid.status(), 404, "Should return 404 for non-existent bookmark");
+    println!("✓ Forking non-existent bookmark returns 404");
+
+    println!("\n✅ ALL FORK TESTS PASSED");
+
+    app.stop().await;
+}

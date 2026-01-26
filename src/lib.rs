@@ -326,6 +326,7 @@ pub async fn create_router() -> Router {
         .route("/manage/export", get(handlers::bookmarks::export_bookmarks))
         .route("/manage/bookmarks/bulk-delete", post(handlers::bookmarks::bulk_delete_bookmarks))
         .route("/manage/overrides/bulk-disable", post(handlers::bookmarks::bulk_toggle_global))
+        .route("/manage/fork-global", post(handlers::bookmarks::fork_global_bookmark))
 
         // User settings routes (require authentication)
         .route("/settings", get(handlers::auth::settings_page))

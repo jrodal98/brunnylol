@@ -396,6 +396,14 @@
                             <button type="submit" class="btn-secondary">Disable</button>
                             {% endif %}
                         </form>
+                        <div id="fork-result-{{ bookmark.alias }}" style="display: inline;"></div>
+                        <form hx-post="/manage/fork-global"
+                              hx-target="#fork-result-{{ bookmark.alias }}"
+                              hx-swap="innerHTML"
+                              style="display: inline;">
+                            <input type="hidden" name="alias" value="{{ bookmark.alias }}">
+                            <button type="submit" class="btn-secondary" style="margin-left: 0.5em;">Fork</button>
+                        </form>
                     </td>
                 </tr>
                 {% endfor %}

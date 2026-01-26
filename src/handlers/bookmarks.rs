@@ -564,6 +564,11 @@ pub struct BulkDisableForm {
     is_disabled: bool,
 }
 
+#[derive(Deserialize)]
+pub struct ForkGlobalForm {
+    alias: String,
+}
+
 // POST /manage/import - Import bookmarks
 pub async fn import_bookmarks(
     current_user: CurrentUser,
@@ -753,4 +758,68 @@ pub async fn bulk_toggle_global(
             "updated": updated_count
         }))
     ))
+}
+
+// POST /manage/fork-global - Fork a global bookmark to personal bookmarks
+pub async fn fork_global_bookmark(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<ForkGlobalForm>,
+) -> Result<impl IntoResponse, AppError> {
+    // Get the global bookmark from database
+    let global_bookmarks = db::get_all_global_bookmarks(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    let global_bookmark = global_bookmarks
+        .iter()
+        .find(|b| b.alias == form.alias)
+        .ok_or(AppError::NotFound(format!("Global bookmark '{}' not found", form.alias)))?;
+
+    // Create a copy in user bookmarks
+    let bookmark_id = db::create_bookmark(
+        &state.db_pool,
+        current_user.0.id,
+        &global_bookmark.alias,
+        &global_bookmark.bookmark_type,
+        &global_bookmark.url,
+        &global_bookmark.description,
+        global_bookmark.command_template.as_deref(),
+        global_bookmark.encode_query,
+    )
+    .await
+    .map_err(|e| {
+        if e.to_string().contains("UNIQUE constraint") {
+            AppError::BadRequest(format!("You already have a bookmark with alias '{}'", form.alias))
+        } else {
+            AppError::Internal(format!("Failed to fork bookmark: {}", e))
+        }
+    })?;
+
+    // If it's a nested bookmark, copy the nested bookmarks too
+    if global_bookmark.bookmark_type == "nested" {
+        let global_nested = db::get_global_nested_bookmarks(&state.db_pool, global_bookmark.id)
+            .await
+            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+        for (i, nested) in global_nested.iter().enumerate() {
+            db::create_nested_bookmark(
+                &state.db_pool,
+                bookmark_id,
+                &nested.alias,
+                &nested.url,
+                &nested.description,
+                nested.command_template.as_deref(),
+                nested.encode_query,
+                i as i32,
+            )
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to fork nested bookmark: {}", e)))?;
+        }
+    }
+
+    Ok(Html(format!(
+        r#"<div class="success-message">Forked '{}' to your personal bookmarks! <a href="/manage">Refresh to see changes</a></div>"#,
+        form.alias
+    )))
 }
