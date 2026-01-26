@@ -544,6 +544,17 @@ pub struct ExportParams {
     format: String, // "yaml" or "json"
 }
 
+#[derive(Deserialize)]
+pub struct BulkDeleteForm {
+    ids: Vec<i64>,
+}
+
+#[derive(Deserialize)]
+pub struct BulkDisableForm {
+    aliases: Vec<String>,
+    is_disabled: bool,
+}
+
 // POST /manage/import - Import bookmarks
 pub async fn import_bookmarks(
     current_user: CurrentUser,
@@ -668,4 +679,69 @@ pub async fn export_bookmarks(
     );
 
     Ok(response)
+}
+
+// POST /manage/bookmarks/bulk-delete - Delete multiple personal bookmarks
+pub async fn bulk_delete_bookmarks(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    axum::extract::Json(form): axum::extract::Json<BulkDeleteForm>,
+) -> Result<impl IntoResponse, AppError> {
+    let mut deleted_count = 0;
+    let mut errors = Vec::new();
+
+    for id in form.ids {
+        match db::delete_bookmark(&state.db_pool, id, current_user.0.id).await {
+            Ok(_) => deleted_count += 1,
+            Err(e) => errors.push(format!("ID {}: {}", id, e)),
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(AppError::Internal(format!("Failed to delete some bookmarks: {}", errors.join(", "))));
+    }
+
+    Ok((
+        axum::http::StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "success": true,
+            "deleted": deleted_count
+        }))
+    ))
+}
+
+// POST /manage/overrides/bulk-disable - Bulk disable/enable global bookmarks
+pub async fn bulk_toggle_global(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    axum::extract::Json(form): axum::extract::Json<BulkDisableForm>,
+) -> Result<impl IntoResponse, AppError> {
+    let mut updated_count = 0;
+    let mut errors = Vec::new();
+
+    for alias in form.aliases {
+        match db::upsert_override(
+            &state.db_pool,
+            current_user.0.id,
+            &alias,
+            form.is_disabled,
+            None,
+            None,
+        ).await {
+            Ok(_) => updated_count += 1,
+            Err(e) => errors.push(format!("Alias '{}': {}", alias, e)),
+        }
+    }
+
+    if !errors.is_empty() {
+        return Err(AppError::Internal(format!("Failed to update some bookmarks: {}", errors.join(", "))));
+    }
+
+    Ok((
+        axum::http::StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "success": true,
+            "updated": updated_count
+        }))
+    ))
 }

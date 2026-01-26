@@ -890,3 +890,156 @@ async fn test_e2e_nested_global_bookmarks() {
 
     app.stop().await;
 }
+
+#[tokio::test]
+async fn test_e2e_bulk_operations() {
+    let mut app = TestApp::start().await;
+    let client = reqwest::Client::builder()
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    // Ensure admin user exists
+    let user_count = app.db_query_count("SELECT COUNT(*) FROM users;");
+    if user_count == 0 {
+        client
+            .post(format!("{}/register", app.base_url))
+            .form(&[
+                ("username", "admin"),
+                ("password", "admin123"),
+                ("confirm_password", "admin123"),
+            ])
+            .send()
+            .await
+            .unwrap();
+    }
+
+    // Login
+    client
+        .post(format!("{}/login", app.base_url))
+        .form(&[("username", "admin"), ("password", "admin123")])
+        .send()
+        .await
+        .unwrap();
+
+    println!("✓ Admin logged in");
+
+    // Import test bookmarks for bulk delete
+    let bulk_yaml = r#"- alias: bulk-test1
+  url: https://bulk1.test
+  description: Bulk test 1
+- alias: bulk-test2
+  url: https://bulk2.test
+  description: Bulk test 2
+- alias: bulk-test3
+  url: https://bulk3.test
+  description: Bulk test 3
+- alias: bulk-test4
+  url: https://bulk4.test
+  description: Bulk test 4"#;
+
+    client
+        .post(format!("{}/manage/import", app.base_url))
+        .form(&[
+            ("source", "paste"),
+            ("format", "yaml"),
+            ("scope", "personal"),
+            ("content", bulk_yaml),
+        ])
+        .send()
+        .await
+        .unwrap();
+
+    let initial_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(initial_count, 4, "Should have 4 test bookmarks");
+    println!("✓ Imported 4 test bookmarks");
+
+    // Get the IDs of the first 2 bookmarks
+    let id1 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test1';");
+    let id2 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test2';");
+
+    // Test bulk delete
+    let bulk_delete_response = client
+        .post(format!("{}/manage/bookmarks/bulk-delete", app.base_url))
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"ids": [{}, {}]}}"#, id1.trim(), id2.trim()))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(bulk_delete_response.status(), 200, "Bulk delete should succeed");
+    let delete_text = bulk_delete_response.text().await.unwrap();
+    let delete_json: serde_json::Value = serde_json::from_str(&delete_text).unwrap();
+    assert_eq!(delete_json["deleted"], 2);
+    println!("✓ Bulk delete: deleted 2 bookmarks");
+
+    // Verify bookmarks were deleted
+    let after_delete_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(after_delete_count, 2, "Should have 2 bookmarks remaining");
+    println!("✓ Verified bulk delete removed correct bookmarks");
+
+    // Test bulk disable global bookmarks
+    let bulk_disable_response = client
+        .post(format!("{}/manage/overrides/bulk-disable", app.base_url))
+        .header("Content-Type", "application/json")
+        .body(r#"{"aliases": ["g", "ddg", "yt"], "is_disabled": true}"#)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(bulk_disable_response.status(), 200, "Bulk disable should succeed");
+    let disable_text = bulk_disable_response.text().await.unwrap();
+    let disable_json: serde_json::Value = serde_json::from_str(&disable_text).unwrap();
+    assert_eq!(disable_json["updated"], 3);
+    println!("✓ Bulk disable: disabled 3 global bookmarks");
+
+    // Verify overrides were created
+    let disabled_count = app.db_query_count(
+        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;"
+    );
+    assert_eq!(disabled_count, 3, "Should have 3 disabled overrides");
+    println!("✓ Verified bulk disable created overrides");
+
+    // Test bulk enable
+    let bulk_enable_response = client
+        .post(format!("{}/manage/overrides/bulk-disable", app.base_url))
+        .header("Content-Type", "application/json")
+        .body(r#"{"aliases": ["g", "ddg"], "is_disabled": false}"#)
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(bulk_enable_response.status(), 200, "Bulk enable should succeed");
+    let enable_text = bulk_enable_response.text().await.unwrap();
+    let enable_json: serde_json::Value = serde_json::from_str(&enable_text).unwrap();
+    assert_eq!(enable_json["updated"], 2);
+    println!("✓ Bulk enable: enabled 2 global bookmarks");
+
+    // Verify overrides were updated
+    let still_disabled = app.db_query_count(
+        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;"
+    );
+    assert_eq!(still_disabled, 1, "Should have 1 disabled override remaining (yt)");
+    println!("✓ Verified bulk enable updated overrides");
+
+    // Test deleting all remaining bookmarks
+    let id3 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test3';");
+    let id4 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test4';");
+
+    let delete_all = client
+        .post(format!("{}/manage/bookmarks/bulk-delete", app.base_url))
+        .header("Content-Type", "application/json")
+        .body(format!(r#"{{"ids": [{}, {}]}}"#, id3.trim(), id4.trim()))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(delete_all.status(), 200);
+    let final_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(final_count, 0, "Should have 0 bookmarks after deleting all");
+    println!("✓ Bulk delete can remove all bookmarks");
+
+    println!("\n✅ ALL BULK OPERATION TESTS PASSED");
+
+    app.stop().await;
+}

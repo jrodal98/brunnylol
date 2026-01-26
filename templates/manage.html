@@ -263,9 +263,21 @@
         {% if personal_count == 0 %}
         <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
         {% else %}
+
+        <!-- Bulk Actions for Personal Bookmarks -->
+        <div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); align-items: center;">
+            <button class="btn-danger" onclick="deleteSelectedPersonal()" id="delete-selected-btn" disabled>
+                Delete Selected
+            </button>
+            <span id="personal-selected-count" style="color: var(--text-secondary);"></span>
+        </div>
+
         <table>
             <thead>
                 <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="select-all-personal" onchange="toggleAllPersonal(this)">
+                    </th>
                     <th>Alias</th>
                     <th>Type</th>
                     <th>URL/Template</th>
@@ -276,6 +288,9 @@
             <tbody>
                 {% for bookmark in personal_bookmarks %}
                 <tr id="bookmark-{{ bookmark.id }}">
+                    <td>
+                        <input type="checkbox" class="personal-checkbox" value="{{ bookmark.id }}" onchange="updatePersonalSelection()">
+                    </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.bookmark_type }}</td>
                     <td>
@@ -326,9 +341,23 @@
         <h2>Built-in Bookmarks</h2>
         <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
 
+        <!-- Bulk Actions for Global Bookmarks -->
+        <div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); align-items: center;">
+            <button class="btn-secondary" onclick="disableSelectedGlobal()" id="disable-selected-btn" disabled>
+                Disable Selected
+            </button>
+            <button class="btn-primary" onclick="enableSelectedGlobal()" id="enable-selected-btn" disabled>
+                Enable Selected
+            </button>
+            <span id="global-selected-count" style="color: var(--text-secondary);"></span>
+        </div>
+
         <table>
             <thead>
                 <tr>
+                    <th style="width: 40px;">
+                        <input type="checkbox" id="select-all-global" onchange="toggleAllGlobal(this)">
+                    </th>
                     <th>Alias</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -338,6 +367,9 @@
             <tbody>
                 {% for bookmark in global_bookmarks %}
                 <tr id="global-{{ bookmark.alias }}">
+                    <td>
+                        <input type="checkbox" class="global-checkbox" value="{{ bookmark.alias }}" onchange="updateGlobalSelection()">
+                    </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.description }}</td>
                     <td id="status-{{ bookmark.alias }}">
@@ -716,6 +748,126 @@ function toggleImportFields() {
         pasteDiv.style.display = 'none';
         urlDiv.style.display = 'block';
     }
+}
+
+// Multi-select functions for personal bookmarks
+function toggleAllPersonal(checkbox) {
+    const checkboxes = document.querySelectorAll('.personal-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updatePersonalSelection();
+}
+
+function updatePersonalSelection() {
+    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
+    const count = checkboxes.length;
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    const countSpan = document.getElementById('personal-selected-count');
+
+    deleteBtn.disabled = count === 0;
+    countSpan.textContent = count > 0 ? `${count} selected` : '';
+}
+
+function deleteSelectedPersonal() {
+    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+
+    if (ids.length === 0) return;
+
+    if (!confirm(`Delete ${ids.length} selected bookmark(s)?`)) return;
+
+    // Send bulk delete request
+    fetch('/manage/bookmarks/bulk-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ids: ids }),
+    })
+    .then(response => {
+        if (response.ok) {
+            // Remove rows from table
+            ids.forEach(id => {
+                const row = document.getElementById(`bookmark-${id}`);
+                if (row) row.remove();
+            });
+            // Uncheck select all
+            document.getElementById('select-all-personal').checked = false;
+            updatePersonalSelection();
+            // Show success message
+            alert(`Successfully deleted ${ids.length} bookmark(s)`);
+        } else {
+            alert('Failed to delete bookmarks');
+        }
+    });
+}
+
+// Multi-select functions for global bookmarks
+function toggleAllGlobal(checkbox) {
+    const checkboxes = document.querySelectorAll('.global-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateGlobalSelection();
+}
+
+function updateGlobalSelection() {
+    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
+    const count = checkboxes.length;
+    const disableBtn = document.getElementById('disable-selected-btn');
+    const enableBtn = document.getElementById('enable-selected-btn');
+    const countSpan = document.getElementById('global-selected-count');
+
+    disableBtn.disabled = count === 0;
+    enableBtn.disabled = count === 0;
+    countSpan.textContent = count > 0 ? `${count} selected` : '';
+}
+
+function disableSelectedGlobal() {
+    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
+    const aliases = Array.from(checkboxes).map(cb => cb.value);
+
+    if (aliases.length === 0) return;
+
+    if (!confirm(`Disable ${aliases.length} selected bookmark(s)?`)) return;
+
+    // Send bulk disable request
+    fetch('/manage/overrides/bulk-disable', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ aliases: aliases, is_disabled: true }),
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to disable bookmarks');
+        }
+    });
+}
+
+function enableSelectedGlobal() {
+    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
+    const aliases = Array.from(checkboxes).map(cb => cb.value);
+
+    if (aliases.length === 0) return;
+
+    if (!confirm(`Enable ${aliases.length} selected bookmark(s)?`)) return;
+
+    // Send bulk enable request
+    fetch('/manage/overrides/bulk-disable', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ aliases: aliases, is_disabled: false }),
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            alert('Failed to enable bookmarks');
+        }
+    });
 }
 
 // Initialize
