@@ -211,15 +211,23 @@ pub async fn logout(
 #[derive(Template)]
 #[template(path = "settings.html")]
 struct SettingsTemplate {
-    user: db::User,
+    username: String,
+    is_admin: bool,
+    default_alias_value: String,
+    has_default_alias: bool,
 }
 
 // GET /settings - User settings page
 pub async fn settings_page(
     current_user: CurrentUser,
 ) -> Result<Html<String>, AppError> {
+    let has_default_alias = current_user.0.default_alias.is_some();
+    let default_alias_value = current_user.0.default_alias.clone().unwrap_or_default();
     let template = SettingsTemplate {
-        user: current_user.0,
+        username: current_user.0.username,
+        is_admin: current_user.0.is_admin,
+        default_alias_value,
+        has_default_alias,
     };
     Ok(Html(template.render()?))
 }
@@ -235,6 +243,11 @@ pub struct ChangePasswordForm {
     current_password: String,
     new_password: String,
     confirm_password: String,
+}
+
+#[derive(Deserialize)]
+pub struct ChangeDefaultAliasForm {
+    default_alias: String, // Can be empty to clear
 }
 
 // POST /settings/username - Change username
@@ -324,4 +337,34 @@ pub async fn change_password(
     Ok(Html(
         r#"<div class="success-message">Password updated successfully! You have been logged out. Please <a href="/login">log in again</a>.</div>"#.to_string()
     ))
+}
+
+// POST /settings/default-alias - Change default alias for unknown aliases
+pub async fn change_default_alias(
+    current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
+    Form(form): Form<ChangeDefaultAliasForm>,
+) -> Result<impl IntoResponse, AppError> {
+    // If empty, clear the default (user will get 404 for unknown aliases)
+    let default_alias = if form.default_alias.trim().is_empty() {
+        None
+    } else {
+        Some(form.default_alias.trim())
+    };
+
+    // Update default alias in database
+    db::update_user_default_alias(&state.db_pool, current_user.0.id, default_alias)
+        .await
+        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+
+    let message = if let Some(alias) = default_alias {
+        format!(
+            r#"<div class="success-message">Default alias set to '{}'. Unknown aliases will now redirect to this bookmark.</div>"#,
+            alias
+        )
+    } else {
+        r#"<div class="success-message">Default alias cleared. Unknown aliases will now show a 404 error.</div>"#.to_string()
+    };
+
+    Ok(Html(message))
 }

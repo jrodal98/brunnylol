@@ -139,7 +139,7 @@ async fn redirect(
     optional_user: auth::middleware::OptionalUser,
     Query(params): Query<SearchParams>,
     State(state): State<Arc<AppState>>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
     let mut splitted = params.q.splitn(2, ' ');
     let bookmark_alias = splitted.next().unwrap_or("");
     let query = splitted.next().unwrap_or_default();
@@ -182,10 +182,19 @@ async fn redirect(
     let redirect_url = match command {
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => {
+            // Check if user has a custom default alias preference
+            let user_default = optional_user.0.as_ref().and_then(|u| u.default_alias.as_deref());
+
             let default_alias = params
                 .default
                 .as_deref()
-                .unwrap_or(&state.default_alias);
+                .or(user_default)
+                .unwrap_or(""); // Empty string means no default (will return 404)
+
+            // If no default alias is set, return 404
+            if default_alias.is_empty() {
+                return AppError::NotFound(format!("Unknown alias: '{}'", bookmark_alias)).into_response();
+            }
 
             // Try user bookmarks first for default alias too
             let default_command = user_bookmarks
@@ -202,13 +211,13 @@ async fn redirect(
             default_command
                 .map(|cmd| cmd.get_redirect_url(&params.q))
                 .unwrap_or_else(|| {
-                    // Fallback to Google if default alias not found
-                    format!("https://www.google.com/search?q={}", urlencoding::encode(&params.q))
+                    // Default alias not found either - return 404
+                    format!("/404?alias={}", urlencoding::encode(bookmark_alias))
                 })
         }
     };
 
-    Redirect::to(&redirect_url)
+    Redirect::to(&redirect_url).into_response()
 }
 
 // Public function to create the router
@@ -320,6 +329,7 @@ pub async fn create_router() -> Router {
         .route("/settings", get(handlers::auth::settings_page))
         .route("/settings/username", post(handlers::auth::change_username))
         .route("/settings/password", post(handlers::auth::change_password))
+        .route("/settings/default-alias", post(handlers::auth::change_default_alias))
 
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))

@@ -6,7 +6,7 @@
         <a href="/">About</a>
         <a href="/help">Help</a>
         <a href="/manage">My Bookmarks</a>
-        {% if user.is_admin %}
+        {% if is_admin %}
         <a href="/admin">Admin</a>
         {% endif %}
     </div>
@@ -73,6 +73,37 @@
                 <input type="password" id="confirm_password" name="confirm_password" required>
             </div>
             <button type="submit" class="btn-primary">Update Password</button>
+        </form>
+    </div>
+
+    <!-- Default Alias Section -->
+    <div class="section">
+        <h2>Default Alias for Unknown Searches</h2>
+        <div id="default-alias-result"></div>
+
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+            {% if has_default_alias %}
+            <strong>Current setting:</strong> Unknown aliases redirect to '<strong>{{ default_alias_value }}</strong>'
+            {% else %}
+            <strong>Current setting:</strong> Unknown aliases show a 404 error (no default)
+            {% endif %}
+        </p>
+
+        <form hx-post="/settings/default-alias"
+              hx-target="#default-alias-result"
+              hx-swap="innerHTML">
+            <div class="form-group">
+                <label for="default_alias">Default Alias (optional)</label>
+                <input type="text" id="default_alias" name="default_alias"
+                       value="{{ default_alias_value }}"
+                       placeholder="e.g., g (for Google)"
+                       maxlength="50">
+                <small>
+                    When you search with an unknown alias, redirect to this bookmark instead of showing a 404 error.
+                    Leave empty to show 404 errors for unknown aliases.
+                </small>
+            </div>
+            <button type="submit" class="btn-primary">Update Default Alias</button>
         </form>
     </div>
 </div>

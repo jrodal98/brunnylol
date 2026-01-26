@@ -25,6 +25,12 @@ async fn setup_test_db() -> sqlx::SqlitePool {
         .await
         .expect("Failed to run migration 002");
 
+    let migration_3 = include_str!("../migrations/003_user_default_alias.sql");
+    sqlx::query(migration_3)
+        .execute(&pool)
+        .await
+        .expect("Failed to run migration 003");
+
     pool
 }
 

@@ -39,6 +39,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to run migration 002")?;
 
+    let migration_sql_3 = include_str!("../../migrations/003_user_default_alias.sql");
+    // Ignore "duplicate column" errors (migration may have already run)
+    let _ = sqlx::query(migration_sql_3)
+        .execute(&pool)
+        .await;
+
     Ok(pool)
 }
 
@@ -48,6 +54,7 @@ pub struct User {
     pub id: i64,
     pub username: String,
     pub is_admin: bool,
+    pub default_alias: Option<String>,
 }
 
 // Create a new user (first user becomes admin automatically)
@@ -73,6 +80,7 @@ pub async fn create_user(pool: &SqlitePool, username: &str, password_hash: &str)
         id: result.last_insert_rowid(),
         username: username.to_string(),
         is_admin,
+        default_alias: None,
     })
 }
 
@@ -95,7 +103,7 @@ pub async fn get_user_by_username(pool: &SqlitePool, username: &str) -> Result<O
 // Get user by ID
 pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<User>> {
     let result = sqlx::query(
-        "SELECT id, username, is_admin FROM users WHERE id = ?"
+        "SELECT id, username, is_admin, default_alias FROM users WHERE id = ?"
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -105,13 +113,14 @@ pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<Us
         id: row.get("id"),
         username: row.get("username"),
         is_admin: row.get("is_admin"),
+        default_alias: row.get("default_alias"),
     }))
 }
 
 // List all users (admin only)
 pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
     let rows = sqlx::query(
-        "SELECT id, username, is_admin FROM users ORDER BY created_at DESC"
+        "SELECT id, username, is_admin, default_alias FROM users ORDER BY created_at DESC"
     )
     .fetch_all(pool)
     .await?;
@@ -120,6 +129,7 @@ pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
         id: row.get("id"),
         username: row.get("username"),
         is_admin: row.get("is_admin"),
+        default_alias: row.get("default_alias"),
     }).collect())
 }
 
@@ -491,6 +501,19 @@ pub async fn delete_override(pool: &SqlitePool, user_id: i64, builtin_alias: &st
     )
     .bind(user_id)
     .bind(builtin_alias)
+    .execute(pool)
+    .await?;
+
+    Ok(())
+}
+
+// Update user's default alias preference
+pub async fn update_user_default_alias(pool: &SqlitePool, user_id: i64, default_alias: Option<&str>) -> Result<()> {
+    sqlx::query(
+        "UPDATE users SET default_alias = ? WHERE id = ?"
+    )
+    .bind(default_alias)
+    .bind(user_id)
     .execute(pool)
     .await?;
 

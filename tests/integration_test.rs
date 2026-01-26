@@ -143,7 +143,7 @@ async fn test_redirect_with_alias_only() {
 async fn test_redirect_default_fallback() {
     let app = create_test_app().await;
 
-    // Test unknown alias falls back to default (google)
+    // Test unknown alias returns 404 (new default behavior - no fallback)
     let response = app
         .oneshot(
             Request::builder()
@@ -154,13 +154,8 @@ async fn test_redirect_default_fallback() {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::SEE_OTHER);
-
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
-
-    // Should use entire query with default search engine
-    assert!(location.contains("google.com"));
-    assert!(location.contains("unknownalias%20hello%20world"));
+    // Should return 404 for unknown alias (new behavior)
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
