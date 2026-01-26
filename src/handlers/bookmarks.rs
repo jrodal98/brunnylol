@@ -519,12 +519,21 @@ pub async fn toggle_global_bookmark(
 
     Ok(Html(format!(
         "<tr id=\"global-{}\">
+            <td>
+                <input type=\"checkbox\" class=\"global-checkbox\" value=\"{}\" onchange=\"updateGlobalSelection()\">
+            </td>
             <td><strong>{}</strong></td>
             <td>{}</td>
             <td id=\"status-{}\">{}</td>
             <td>{}</td>
         </tr>",
-        form.builtin_alias, form.builtin_alias, description, form.builtin_alias, status_html, button_html
+        form.builtin_alias,
+        form.builtin_alias,
+        form.builtin_alias,
+        description,
+        form.builtin_alias,
+        status_html,
+        button_html
     )))
 }
 
