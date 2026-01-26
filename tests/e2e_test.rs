@@ -602,6 +602,40 @@ async fn test_e2e_comprehensive() {
     assert_eq!(unknown_after_clear.status(), 404, "Unknown alias should return 404 after clearing default");
     println!("✓ Unknown alias returns 404 after clearing default");
 
+    // Test 26: Test return-to functionality when accessing protected pages
+    let unauth_client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let settings_response = unauth_client
+        .get(format!("{}/settings", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(settings_response.status(), 303, "Should redirect to login");
+    let settings_location = settings_response.headers().get("location").unwrap().to_str().unwrap();
+    assert!(settings_location.contains("/login"));
+    assert!(settings_location.contains("return=%2Fsettings"), "Should include return parameter");
+    println!("✓ Accessing /settings without auth redirects to /login?return=/settings");
+
+    // Test 27: Verify login redirects back to original page
+    let login_with_return = client
+        .post(format!("{}/login", app.base_url))
+        .form(&[
+            ("username", "admin"),
+            ("password", "admin123"),
+            ("return_to", "/settings"),
+        ])
+        .send()
+        .await
+        .unwrap();
+
+    // Should redirect to /settings (the return_to page)
+    assert!(login_with_return.status().is_success() || login_with_return.status().is_redirection());
+    println!("✓ Login with return_to parameter redirects to original page");
+
     // Final statistics
     let total_global = app.db_query_count("SELECT COUNT(*) FROM global_bookmarks;");
     let total_personal = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks;");

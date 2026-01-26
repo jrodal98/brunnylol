@@ -60,8 +60,12 @@ async fn test_manage_page_requires_auth() {
         .await
         .unwrap();
 
-    // Should return Unauthorized without session cookie
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // Should redirect to login with return parameter
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    assert!(location.contains("/login"));
+    assert!(location.contains("return=%2Fmanage")); // URL-encoded /manage
 }
 
 #[tokio::test]
@@ -73,8 +77,12 @@ async fn test_admin_page_requires_admin() {
         .await
         .unwrap();
 
-    // Should return Unauthorized without session cookie
-    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+    // Should redirect to login with return parameter
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    assert!(location.contains("/login"));
+    assert!(location.contains("return=%2Fadmin")); // URL-encoded /admin
 }
 
 #[tokio::test]

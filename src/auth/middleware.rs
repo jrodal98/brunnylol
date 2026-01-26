@@ -30,7 +30,11 @@ where
 
         // Get session cookie
         let session_cookie = jar.get("session_id")
-            .ok_or(AppError::Unauthorized("Not logged in".to_string()))?;
+            .ok_or_else(|| {
+                // Include the original URI in the error so we can redirect back after login
+                let return_to = parts.uri.path();
+                AppError::Unauthorized(return_to.to_string())
+            })?;
 
         let session_id = session_cookie.value();
 
@@ -38,13 +42,19 @@ where
         let user_id = db::validate_session(&app_state.db_pool, session_id)
             .await
             .map_err(|e| AppError::Internal(format!("Session validation error: {}", e)))?
-            .ok_or(AppError::Unauthorized("Invalid or expired session".to_string()))?;
+            .ok_or_else(|| {
+                let return_to = parts.uri.path();
+                AppError::Unauthorized(return_to.to_string())
+            })?;
 
         // Get user
         let user = db::get_user_by_id(&app_state.db_pool, user_id)
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
-            .ok_or(AppError::Unauthorized("User not found".to_string()))?;
+            .ok_or_else(|| {
+                let return_to = parts.uri.path();
+                AppError::Unauthorized(return_to.to_string())
+            })?;
 
         Ok(CurrentUser(user))
     }

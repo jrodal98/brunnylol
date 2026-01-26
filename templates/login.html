@@ -11,6 +11,8 @@
     {% endif %}
 
     <form method="post" action="/login" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+
         <div class="form-group">
             <label for="username">Username:</label>
             <input type="text" id="username" name="username" required>

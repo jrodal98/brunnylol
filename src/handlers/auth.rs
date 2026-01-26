@@ -2,7 +2,7 @@
 
 use askama::Template;
 use axum::{
-    extract::{Form, State},
+    extract::{Form, Query, State},
     response::{Html, IntoResponse, Redirect},
 };
 use axum_extra::extract::cookie::{Cookie, CookieJar};
@@ -16,6 +16,7 @@ use crate::{auth, auth::middleware::CurrentUser, db, error::AppError};
 #[template(path = "login.html")]
 struct LoginTemplate {
     error: String,
+    return_to: String,
 }
 
 #[derive(Template)]
@@ -30,6 +31,13 @@ struct RegisterTemplate {
 pub struct LoginForm {
     username: String,
     password: String,
+    return_to: Option<String>, // Hidden field from form
+}
+
+#[derive(Deserialize)]
+pub struct LoginQuery {
+    #[serde(rename = "return")]
+    return_to: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -40,13 +48,20 @@ pub struct RegisterForm {
 }
 
 // GET /login - Show login page
-pub async fn login_page(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
+pub async fn login_page(
+    optional_user: auth::middleware::OptionalUser,
+    Query(query): Query<LoginQuery>,
+) -> Result<impl IntoResponse, AppError> {
     // If already logged in, redirect to manage
     if optional_user.0.is_some() {
         return Ok(Redirect::to("/manage").into_response());
     }
 
-    let template = LoginTemplate { error: String::new() };
+    let return_to = query.return_to.unwrap_or_else(|| "/manage".to_string());
+    let template = LoginTemplate {
+        error: String::new(),
+        return_to,
+    };
     Ok(Html(template.render()?).into_response())
 }
 
@@ -69,9 +84,11 @@ pub async fn login_submit(
         .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?;
 
     if !valid {
-        // Return login page with error
+        // Return login page with error, preserve return_to
+        let return_to = form.return_to.unwrap_or_else(|| "/manage".to_string());
         let template = LoginTemplate {
             error: "Invalid username or password".to_string(),
+            return_to,
         };
         return Ok(Html(template.render()?).into_response());
     }
@@ -88,7 +105,9 @@ pub async fn login_submit(
         .max_age(time::Duration::days(3650)) // 10 years - essentially permanent
         .build();
 
-    Ok((jar.add(cookie), Redirect::to("/manage")).into_response())
+    // Redirect to the original page or /manage if no return_to
+    let redirect_url = form.return_to.unwrap_or_else(|| "/manage".to_string());
+    Ok((jar.add(cookie), Redirect::to(&redirect_url)).into_response())
 }
 
 // GET /register - Show registration page (only if no users exist)

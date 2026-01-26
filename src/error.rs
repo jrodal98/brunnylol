@@ -2,7 +2,7 @@
 
 use axum::{
     http::StatusCode,
-    response::{Html, IntoResponse, Response},
+    response::{Html, IntoResponse, Redirect, Response},
 };
 use std::fmt;
 
@@ -35,13 +35,23 @@ impl std::error::Error for AppError {}
 // Implement IntoResponse so Axum can convert errors to HTTP responses
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
+        // For Unauthorized errors, redirect to login page with return URL
+        if let AppError::Unauthorized(return_path) = self {
+            let redirect_url = if return_path.is_empty() || return_path == "/" {
+                "/login".to_string()
+            } else {
+                format!("/login?return={}", urlencoding::encode(&return_path))
+            };
+            return Redirect::to(&redirect_url).into_response();
+        }
+
         let (status, message) = match &self {
             AppError::TemplateRender(msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Template error: {}", msg),
             ),
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, format!("Not found: {}", msg)),
-            AppError::Unauthorized(_) => (StatusCode::UNAUTHORIZED, "Please log in to continue".to_string()),
+            AppError::Unauthorized(_) => unreachable!(), // Handled above
             AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, format!("Forbidden: {}", msg)),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("Bad request: {}", msg)),
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal error: {}", msg)),
