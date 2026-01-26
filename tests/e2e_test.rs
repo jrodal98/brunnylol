@@ -533,6 +533,75 @@ async fn test_e2e_comprehensive() {
     assert!(reimport.contains("skipped"), "Should skip duplicates on re-import");
     println!("✓ Round-trip: export → import skips duplicates");
 
+    // Test 21: Unknown alias returns 404 by default (new behavior)
+    let unknown_alias_response = client
+        .get(format!("{}/search?q=unknownalias123", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(unknown_alias_response.status(), 404, "Unknown alias should return 404 by default");
+    println!("✓ Unknown alias returns 404 (no default set)");
+
+    // Test 22: Set default alias to 'g'
+    let set_default = client
+        .post(format!("{}/settings/default-alias", app.base_url))
+        .form(&[("default_alias", "g")])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(set_default.text().await.unwrap().contains("success"));
+    println!("✓ Set default alias to 'g'");
+
+    // Test 23: Unknown alias now redirects to default
+    let redirect_client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    // Need to login with this client too
+    redirect_client
+        .post(format!("{}/login", app.base_url))
+        .form(&[("username", "admin"), ("password", "admin123")])
+        .send()
+        .await
+        .unwrap();
+
+    let unknown_with_default = redirect_client
+        .get(format!("{}/search?q=unknownalias456+test", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(unknown_with_default.status(), 303, "Should redirect when default is set");
+    let location = unknown_with_default.headers().get("location").unwrap().to_str().unwrap();
+    assert!(location.contains("google.com") && location.contains("unknownalias456"),
+            "Should use default 'g' and include full query");
+    println!("✓ Unknown alias redirects to default 'g'");
+
+    // Test 24: Clear default alias
+    let clear_default = client
+        .post(format!("{}/settings/default-alias", app.base_url))
+        .form(&[("default_alias", "")])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(clear_default.text().await.unwrap().contains("cleared"));
+    println!("✓ Cleared default alias");
+
+    // Test 25: Unknown alias returns 404 again
+    let unknown_after_clear = client
+        .get(format!("{}/search?q=unknownalias789", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(unknown_after_clear.status(), 404, "Unknown alias should return 404 after clearing default");
+    println!("✓ Unknown alias returns 404 after clearing default");
+
     // Final statistics
     let total_global = app.db_query_count("SELECT COUNT(*) FROM global_bookmarks;");
     let total_personal = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks;");
