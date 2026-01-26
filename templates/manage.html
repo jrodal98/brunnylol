@@ -775,30 +775,23 @@ function deleteSelectedPersonal() {
 
     if (!confirm(`Delete ${ids.length} selected bookmark(s)?`)) return;
 
-    // Send bulk delete request
-    fetch('/manage/bookmarks/bulk-delete', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ ids: ids }),
-    })
-    .then(response => {
-        if (response.ok) {
-            // Remove rows from table
-            ids.forEach(id => {
-                const row = document.getElementById(`bookmark-${id}`);
-                if (row) row.remove();
-            });
-            // Uncheck select all
-            document.getElementById('select-all-personal').checked = false;
-            updatePersonalSelection();
-            // Show success message
-            alert(`Successfully deleted ${ids.length} bookmark(s)`);
-        } else {
-            alert('Failed to delete bookmarks');
+    // Trigger individual delete buttons via HTMX (reuse existing working functionality)
+    ids.forEach(id => {
+        const row = document.getElementById(`bookmark-${id}`);
+        if (row) {
+            const deleteButton = row.querySelector('button[hx-delete]');
+            if (deleteButton) {
+                // Programmatically trigger the HTMX delete button
+                htmx.trigger(deleteButton, 'click');
+            }
         }
     });
+
+    // Uncheck select all after a short delay
+    setTimeout(() => {
+        document.getElementById('select-all-personal').checked = false;
+        updatePersonalSelection();
+    }, 300);
 }
 
 // Multi-select functions for global bookmarks
@@ -828,21 +821,28 @@ function disableSelectedGlobal() {
 
     if (!confirm(`Disable ${aliases.length} selected bookmark(s)?`)) return;
 
-    // Send bulk disable request
-    fetch('/manage/overrides/bulk-disable', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ aliases: aliases, is_disabled: true }),
-    })
-    .then(response => {
-        if (response.ok) {
-            window.location.reload();
-        } else {
-            alert('Failed to disable bookmarks');
+    // Trigger individual disable buttons via HTMX (reuse existing functionality)
+    aliases.forEach(alias => {
+        const row = document.getElementById(`global-${alias}`);
+        if (row) {
+            const statusCell = row.querySelector(`#status-${alias}`);
+            // Only disable if currently active
+            if (statusCell && statusCell.textContent.includes('✓ Active')) {
+                const disableButton = row.querySelector('button.btn-secondary');
+                if (disableButton && disableButton.textContent.includes('Disable')) {
+                    // Programmatically click the disable button (HTMX will handle update)
+                    disableButton.click();
+                }
+            }
         }
     });
+
+    // Uncheck all after HTMX finishes (give it time to process)
+    setTimeout(() => {
+        document.getElementById('select-all-global').checked = false;
+        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
+        updateGlobalSelection();
+    }, 500);
 }
 
 function enableSelectedGlobal() {
@@ -853,21 +853,28 @@ function enableSelectedGlobal() {
 
     if (!confirm(`Enable ${aliases.length} selected bookmark(s)?`)) return;
 
-    // Send bulk enable request
-    fetch('/manage/overrides/bulk-disable', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ aliases: aliases, is_disabled: false }),
-    })
-    .then(response => {
-        if (response.ok) {
-            window.location.reload();
-        } else {
-            alert('Failed to enable bookmarks');
+    // Trigger individual enable buttons via HTMX (reuse existing functionality)
+    aliases.forEach(alias => {
+        const row = document.getElementById(`global-${alias}`);
+        if (row) {
+            const statusCell = row.querySelector(`#status-${alias}`);
+            // Only enable if currently disabled
+            if (statusCell && statusCell.textContent.includes('✗ Disabled')) {
+                const enableButton = row.querySelector('button.btn-primary');
+                if (enableButton && enableButton.textContent.includes('Enable')) {
+                    // Programmatically click the enable button (HTMX will handle update)
+                    enableButton.click();
+                }
+            }
         }
     });
+
+    // Uncheck all after HTMX finishes
+    setTimeout(() => {
+        document.getElementById('select-all-global').checked = false;
+        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
+        updateGlobalSelection();
+    }, 500);
 }
 
 // Initialize
