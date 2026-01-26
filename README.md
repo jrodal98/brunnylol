@@ -9,7 +9,7 @@ A fast, multi-user bookmark management system with personalized shortcuts for qu
 ## Features
 
 - **Personal Bookmarks**: Create your own custom shortcuts
-- **Global Bookmarks**: 40+ built-in shortcuts (Google, YouTube, GitHub, etc.)
+- **Global Bookmarks**: 20+ built-in shortcuts (Google, YouTube, GitHub, etc.)
 - **Smart Search**: Simple, templated, and nested bookmark types
 - **Import/Export**: YAML and JSON support with URL fetching
 - **Multi-User**: Isolated bookmark collections with admin controls

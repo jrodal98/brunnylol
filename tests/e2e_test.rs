@@ -143,7 +143,7 @@ async fn test_e2e_comprehensive() {
 
     // Test 1: Auto-seeding
     let global_count = app.db_query_count("SELECT COUNT(*) FROM global_bookmarks;");
-    assert!(global_count >= 40, "Should have at least 40 global bookmarks seeded, got {}", global_count);
+    assert!(global_count >= 20, "Should have at least 20 global bookmarks seeded, got {}", global_count);
     println!("✓ Auto-seeding: {} global bookmarks", global_count);
 
     // Check if admin user exists, if not test is using production DB
@@ -646,7 +646,7 @@ async fn test_e2e_comprehensive() {
     println!("  Global Bookmarks: {}", total_global);
     println!("  Personal Bookmarks: {}", total_personal);
 
-    assert!(total_global >= 41, "Should have at least 41 global bookmarks (40 seeded + 1 imported)");
+    assert!(total_global >= 21, "Should have at least 21 global bookmarks (20 seeded + 1 imported)");
     assert!(total_users >= 2, "Should have at least 2 users");
     assert!(total_personal >= 4, "Should have at least 4 personal bookmarks");
 
@@ -1116,25 +1116,52 @@ async fn test_e2e_fork_global_bookmarks() {
     assert!(dup_text.contains("already have"), "Should prevent duplicate forks");
     println!("✓ Cannot fork same bookmark twice");
 
-    // Fork a nested global bookmark (aoc)
-    let fork_nested = client
-        .post(format!("{}/manage/fork-global", app.base_url))
-        .form(&[("alias", "aoc")])
+    // Import and fork a nested global bookmark (since none exist in default commands.yml anymore)
+    let nested_yaml = r#"- alias: test-nested-global
+  url: https://nested.test
+  description: Test nested global
+  nested:
+    - alias: sub1
+      url: https://nested.test/sub1
+      description: Sub 1
+    - alias: sub2
+      url: https://nested.test/sub2
+      description: Sub 2
+      command: https://nested.test/sub2?q={}"#;
+
+    // Import as global bookmark first
+    client
+        .post(format!("{}/manage/import", app.base_url))
+        .form(&[
+            ("source", "paste"),
+            ("format", "yaml"),
+            ("scope", "global"),
+            ("content", nested_yaml),
+        ])
         .send()
         .await
         .unwrap();
 
-    assert!(fork_nested.text().await.unwrap().contains("Forked 'aoc'"));
-    println!("✓ Forked nested global bookmark 'aoc'");
+    println!("✓ Imported nested global bookmark for testing");
+
+    // Now fork the nested global bookmark
+    let fork_nested = client
+        .post(format!("{}/manage/fork-global", app.base_url))
+        .form(&[("alias", "test-nested-global")])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(fork_nested.text().await.unwrap().contains("Forked 'test-nested-global'"));
+    println!("✓ Forked nested global bookmark 'test-nested-global'");
 
     // Verify nested bookmarks were copied
-    let aoc_id = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='aoc';");
+    let nested_id = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='test-nested-global';");
     let nested_count = app.db_query_count(
-        &format!("SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};", aoc_id.trim())
+        &format!("SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};", nested_id.trim())
     );
 
-    // 'aoc' should have nested bookmarks
-    assert!(nested_count > 0, "Forked nested bookmark should have sub-commands");
+    assert_eq!(nested_count, 2, "Forked nested bookmark should have 2 sub-commands");
     println!("✓ Nested bookmark forked with {} sub-commands", nested_count);
 
     // Verify the user now has 2 personal bookmarks

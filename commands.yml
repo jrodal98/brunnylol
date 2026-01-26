@@ -18,12 +18,7 @@
   command: https://www.bing.com/search?q={}
   description: Search bing
 
-- alias: time
-  url: https://time.is/
-  command: https://time.is/{}
-  description: Get current time data for a city/country
-
-- alias: wiki
+- alias: w
   url: https://www.wikipedia.org/
   command: https://en.wikipedia.org/wiki/Special:Search/{}
   description: Search wikipedia
@@ -37,11 +32,6 @@
   url: https://www.dictionary.com/
   command: https://www.dictionary.com/browse/{}?s=t
   description: Define a word with dictionary.com
-
-- alias: red
-  url: https://www.reddit.com/
-  command: https://www.reddit.com/r/{}
-  description: Go to a subreddit
 
 - alias: wut
   url: https://www.urbandictionary.com/
@@ -68,20 +58,10 @@
   command: https://www.linkedin.com/search/results/all/?keywords={}&origin=GLOBAL_SEARCH_HEADER
   description: Search LinkedIn
 
-- alias: nf
-  url: https://www.netflix.com/
-  command: https://www.netflix.com/search?q={}
-  description: Search Netflix
-
 - alias: img
   url: https://images.google.com/
   command: https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={}
   description: Search google images
-
-- alias: cal
-  url: https://calendar.google.com/
-  command: https://calendar.google.com/calendar/b/{}/r
-  description: Go to google calendar - ALIAS X to go to calendar for google account X.
 
 - alias: dbl
   url: http://localhost:8000/
@@ -93,119 +73,27 @@
   command: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={}&_sacat=0
   description: Search ebay
 
-- alias: gm
-  url: https://mail.google.com/
-  command: https://mail.google.com/mail/u/{}/
-  description: Go to gmail - ALIAS X to go to mail for google account X.
-
-- alias: gd
-  url: https://drive.google.com/
-  command: https://drive.google.com/drive/u/{}/my-drive
-  description: Go to google drive - ALIAS X to go to drive for google account X.
-
-- alias: gmap
+- alias: maps
   url: https://www.google.com/maps
   command: https://www.google.com/maps/search/{}
   description: Search Google maps
-
-- alias: gp
-  url: https://photos.google.com/
-  command: https://photos.google.com/u/{}/
-  description: Go to google photos - ALIAS X to go to photos for google account X.
-
-- alias: mc
-  url: https://minecraft.gamepedia.com/
-  command: https://minecraft.gamepedia.com/index.php?search={}&title=Special%3ASearch&go=Go
-  description: Search minecraft.gamepedia.com
 
 - alias: so
   url: https://stackoverflow.com
   command: https://stackoverflow.com/search?q={}
   description: Search questions on stackoverflow
 
-- alias: pm
-  url: https://mail.proton.me
-  command: https://mail.proton.me/u/{}/
-  description: Go to Protonmail - ALIAS X to go to mail for protonmail account X.
-
-- alias: pr
-  url: https://proton.me
-  command: https://{}.proton.me
-  description: Go to proton - ALIAS X to go to X.proton.me
-
-- alias: speed
-  url: https://www.speedtest.net/
-  description: Run an internet speedtest
-
 - alias: help
   url: /help
   description: Go to brunnylol's help page
 
-- alias: jr
-  url: https://jrodal.com/
-  description: Go to jrodal.com
-
-- alias: db
-  url: https://www.dropbox.com/home
-  description: Go to dropbox
-
-- alias: hulu
-  url: https://www.hulu.com/
-  description: Go to hulu
-
 - alias: bl
   url: /
-  description: Go to brunnylol's home page
-
-- alias: tr
-  url: https://play.typeracer.com/
-  description: Play typeracer
-
-- alias: wap
-  url: https://web.whatsapp.com/
-  description: Go to whatsapp web messenger
-
-- alias: ame
-  url: https://messages.google.com/
-  description: Go to android messages web client
-
-- alias: mt
-  url: https://monkeytype.com
-  description: Go to monkeytype, a minimalistic typing test
+  command: /search?q={}
+  description: Brunnylol search
 
 - alias: gh
-  url: https://github.com/jrodal98
+  url: https://github.com
   command: https://github.com/{}
-  description: Go to jrodal98's github page or go to another repo (e.g. jrodal98/brunnylol)
+  description: Go to github repo
   encode: false
-
-- alias: aoc
-  url: https://adventofcode.com
-  description: Advent of code
-  nested:
-    - alias: r
-      url: https://www.reddit.com/r/adventofcode/
-      description: reddit
-    - alias: j
-      url: https://github.com/jrodal98/advent-of-code
-      command: https://github.com/jrodal98/advent-of-code/blob/master/py2024/day{}/solution.py
-      description: jrodal98 AOC solutions
-    - alias: l
-      url: https://github.com/gorel/advent-2024
-      command: https://github.com/gorel/advent-2024/blob/main/advent/day{}.py
-      description: gorel AOC solutions
-    - alias: e
-      url: https://github.com/mozilla2012/adventOfCode
-      command: https://github.com/mozilla2012/adventOfCode/blob/main/2024/days/{}/{}.ts
-      description: mozilla2012 AOC solutions
-
-- alias: lh
-  url: http://localhost
-  description: Go to local pages
-  nested:
-    - alias: h
-      url: http://localhost:1313
-      description: Hugo
-    - alias: r
-      url: http://localhost:8000
-      description: Rocket

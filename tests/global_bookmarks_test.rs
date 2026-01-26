@@ -65,7 +65,7 @@ async fn test_global_bookmarks_auto_seed() {
     // Seed from embedded commands.yml
     let count = service.seed_global_bookmarks().await.unwrap();
 
-    assert!(count > 30, "Should seed at least 30 bookmarks from commands.yml");
+    assert!(count >= 20, "Should seed at least 20 bookmarks from commands.yml, got {}", count);
 
     // Verify table is no longer empty
     let is_empty_after = brunnylol::db::is_global_bookmarks_empty(&pool)
