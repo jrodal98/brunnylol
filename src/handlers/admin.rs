@@ -8,7 +8,7 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, error::AppError};
+use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
 
 // Template struct
 #[derive(Template)]
@@ -39,14 +39,14 @@ pub async fn admin_page(
     // Get all users
     let all_users = db::list_all_users(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     // Get bookmark counts for each user
     let mut users_display = Vec::new();
     for user in all_users {
         let bookmarks = db::get_user_bookmarks(&state.db_pool, user.id)
             .await
-            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+            .db_err()?;
 
         users_display.push(UserDisplay {
             id: user.id,
@@ -75,7 +75,7 @@ pub async fn cleanup_sessions(
 
     let deleted = db::cleanup_expired_sessions(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     Ok(Html(format!("<div>Cleaned up {} expired sessions</div>", deleted)))
 }
@@ -101,7 +101,7 @@ pub async fn create_user(
     }
 
     // Validate passwords match
-    if form.password != form.confirm_password {
+    if let Err(_) = validation::validate_passwords_match(&form.password, &form.confirm_password) {
         return Ok(Html(
             r#"<div style="color: #d32f2f;">Passwords do not match</div>"#.to_string()
         ));

@@ -1,59 +1,10 @@
 // Integration tests for global bookmarks feature
 
-// Helper to create test database
-async fn setup_test_db() -> sqlx::SqlitePool {
-    let pool = sqlx::SqlitePool::connect("sqlite::memory:")
-        .await
-        .expect("Failed to create in-memory database");
-
-    // Enable foreign keys
-    sqlx::query("PRAGMA foreign_keys = ON")
-        .execute(&pool)
-        .await
-        .expect("Failed to enable foreign keys");
-
-    // Run migrations
-    let migration_1 = include_str!("../migrations/001_initial_schema.sql");
-    sqlx::query(migration_1)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 001");
-
-    let migration_2 = include_str!("../migrations/002_global_bookmarks.sql");
-    sqlx::query(migration_2)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 002");
-
-    let migration_3 = include_str!("../migrations/003_user_default_alias.sql");
-    sqlx::query(migration_3)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 003");
-
-    pool
-}
-
-// Helper to create admin user
-async fn create_admin_user(pool: &sqlx::SqlitePool) -> (i64, String) {
-    let password_hash = bcrypt::hash("testpass123", bcrypt::DEFAULT_COST).unwrap();
-
-    // Use the db::create_user function which handles admin logic
-    let user = brunnylol::db::create_user(pool, "testadmin", &password_hash)
-        .await
-        .unwrap();
-
-    // Create session
-    let session_id = brunnylol::db::create_session(pool, user.id)
-        .await
-        .unwrap();
-
-    (user.id, session_id)
-}
+mod common;
 
 #[tokio::test]
 async fn test_global_bookmarks_auto_seed() {
-    let pool = setup_test_db().await;
+    let pool = common::setup_test_db().await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Verify table is empty
@@ -86,8 +37,8 @@ async fn test_global_bookmarks_auto_seed() {
 
 #[tokio::test]
 async fn test_import_personal_bookmarks_yaml() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     let yaml = r#"
@@ -126,8 +77,8 @@ async fn test_import_personal_bookmarks_yaml() {
 
 #[tokio::test]
 async fn test_import_personal_bookmarks_json() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     let json = r#"[
@@ -155,8 +106,8 @@ async fn test_import_personal_bookmarks_json() {
 
 #[tokio::test]
 async fn test_import_global_bookmarks_admin_only() {
-    let pool = setup_test_db().await;
-    let (admin_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (admin_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     let yaml = r#"
@@ -188,8 +139,8 @@ async fn test_import_global_bookmarks_admin_only() {
 
 #[tokio::test]
 async fn test_import_nested_bookmarks() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     let yaml = r#"
@@ -235,8 +186,8 @@ async fn test_import_nested_bookmarks() {
 
 #[tokio::test]
 async fn test_export_personal_bookmarks_yaml() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
 
     // Create some bookmarks
     brunnylol::db::create_bookmark(
@@ -266,8 +217,8 @@ async fn test_export_personal_bookmarks_yaml() {
 
 #[tokio::test]
 async fn test_export_global_bookmarks_json() {
-    let pool = setup_test_db().await;
-    let (admin_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create a global bookmark
     brunnylol::db::create_global_bookmark(
@@ -296,8 +247,8 @@ async fn test_export_global_bookmarks_json() {
 
 #[tokio::test]
 async fn test_export_global_nested_bookmarks() {
-    let pool = setup_test_db().await;
-    let (admin_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create nested global bookmark
     let parent_id = brunnylol::db::create_global_bookmark(
@@ -339,8 +290,8 @@ async fn test_export_global_nested_bookmarks() {
 
 #[tokio::test]
 async fn test_duplicate_detection() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     let yaml = r#"
@@ -376,8 +327,8 @@ async fn test_duplicate_detection() {
 
 #[tokio::test]
 async fn test_personal_overrides_global() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
@@ -418,8 +369,8 @@ async fn test_personal_overrides_global() {
 
 #[tokio::test]
 async fn test_disabled_global_bookmarks() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
@@ -453,8 +404,8 @@ async fn test_disabled_global_bookmarks() {
 
 #[tokio::test]
 async fn test_round_trip_export_import() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create bookmarks
@@ -547,8 +498,8 @@ async fn test_serializer_yaml_json_equivalence() {
 
 #[tokio::test]
 async fn test_load_global_bookmarks_as_commands() {
-    let pool = setup_test_db().await;
-    let (admin_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create test global bookmarks
     brunnylol::db::create_global_bookmark(
@@ -575,8 +526,8 @@ async fn test_load_global_bookmarks_as_commands() {
 
 #[tokio::test]
 async fn test_merge_global_and_personal_bookmarks() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
@@ -616,8 +567,8 @@ async fn test_merge_global_and_personal_bookmarks() {
 
 #[tokio::test]
 async fn test_import_with_errors() {
-    let pool = setup_test_db().await;
-    let (user_id, _) = create_admin_user(&pool).await;
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Test with invalid YAML

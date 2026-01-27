@@ -1,21 +1,17 @@
 // Integration tests for brunnylol with Axum
 // These tests verify the migrated Axum implementation
 
+mod common;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use tower::ServiceExt; // for `oneshot`
 
-async fn create_test_app() -> axum::Router {
-    // Temporarily override CLI args for testing
-    // For now, use the default commands.yml
-    brunnylol::create_router().await
-}
-
 #[tokio::test]
 async fn test_index_page_renders() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -35,7 +31,7 @@ async fn test_index_page_renders() {
 
 #[tokio::test]
 async fn test_help_page_renders() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/help").body(Body::empty()).unwrap())
@@ -56,7 +52,7 @@ async fn test_help_page_renders() {
 
 #[tokio::test]
 async fn test_help_page_contains_google_alias() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/help").body(Body::empty()).unwrap())
@@ -74,7 +70,7 @@ async fn test_help_page_contains_google_alias() {
 
 #[tokio::test]
 async fn test_redirect_with_valid_alias() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test Google search: "g hello world"
     let response = app
@@ -98,7 +94,7 @@ async fn test_redirect_with_valid_alias() {
 
 #[tokio::test]
 async fn test_redirect_url_encoding_spaces() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test that spaces are encoded as %20
     let response = app
@@ -117,7 +113,7 @@ async fn test_redirect_url_encoding_spaces() {
 
 #[tokio::test]
 async fn test_redirect_with_alias_only() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test just alias without query (should go to base URL)
     let response = app
@@ -141,7 +137,7 @@ async fn test_redirect_with_alias_only() {
 
 #[tokio::test]
 async fn test_redirect_default_fallback() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test unknown alias returns 404 (new default behavior - no fallback)
     let response = app
@@ -160,7 +156,7 @@ async fn test_redirect_default_fallback() {
 
 #[tokio::test]
 async fn test_redirect_custom_default() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test custom default parameter
     let response = app
@@ -183,7 +179,7 @@ async fn test_redirect_custom_default() {
 
 #[tokio::test]
 async fn test_redirect_no_encoding_github() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test GitHub alias with encode=false (forward slash should NOT be encoded)
     let response = app
@@ -209,7 +205,7 @@ async fn test_redirect_no_encoding_github() {
 // There is no nested command in commands.yml right now
 // #[tokio::test]
 // async fn test_redirect_nested_command() {
-//     let app = create_test_app().await;
+//     let app = common::create_test_app().await;
 //
 //     // Test nested command structure (if aoc alias exists in commands.yml)
 //     let response = app
@@ -232,7 +228,7 @@ async fn test_redirect_no_encoding_github() {
 
 #[tokio::test]
 async fn test_redirect_special_characters() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test special characters in query
     let response = app
@@ -255,7 +251,7 @@ async fn test_redirect_special_characters() {
 
 #[tokio::test]
 async fn test_redirect_ampersand_encoding() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test ampersand encoding
     let response = app
@@ -278,7 +274,7 @@ async fn test_redirect_ampersand_encoding() {
 
 #[tokio::test]
 async fn test_redirect_multiple_spaces() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     // Test multiple consecutive spaces
     let response = app
@@ -301,7 +297,7 @@ async fn test_redirect_multiple_spaces() {
 
 #[tokio::test]
 async fn test_index_contains_help_link() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
@@ -319,7 +315,7 @@ async fn test_index_contains_help_link() {
 
 #[tokio::test]
 async fn test_help_page_searchable() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/help").body(Body::empty()).unwrap())

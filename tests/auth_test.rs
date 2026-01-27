@@ -1,20 +1,16 @@
 // Integration tests for authentication and bookmark management
 
+mod common;
+
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
 use tower::ServiceExt;
 
-async fn create_test_app() -> axum::Router {
-    // Use test database
-    std::env::set_var("DATABASE_URL", "sqlite::memory:");
-    brunnylol::create_router().await
-}
-
 #[tokio::test]
 async fn test_register_page_blocked_after_first_user() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/register").body(Body::empty()).unwrap())
@@ -34,7 +30,7 @@ async fn test_register_page_blocked_after_first_user() {
 
 #[tokio::test]
 async fn test_login_page_loads() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/login").body(Body::empty()).unwrap())
@@ -53,7 +49,7 @@ async fn test_login_page_loads() {
 
 #[tokio::test]
 async fn test_manage_page_requires_auth() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/manage").body(Body::empty()).unwrap())
@@ -70,7 +66,7 @@ async fn test_manage_page_requires_auth() {
 
 #[tokio::test]
 async fn test_admin_page_requires_admin() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/admin").body(Body::empty()).unwrap())
@@ -87,7 +83,7 @@ async fn test_admin_page_requires_admin() {
 
 #[tokio::test]
 async fn test_navigation_links_present() {
-    let app = create_test_app().await;
+    let app = common::create_test_app().await;
 
     let response = app
         .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())

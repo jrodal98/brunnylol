@@ -94,3 +94,22 @@ impl From<askama::Error> for AppError {
         AppError::TemplateRender(err.to_string())
     }
 }
+
+// Extension trait for database result handling
+pub trait DbResultExt<T> {
+    /// Convert database errors to AppError::Internal with "Database error: " prefix
+    fn db_err(self) -> Result<T, AppError>;
+
+    /// Convert database errors to AppError::Internal with custom message
+    fn db_err_msg(self, msg: &str) -> Result<T, AppError>;
+}
+
+impl<T, E: std::fmt::Display> DbResultExt<T> for Result<T, E> {
+    fn db_err(self) -> Result<T, AppError> {
+        self.map_err(|e| AppError::Internal(format!("Database error: {}", e)))
+    }
+
+    fn db_err_msg(self, msg: &str) -> Result<T, AppError> {
+        self.map_err(|e| AppError::Internal(format!("{}: {}", msg, e)))
+    }
+}

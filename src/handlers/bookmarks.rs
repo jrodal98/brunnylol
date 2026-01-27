@@ -9,7 +9,7 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, error::AppError};
+use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
 
 // Template structs
 #[derive(Template)]
@@ -100,7 +100,7 @@ pub async fn manage_page(
     // Get user's personal bookmarks
     let user_bookmarks = db::get_user_bookmarks(&state.db_pool, current_user.0.id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     // Convert to display format
     let mut personal_bookmarks = Vec::new();
@@ -136,7 +136,7 @@ pub async fn manage_page(
     // Get user's disabled bookmarks
     let overrides = db::get_user_overrides(&state.db_pool, current_user.0.id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let mut disabled_aliases = std::collections::HashSet::new();
     for (builtin_alias, is_disabled, _, _) in overrides {
@@ -197,11 +197,7 @@ pub async fn create_bookmark(
     // Validate templated bookmarks have a valid template with {}
     if form.bookmark_type == "templated" {
         let template = form.command_template.as_deref().unwrap_or(&form.url);
-        if !template.contains("{}") {
-            return Err(AppError::BadRequest(
-                "Templated bookmarks must have a template containing {} placeholder".to_string()
-            ));
-        }
+        validation::validate_template(template)?;
     }
 
     let encode_query = form.encode_query.is_some();
@@ -242,11 +238,10 @@ pub async fn create_bookmark(
                 // Validate nested templated bookmarks have a valid template with {}
                 if nested_cmd.cmd_type == "templated" {
                     let template = nested_template.unwrap_or(&nested_cmd.url);
-                    if !template.contains("{}") {
-                        return Err(AppError::BadRequest(
+                    validation::validate_template(template)
+                        .map_err(|_| AppError::BadRequest(
                             format!("Nested bookmark '{}' is templated but template doesn't contain {{}} placeholder", nested_cmd.alias)
-                        ));
-                    }
+                        ))?;
                 }
 
                 db::create_nested_bookmark(
@@ -297,11 +292,7 @@ pub async fn update_bookmark(
 
     // Validate command template if provided
     if let Some(ref template) = form.command_template {
-        if !template.is_empty() && !template.contains("{}") {
-            return Err(AppError::BadRequest(
-                "Template must contain {} placeholder".to_string()
-            ));
-        }
+        validation::validate_template(template)?;
     }
 
     db::update_bookmark(
@@ -332,7 +323,7 @@ pub async fn create_nested_bookmark(
     // Verify parent bookmark belongs to current user
     let parent = db::get_bookmark_by_id(&state.db_pool, form.parent_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .db_err()?
         .ok_or(AppError::NotFound("Parent bookmark not found".to_string()))?;
 
     if parent.user_id != current_user.0.id {
@@ -343,17 +334,13 @@ pub async fn create_nested_bookmark(
 
     // Validate templated nested bookmarks have a valid template with {}
     if let Some(ref template) = form.command_template {
-        if !template.is_empty() && !template.contains("{}") {
-            return Err(AppError::BadRequest(
-                "Templated bookmarks must have a template containing {} placeholder".to_string()
-            ));
-        }
+        validation::validate_template(template)?;
     }
 
     // Get the next display order
     let existing_nested = db::get_nested_bookmarks(&state.db_pool, form.parent_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let display_order = existing_nested.len() as i32;
 
@@ -385,12 +372,12 @@ pub async fn delete_nested_bookmark(
     // Verify nested bookmark's parent belongs to current user
     let nested = db::get_nested_bookmark_by_id(&state.db_pool, nested_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .db_err()?
         .ok_or(AppError::NotFound("Nested bookmark not found".to_string()))?;
 
     let parent = db::get_bookmark_by_id(&state.db_pool, nested.parent_bookmark_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .db_err()?
         .ok_or(AppError::Internal("Parent bookmark not found".to_string()))?;
 
     if parent.user_id != current_user.0.id {
@@ -413,7 +400,7 @@ pub async fn list_nested_bookmarks(
     // Verify bookmark belongs to current user
     let parent = db::get_bookmark_by_id(&state.db_pool, bookmark_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .db_err()?
         .ok_or(AppError::NotFound("Bookmark not found".to_string()))?;
 
     if parent.user_id != current_user.0.id {
@@ -422,7 +409,7 @@ pub async fn list_nested_bookmarks(
 
     let nested = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let mut html = String::from("<div class='nested-commands'>");
 
@@ -784,7 +771,7 @@ pub async fn fork_global_bookmark(
     // Get the global bookmark from database
     let global_bookmarks = db::get_all_global_bookmarks(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let global_bookmark = global_bookmarks
         .iter()
@@ -815,7 +802,7 @@ pub async fn fork_global_bookmark(
     if global_bookmark.bookmark_type == "nested" {
         let global_nested = db::get_global_nested_bookmarks(&state.db_pool, global_bookmark.id)
             .await
-            .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+            .db_err()?;
 
         for (i, nested) in global_nested.iter().enumerate() {
             db::create_nested_bookmark(

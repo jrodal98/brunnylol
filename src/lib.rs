@@ -7,6 +7,7 @@ pub mod db;
 mod auth;
 mod handlers;
 pub mod services;
+pub mod validation;
 
 use askama::Template;
 use axum::{
@@ -247,7 +248,6 @@ pub async fn create_router() -> Router {
         )
         .get_matches();
 
-    let _yaml_path = matches.get_one("commands").map(|c: &String| c.as_str());
     let default_alias = matches
         .get_one("default_alias")
         .map(|c: &String| c.as_str())

@@ -9,7 +9,7 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth, auth::middleware::CurrentUser, db, error::AppError};
+use crate::{auth, auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
 
 // Template structs
 #[derive(Template)]
@@ -74,7 +74,7 @@ pub async fn login_submit(
     // Get user from database
     let user_data = db::get_user_by_username(&state.db_pool, &form.username)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let (user_id, password_hash, _is_admin) = user_data
         .ok_or(AppError::Unauthorized("Invalid username or password".to_string()))?;
@@ -118,7 +118,7 @@ pub async fn register_page(
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     // If users exist, registration is closed
     if count > 0 {
@@ -144,7 +144,7 @@ pub async fn register_submit(
     let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users")
         .fetch_one(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     // If users exist, registration is closed
     if count > 0 {
@@ -154,9 +154,9 @@ pub async fn register_submit(
     }
 
     // Validate passwords match
-    if form.password != form.confirm_password {
+    if let Err(e) = validation::validate_passwords_match(&form.password, &form.confirm_password) {
         let template = RegisterTemplate {
-            error: "Passwords do not match".to_string(),
+            error: e.to_string(),
             is_first_user: count == 0,
         };
         return Ok(Html(template.render()?).into_response());
@@ -309,7 +309,7 @@ pub async fn change_password(
     // Get current password hash from database
     let user_data = db::get_user_by_username(&state.db_pool, &current_user.0.username)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
+        .db_err()?
         .ok_or(AppError::Internal("User not found".to_string()))?;
 
     let (_user_id, password_hash, _is_admin) = user_data;
@@ -325,7 +325,7 @@ pub async fn change_password(
     }
 
     // Validate new passwords match
-    if form.new_password != form.confirm_password {
+    if let Err(_) = validation::validate_passwords_match(&form.new_password, &form.confirm_password) {
         return Ok(Html(
             r#"<div style="color: #d32f2f;">New passwords do not match</div>"#.to_string()
         ));
@@ -346,7 +346,7 @@ pub async fn change_password(
         .bind(current_user.0.id)
         .execute(&state.db_pool)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     // Invalidate all sessions for security (user will need to log in again)
     db::delete_all_user_sessions(&state.db_pool, current_user.0.id)
@@ -374,7 +374,7 @@ pub async fn change_default_alias(
     // Update default alias in database
     db::update_user_default_alias(&state.db_pool, current_user.0.id, default_alias)
         .await
-        .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?;
+        .db_err()?;
 
     let message = if let Some(alias) = default_alias {
         format!(
