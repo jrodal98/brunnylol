@@ -39,7 +39,6 @@ struct HelpTemplate {
     alias_to_description: Vec<(String, Vec<String>, bool)>, // (alias, description_parts, is_disabled)
     personal_aliases: Vec<(String, Vec<String>)>,
     has_user: bool,
-    username: String,
     is_admin: bool,
 }
 
@@ -80,7 +79,7 @@ async fn help(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
     // Load disabled aliases if logged in
-    let (personal_aliases, disabled_set, has_user, username, is_admin) = if let Some(ref user) = optional_user.0 {
+    let (personal_aliases, disabled_set, has_user, is_admin) = if let Some(ref user) = optional_user.0 {
         let user_bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
             .await
             .ok();
@@ -109,9 +108,9 @@ async fn help(
             .map(|(alias, _, _, _)| alias.clone())
             .collect();
 
-        (aliases, disabled, true, user.username.clone(), user.is_admin)
+        (aliases, disabled, true, user.is_admin)
     } else {
-        (Vec::new(), std::collections::HashSet::new(), false, String::new(), false)
+        (Vec::new(), std::collections::HashSet::new(), false, false)
     };
 
     // Pre-process global descriptions with disabled status
@@ -129,7 +128,6 @@ async fn help(
         alias_to_description,
         personal_aliases,
         has_user,
-        username,
         is_admin,
     };
     Ok(Html(template.render()?))

@@ -3,6 +3,7 @@
 use sqlx::SqlitePool;
 
 /// Set up an in-memory SQLite database for testing
+#[allow(dead_code)]
 pub async fn setup_test_db() -> SqlitePool {
     let pool = SqlitePool::connect("sqlite::memory:")
         .await
@@ -44,6 +45,7 @@ pub async fn setup_test_db() -> SqlitePool {
 
 /// Create an admin user for testing
 /// Returns (user_id, session_token)
+#[allow(dead_code)]
 pub async fn create_admin_user(pool: &SqlitePool) -> (i64, String) {
     let password_hash = bcrypt::hash("testpass123", bcrypt::DEFAULT_COST).unwrap();
 
@@ -62,6 +64,7 @@ pub async fn create_admin_user(pool: &SqlitePool) -> (i64, String) {
 
 /// Create a regular (non-admin) user for testing
 /// Returns (user_id, session_token)
+#[allow(dead_code)]
 pub async fn create_regular_user(pool: &SqlitePool, username: &str) -> (i64, String) {
     let password_hash = bcrypt::hash("password123", bcrypt::DEFAULT_COST).unwrap();
 
@@ -89,6 +92,7 @@ pub async fn create_regular_user(pool: &SqlitePool, username: &str) -> (i64, Str
 }
 
 /// Create a test Axum router for integration tests
+#[allow(dead_code)]
 pub async fn create_test_app() -> axum::Router {
     // Use in-memory database for testing
     std::env::set_var("DATABASE_URL", "sqlite::memory:");

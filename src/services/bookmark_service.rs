@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::{
     config::yml_settings::YmlSettings,
-    db::{self, NestedBookmark},
+    db,
     domain::Command,
     services::serializers::BookmarkSerializer,
 };

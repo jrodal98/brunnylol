@@ -230,7 +230,6 @@ pub async fn logout(
 #[derive(Template)]
 #[template(path = "settings.html")]
 struct SettingsTemplate {
-    username: String,
     is_admin: bool,
     default_alias_value: String,
     has_default_alias: bool,
@@ -243,7 +242,6 @@ pub async fn settings_page(
     let has_default_alias = current_user.0.default_alias.is_some();
     let default_alias_value = current_user.0.default_alias.clone().unwrap_or_default();
     let template = SettingsTemplate {
-        username: current_user.0.username,
         is_admin: current_user.0.is_admin,
         default_alias_value,
         has_default_alias,

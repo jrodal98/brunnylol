@@ -27,6 +27,7 @@ struct TestApp {
     process: Child,
     base_url: String,
     db_path: String,
+    #[allow(dead_code)]
     port: u16,
 }
 

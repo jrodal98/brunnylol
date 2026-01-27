@@ -99,67 +99,10 @@ impl From<askama::Error> for AppError {
 pub trait DbResultExt<T> {
     /// Convert database errors to AppError::Internal with "Database error: " prefix
     fn db_err(self) -> Result<T, AppError>;
-
-    /// Convert database errors to AppError::Internal with custom message
-    fn db_err_msg(self, msg: &str) -> Result<T, AppError>;
 }
 
 impl<T, E: std::fmt::Display> DbResultExt<T> for Result<T, E> {
     fn db_err(self) -> Result<T, AppError> {
         self.map_err(|e| AppError::Internal(format!("Database error: {}", e)))
-    }
-
-    fn db_err_msg(self, msg: &str) -> Result<T, AppError> {
-        self.map_err(|e| AppError::Internal(format!("{}: {}", msg, e)))
-    }
-}
-
-// Constraint error types for better error handling
-#[derive(Debug, Clone)]
-pub enum ConstraintType {
-    UniqueViolation(String),  // field name
-    ForeignKeyViolation,
-    NotNullViolation(String),
-}
-
-// Extension trait for SQLx errors to parse constraint violations
-pub trait SqlxErrorExt {
-    fn constraint_violation(&self) -> Option<ConstraintType>;
-}
-
-impl SqlxErrorExt for sqlx::Error {
-    fn constraint_violation(&self) -> Option<ConstraintType> {
-        let err_str = self.to_string();
-        if err_str.contains("UNIQUE constraint failed") {
-            // Parse field name from error message
-            // Example: "UNIQUE constraint failed: bookmarks.alias"
-            if let Some(field_part) = err_str.split("failed:").nth(1) {
-                let field = field_part
-                    .trim()
-                    .split('.')
-                    .last()
-                    .unwrap_or("field")
-                    .to_string();
-                Some(ConstraintType::UniqueViolation(field))
-            } else {
-                Some(ConstraintType::UniqueViolation("alias".to_string()))
-            }
-        } else if err_str.contains("FOREIGN KEY constraint failed") {
-            Some(ConstraintType::ForeignKeyViolation)
-        } else if err_str.contains("NOT NULL constraint failed") {
-            if let Some(field_part) = err_str.split("failed:").nth(1) {
-                let field = field_part
-                    .trim()
-                    .split('.')
-                    .last()
-                    .unwrap_or("field")
-                    .to_string();
-                Some(ConstraintType::NotNullViolation(field))
-            } else {
-                Some(ConstraintType::NotNullViolation("field".to_string()))
-            }
-        } else {
-            None
-        }
     }
 }

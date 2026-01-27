@@ -14,7 +14,6 @@ use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, v
 #[derive(Template)]
 #[template(path = "admin.html")]
 struct AdminTemplate {
-    user: db::User,
     users: Vec<UserDisplay>,
 }
 
@@ -57,7 +56,6 @@ pub async fn admin_page(
     }
 
     let template = AdminTemplate {
-        user: current_user.0,
         users: users_display,
     };
 

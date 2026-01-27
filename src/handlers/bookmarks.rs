@@ -4,7 +4,7 @@ use askama::Template;
 use axum::{
     extract::{Form, Path, State},
     response::{Html, IntoResponse, Response},
-    http::{header, StatusCode},
+    http::header,
 };
 use serde::Deserialize;
 use std::sync::Arc;
