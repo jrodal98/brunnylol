@@ -98,7 +98,7 @@ pub async fn manage_page(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
     // Get user's personal bookmarks
-    let user_bookmarks = db::get_user_bookmarks(&state.db_pool, current_user.0.id)
+    let user_bookmarks = db::get_bookmarks(&state.db_pool, db::BookmarkScope::Personal { user_id: current_user.0.id })
         .await
         .db_err()?;
 
@@ -159,7 +159,7 @@ pub async fn manage_page(
 
         global_bookmarks.push(GlobalBookmarkDisplay {
             alias: alias.clone(),
-            description: command.description(),
+            description: command.description().to_string(),
             is_overridden,
             is_disabled,
         });
@@ -205,13 +205,14 @@ pub async fn create_bookmark(
     // Create parent bookmark in database
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
-        current_user.0.id,
+        db::BookmarkScope::Personal { user_id: current_user.0.id },
         &form.alias,
         &form.bookmark_type,
         &form.url,
         &form.description,
         form.command_template.as_deref(),
         encode_query,
+        Some(current_user.0.id),
     )
     .await
     .map_err(|e| {
@@ -273,7 +274,7 @@ pub async fn delete_bookmark(
     State(state): State<Arc<crate::AppState>>,
     Path(bookmark_id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
-    db::delete_bookmark(&state.db_pool, bookmark_id, current_user.0.id)
+    db::delete_bookmark(&state.db_pool, bookmark_id, db::BookmarkScope::Personal { user_id: current_user.0.id })
         .await
         .map_err(|e| AppError::Internal(format!("Failed to delete bookmark: {}", e)))?;
 
@@ -298,7 +299,7 @@ pub async fn update_bookmark(
     db::update_bookmark(
         &state.db_pool,
         bookmark_id,
-        current_user.0.id,
+        db::BookmarkScope::Personal { user_id: current_user.0.id },
         &form.alias,
         &form.url,
         &form.description,
@@ -326,7 +327,7 @@ pub async fn create_nested_bookmark(
         .db_err()?
         .ok_or(AppError::NotFound("Parent bookmark not found".to_string()))?;
 
-    if parent.user_id != current_user.0.id {
+    if parent.user_id != Some(current_user.0.id) {
         return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
     }
 
@@ -380,7 +381,7 @@ pub async fn delete_nested_bookmark(
         .db_err()?
         .ok_or(AppError::Internal("Parent bookmark not found".to_string()))?;
 
-    if parent.user_id != current_user.0.id {
+    if parent.user_id != Some(current_user.0.id) {
         return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
     }
 
@@ -403,7 +404,7 @@ pub async fn list_nested_bookmarks(
         .db_err()?
         .ok_or(AppError::NotFound("Bookmark not found".to_string()))?;
 
-    if parent.user_id != current_user.0.id {
+    if parent.user_id != Some(current_user.0.id) {
         return Err(AppError::Forbidden("Cannot access bookmarks you don't own".to_string()));
     }
 
@@ -476,7 +477,7 @@ pub async fn toggle_global_bookmark(
     let description = state.alias_to_bookmark_map
         .get(&form.builtin_alias)
         .map(|cmd| cmd.description())
-        .unwrap_or_else(|| "Built-in bookmark".to_string());
+        .unwrap_or("Built-in bookmark");
 
     // Return updated table row
     let status_html = if is_disabled {
@@ -707,7 +708,7 @@ pub async fn bulk_delete_bookmarks(
     let mut errors = Vec::new();
 
     for id in form.ids {
-        match db::delete_bookmark(&state.db_pool, id, current_user.0.id).await {
+        match db::delete_bookmark(&state.db_pool, id, db::BookmarkScope::Personal { user_id: current_user.0.id }).await {
             Ok(_) => deleted_count += 1,
             Err(e) => errors.push(format!("ID {}: {}", id, e)),
         }
@@ -769,7 +770,7 @@ pub async fn fork_global_bookmark(
     Form(form): Form<ForkGlobalForm>,
 ) -> Result<impl IntoResponse, AppError> {
     // Get the global bookmark from database
-    let global_bookmarks = db::get_all_global_bookmarks(&state.db_pool)
+    let global_bookmarks = db::get_bookmarks(&state.db_pool, db::BookmarkScope::Global)
         .await
         .db_err()?;
 
@@ -781,13 +782,14 @@ pub async fn fork_global_bookmark(
     // Create a copy in user bookmarks
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
-        current_user.0.id,
+        db::BookmarkScope::Personal { user_id: current_user.0.id },
         &global_bookmark.alias,
         &global_bookmark.bookmark_type,
         &global_bookmark.url,
         &global_bookmark.description,
         global_bookmark.command_template.as_deref(),
         global_bookmark.encode_query,
+        Some(current_user.0.id), // Track who forked this
     )
     .await
     .map_err(|e| {
@@ -800,7 +802,7 @@ pub async fn fork_global_bookmark(
 
     // If it's a nested bookmark, copy the nested bookmarks too
     if global_bookmark.bookmark_type == "nested" {
-        let global_nested = db::get_global_nested_bookmarks(&state.db_pool, global_bookmark.id)
+        let global_nested = db::get_nested_bookmarks(&state.db_pool, global_bookmark.id)
             .await
             .db_err()?;
 

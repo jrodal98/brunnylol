@@ -5,6 +5,7 @@ pub mod seed;
 
 use sqlx::{sqlite::SqlitePool, Row};
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 
 // Initialize database and run migrations
 pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
@@ -45,11 +46,18 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .execute(&pool)
         .await;
 
+    // Run migration 004 (consolidate bookmarks schema)
+    let migration_sql_4 = include_str!("../../migrations/004_consolidate_bookmarks.sql");
+    sqlx::query(migration_sql_4)
+        .execute(&pool)
+        .await
+        .context("Failed to run migration 004")?;
+
     Ok(pool)
 }
 
 // User models
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct User {
     pub id: i64,
     pub username: String,
@@ -102,35 +110,25 @@ pub async fn get_user_by_username(pool: &SqlitePool, username: &str) -> Result<O
 
 // Get user by ID
 pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<User>> {
-    let result = sqlx::query(
+    let user = sqlx::query_as::<_, User>(
         "SELECT id, username, is_admin, default_alias FROM users WHERE id = ?"
     )
     .bind(user_id)
     .fetch_optional(pool)
     .await?;
 
-    Ok(result.map(|row| User {
-        id: row.get("id"),
-        username: row.get("username"),
-        is_admin: row.get("is_admin"),
-        default_alias: row.get("default_alias"),
-    }))
+    Ok(user)
 }
 
 // List all users (admin only)
 pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
-    let rows = sqlx::query(
+    let users = sqlx::query_as::<_, User>(
         "SELECT id, username, is_admin, default_alias FROM users ORDER BY created_at DESC"
     )
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(|row| User {
-        id: row.get("id"),
-        username: row.get("username"),
-        is_admin: row.get("is_admin"),
-        default_alias: row.get("default_alias"),
-    }).collect())
+    Ok(users)
 }
 
 // Session management
@@ -193,19 +191,58 @@ pub async fn cleanup_expired_sessions(pool: &SqlitePool) -> Result<u64> {
 }
 
 // Bookmark models
-#[derive(Debug, Clone)]
-pub struct UserBookmark {
+
+// Unified bookmark scope - represents whether a bookmark is personal or global
+#[derive(Debug, Clone, PartialEq)]
+pub enum BookmarkScope {
+    Personal { user_id: i64 },
+    Global,
+}
+
+impl BookmarkScope {
+    pub fn to_db_string(&self) -> &'static str {
+        match self {
+            BookmarkScope::Personal { .. } => "personal",
+            BookmarkScope::Global => "global",
+        }
+    }
+
+    pub fn user_id(&self) -> Option<i64> {
+        match self {
+            BookmarkScope::Personal { user_id } => Some(*user_id),
+            BookmarkScope::Global => None,
+        }
+    }
+}
+
+// Unified bookmark struct (replaces UserBookmark and GlobalBookmark)
+#[derive(Debug, Clone, sqlx::FromRow)]
+pub struct Bookmark {
     pub id: i64,
-    pub user_id: i64,
+    pub scope: String,  // "personal" or "global"
+    pub user_id: Option<i64>,  // NULL for global bookmarks
     pub alias: String,
     pub bookmark_type: String,
     pub url: String,
     pub description: String,
     pub command_template: Option<String>,
     pub encode_query: bool,
+    pub created_by: Option<i64>,  // Track who created global bookmarks
 }
 
-#[derive(Debug, Clone)]
+impl Bookmark {
+    pub fn scope_enum(&self) -> BookmarkScope {
+        match self.scope.as_str() {
+            "personal" => BookmarkScope::Personal {
+                user_id: self.user_id.expect("Personal bookmark must have user_id"),
+            },
+            "global" => BookmarkScope::Global,
+            _ => unreachable!("Invalid scope in database: {}", self.scope),
+        }
+    }
+}
+
+#[derive(Debug, Clone, sqlx::FromRow)]
 pub struct NestedBookmark {
     pub id: i64,
     pub parent_bookmark_id: i64,
@@ -217,134 +254,8 @@ pub struct NestedBookmark {
     pub display_order: i32,
 }
 
-// Global bookmark models
-#[derive(Debug, Clone)]
-pub struct GlobalBookmark {
-    pub id: i64,
-    pub alias: String,
-    pub bookmark_type: String,
-    pub url: String,
-    pub description: String,
-    pub command_template: Option<String>,
-    pub encode_query: bool,
-    pub created_by: Option<i64>,
-}
-
-#[derive(Debug, Clone)]
-pub struct GlobalNestedBookmark {
-    pub id: i64,
-    pub parent_bookmark_id: i64,
-    pub alias: String,
-    pub url: String,
-    pub description: String,
-    pub command_template: Option<String>,
-    pub encode_query: bool,
-    pub display_order: i32,
-}
-
-// Create a new bookmark
-pub async fn create_bookmark(
-    pool: &SqlitePool,
-    user_id: i64,
-    alias: &str,
-    bookmark_type: &str,
-    url: &str,
-    description: &str,
-    command_template: Option<&str>,
-    encode_query: bool,
-) -> Result<i64> {
-    let result = sqlx::query(
-        "INSERT INTO user_bookmarks
-         (user_id, alias, bookmark_type, url, description, command_template, encode_query)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(user_id)
-    .bind(alias)
-    .bind(bookmark_type)
-    .bind(url)
-    .bind(description)
-    .bind(command_template)
-    .bind(encode_query)
-    .execute(pool)
-    .await?;
-
-    Ok(result.last_insert_rowid())
-}
-
-// Get all bookmarks for a user
-pub async fn get_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<Vec<UserBookmark>> {
-    let rows = sqlx::query(
-        "SELECT id, user_id, alias, bookmark_type, url, description, command_template, encode_query
-         FROM user_bookmarks
-         WHERE user_id = ?
-         ORDER BY alias"
-    )
-    .bind(user_id)
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows.into_iter().map(|row| UserBookmark {
-        id: row.get("id"),
-        user_id: row.get("user_id"),
-        alias: row.get("alias"),
-        bookmark_type: row.get("bookmark_type"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-    }).collect())
-}
-
-// Get a single bookmark by ID
-pub async fn get_bookmark_by_id(pool: &SqlitePool, bookmark_id: i64) -> Result<Option<UserBookmark>> {
-    let row = sqlx::query(
-        "SELECT id, user_id, alias, bookmark_type, url, description, command_template, encode_query
-         FROM user_bookmarks
-         WHERE id = ?"
-    )
-    .bind(bookmark_id)
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(row.map(|row| UserBookmark {
-        id: row.get("id"),
-        user_id: row.get("user_id"),
-        alias: row.get("alias"),
-        bookmark_type: row.get("bookmark_type"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-    }))
-}
-
-// Get nested bookmarks for a parent bookmark
-pub async fn get_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: i64) -> Result<Vec<NestedBookmark>> {
-    let rows = sqlx::query(
-        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
-         FROM nested_bookmarks
-         WHERE parent_bookmark_id = ?
-         ORDER BY display_order, alias"
-    )
-    .bind(parent_bookmark_id)
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows.into_iter().map(|row| NestedBookmark {
-        id: row.get("id"),
-        parent_bookmark_id: row.get("parent_bookmark_id"),
-        alias: row.get("alias"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-        display_order: row.get("display_order"),
-    }).collect())
-}
-
-// Get a single nested bookmark by ID
 pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Result<Option<NestedBookmark>> {
-    let row = sqlx::query(
+    let nested = sqlx::query_as::<_, NestedBookmark>(
         "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
          FROM nested_bookmarks
          WHERE id = ?"
@@ -353,100 +264,10 @@ pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Res
     .fetch_optional(pool)
     .await?;
 
-    Ok(row.map(|row| NestedBookmark {
-        id: row.get("id"),
-        parent_bookmark_id: row.get("parent_bookmark_id"),
-        alias: row.get("alias"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-        display_order: row.get("display_order"),
-    }))
+    Ok(nested)
 }
 
 // Update a bookmark
-pub async fn update_bookmark(
-    pool: &SqlitePool,
-    bookmark_id: i64,
-    user_id: i64,
-    alias: &str,
-    url: &str,
-    description: &str,
-    command_template: Option<&str>,
-    encode_query: bool,
-) -> Result<()> {
-    sqlx::query(
-        "UPDATE user_bookmarks
-         SET alias = ?, url = ?, description = ?, command_template = ?, encode_query = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ? AND user_id = ?"
-    )
-    .bind(alias)
-    .bind(url)
-    .bind(description)
-    .bind(command_template)
-    .bind(encode_query)
-    .bind(bookmark_id)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-// Delete a bookmark (and all its nested bookmarks)
-pub async fn delete_bookmark(pool: &SqlitePool, bookmark_id: i64, user_id: i64) -> Result<()> {
-    sqlx::query(
-        "DELETE FROM user_bookmarks WHERE id = ? AND user_id = ?"
-    )
-    .bind(bookmark_id)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
-
-    Ok(())
-}
-
-// Create nested bookmark
-pub async fn create_nested_bookmark(
-    pool: &SqlitePool,
-    parent_bookmark_id: i64,
-    alias: &str,
-    url: &str,
-    description: &str,
-    command_template: Option<&str>,
-    encode_query: bool,
-    display_order: i32,
-) -> Result<i64> {
-    let result = sqlx::query(
-        "INSERT INTO nested_bookmarks
-         (parent_bookmark_id, alias, url, description, command_template, encode_query, display_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(parent_bookmark_id)
-    .bind(alias)
-    .bind(url)
-    .bind(description)
-    .bind(command_template)
-    .bind(encode_query)
-    .bind(display_order)
-    .execute(pool)
-    .await?;
-
-    Ok(result.last_insert_rowid())
-}
-
-// Delete nested bookmark
-pub async fn delete_nested_bookmark(pool: &SqlitePool, nested_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM nested_bookmarks WHERE id = ?")
-        .bind(nested_id)
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-// Get user overrides for built-in bookmarks
 pub async fn get_user_overrides(pool: &SqlitePool, user_id: i64) -> Result<Vec<(String, bool, Option<String>, Option<String>)>> {
     let rows = sqlx::query(
         "SELECT builtin_alias, is_disabled, custom_alias, additional_aliases
@@ -523,61 +344,14 @@ pub async fn update_user_default_alias(pool: &SqlitePool, user_id: i64, default_
 // Global bookmark functions
 
 // Check if global bookmarks table is empty
-pub async fn is_global_bookmarks_empty(pool: &SqlitePool) -> Result<bool> {
-    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM global_bookmarks")
-        .fetch_one(pool)
-        .await?;
-    Ok(count == 0)
-}
+// ============================================================================
+// UNIFIED BOOKMARK API
+// ============================================================================
 
-// Get all global bookmarks
-pub async fn get_all_global_bookmarks(pool: &SqlitePool) -> Result<Vec<GlobalBookmark>> {
-    let rows = sqlx::query(
-        "SELECT id, alias, bookmark_type, url, description, command_template, encode_query, created_by
-         FROM global_bookmarks
-         ORDER BY alias"
-    )
-    .fetch_all(pool)
-    .await?;
-
-    Ok(rows.into_iter().map(|row| GlobalBookmark {
-        id: row.get("id"),
-        alias: row.get("alias"),
-        bookmark_type: row.get("bookmark_type"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-        created_by: row.get("created_by"),
-    }).collect())
-}
-
-// Get single global bookmark by ID
-pub async fn get_global_bookmark_by_id(pool: &SqlitePool, bookmark_id: i64) -> Result<Option<GlobalBookmark>> {
-    let row = sqlx::query(
-        "SELECT id, alias, bookmark_type, url, description, command_template, encode_query, created_by
-         FROM global_bookmarks
-         WHERE id = ?"
-    )
-    .bind(bookmark_id)
-    .fetch_optional(pool)
-    .await?;
-
-    Ok(row.map(|row| GlobalBookmark {
-        id: row.get("id"),
-        alias: row.get("alias"),
-        bookmark_type: row.get("bookmark_type"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-        created_by: row.get("created_by"),
-    }))
-}
-
-// Create global bookmark
-pub async fn create_global_bookmark(
+// Create a bookmark in the unified schema
+pub async fn create_bookmark(
     pool: &SqlitePool,
+    scope: BookmarkScope,
     alias: &str,
     bookmark_type: &str,
     url: &str,
@@ -587,10 +361,12 @@ pub async fn create_global_bookmark(
     created_by: Option<i64>,
 ) -> Result<i64> {
     let result = sqlx::query(
-        "INSERT INTO global_bookmarks
-         (alias, bookmark_type, url, description, command_template, encode_query, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO bookmarks
+         (scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
     )
+    .bind(scope.to_db_string())
+    .bind(scope.user_id())
     .bind(alias)
     .bind(bookmark_type)
     .bind(url)
@@ -604,10 +380,47 @@ pub async fn create_global_bookmark(
     Ok(result.last_insert_rowid())
 }
 
-// Update global bookmark
-pub async fn update_global_bookmark(
+// Get all bookmarks for a given scope
+pub async fn get_bookmarks(
+    pool: &SqlitePool,
+    scope: BookmarkScope,
+) -> Result<Vec<Bookmark>> {
+    let bookmarks = sqlx::query_as::<_, Bookmark>(
+        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+         FROM bookmarks
+         WHERE scope = ? AND (user_id = ? OR user_id IS NULL)
+         ORDER BY alias"
+    )
+    .bind(scope.to_db_string())
+    .bind(scope.user_id())
+    .fetch_all(pool)
+    .await?;
+
+    Ok(bookmarks)
+}
+
+// Get a single bookmark by ID
+pub async fn get_bookmark_by_id(
     pool: &SqlitePool,
     bookmark_id: i64,
+) -> Result<Option<Bookmark>> {
+    let bookmark = sqlx::query_as::<_, Bookmark>(
+        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+         FROM bookmarks
+         WHERE id = ?"
+    )
+    .bind(bookmark_id)
+    .fetch_optional(pool)
+    .await?;
+
+    Ok(bookmark)
+}
+
+// Update a bookmark
+pub async fn update_bookmark(
+    pool: &SqlitePool,
+    bookmark_id: i64,
+    scope: BookmarkScope,
     alias: &str,
     url: &str,
     description: &str,
@@ -615,9 +428,9 @@ pub async fn update_global_bookmark(
     encode_query: bool,
 ) -> Result<()> {
     sqlx::query(
-        "UPDATE global_bookmarks
+        "UPDATE bookmarks
          SET alias = ?, url = ?, description = ?, command_template = ?, encode_query = ?, updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?"
+         WHERE id = ? AND scope = ? AND (user_id = ? OR user_id IS NULL)"
     )
     .bind(alias)
     .bind(url)
@@ -625,27 +438,41 @@ pub async fn update_global_bookmark(
     .bind(command_template)
     .bind(encode_query)
     .bind(bookmark_id)
+    .bind(scope.to_db_string())
+    .bind(scope.user_id())
     .execute(pool)
     .await?;
 
     Ok(())
 }
 
-// Delete global bookmark
-pub async fn delete_global_bookmark(pool: &SqlitePool, bookmark_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM global_bookmarks WHERE id = ?")
-        .bind(bookmark_id)
-        .execute(pool)
-        .await?;
+// Delete a bookmark
+pub async fn delete_bookmark(
+    pool: &SqlitePool,
+    bookmark_id: i64,
+    scope: BookmarkScope,
+) -> Result<()> {
+    sqlx::query(
+        "DELETE FROM bookmarks
+         WHERE id = ? AND scope = ? AND (user_id = ? OR user_id IS NULL)"
+    )
+    .bind(bookmark_id)
+    .bind(scope.to_db_string())
+    .bind(scope.user_id())
+    .execute(pool)
+    .await?;
 
     Ok(())
 }
 
-// Get nested bookmarks for a global bookmark
-pub async fn get_global_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: i64) -> Result<Vec<GlobalNestedBookmark>> {
-    let rows = sqlx::query(
+// Get nested bookmarks for a parent bookmark (unified - works for both personal and global)
+pub async fn get_nested_bookmarks(
+    pool: &SqlitePool,
+    parent_bookmark_id: i64,
+) -> Result<Vec<NestedBookmark>> {
+    let nested = sqlx::query_as::<_, NestedBookmark>(
         "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
-         FROM global_nested_bookmarks
+         FROM nested_bookmarks
          WHERE parent_bookmark_id = ?
          ORDER BY display_order, alias"
     )
@@ -653,20 +480,11 @@ pub async fn get_global_nested_bookmarks(pool: &SqlitePool, parent_bookmark_id: 
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(|row| GlobalNestedBookmark {
-        id: row.get("id"),
-        parent_bookmark_id: row.get("parent_bookmark_id"),
-        alias: row.get("alias"),
-        url: row.get("url"),
-        description: row.get("description"),
-        command_template: row.get("command_template"),
-        encode_query: row.get("encode_query"),
-        display_order: row.get("display_order"),
-    }).collect())
+    Ok(nested)
 }
 
-// Create global nested bookmark
-pub async fn create_global_nested_bookmark(
+// Create nested bookmark (unified)
+pub async fn create_nested_bookmark(
     pool: &SqlitePool,
     parent_bookmark_id: i64,
     alias: &str,
@@ -677,7 +495,7 @@ pub async fn create_global_nested_bookmark(
     display_order: i32,
 ) -> Result<i64> {
     let result = sqlx::query(
-        "INSERT INTO global_nested_bookmarks
+        "INSERT INTO nested_bookmarks
          (parent_bookmark_id, alias, url, description, command_template, encode_query, display_order)
          VALUES (?, ?, ?, ?, ?, ?, ?)"
     )
@@ -694,12 +512,86 @@ pub async fn create_global_nested_bookmark(
     Ok(result.last_insert_rowid())
 }
 
-// Delete global nested bookmark
-pub async fn delete_global_nested_bookmark(pool: &SqlitePool, nested_id: i64) -> Result<()> {
-    sqlx::query("DELETE FROM global_nested_bookmarks WHERE id = ?")
+// Delete nested bookmark (unified)
+pub async fn delete_nested_bookmark(
+    pool: &SqlitePool,
+    nested_id: i64,
+) -> Result<()> {
+    sqlx::query("DELETE FROM nested_bookmarks WHERE id = ?")
         .bind(nested_id)
         .execute(pool)
         .await?;
 
     Ok(())
+}
+
+// Check if bookmarks table is empty (for a given scope)
+pub async fn is_bookmarks_empty(
+    pool: &SqlitePool,
+    scope: BookmarkScope,
+) -> Result<bool> {
+    let count: i64 = sqlx::query_scalar(
+        "SELECT COUNT(*) FROM bookmarks WHERE scope = ?"
+    )
+    .bind(scope.to_db_string())
+    .fetch_one(pool)
+    .await?;
+    Ok(count == 0)
+}
+
+// Get bookmarks with nested bookmarks in a single query (fixes N+1 problem)
+pub async fn get_bookmarks_with_nested(
+    pool: &SqlitePool,
+    scope: BookmarkScope,
+) -> Result<Vec<(Bookmark, Vec<NestedBookmark>)>> {
+    // Fetch all bookmarks for scope
+    let bookmarks = get_bookmarks(pool, scope).await?;
+
+    if bookmarks.is_empty() {
+        return Ok(vec![]);
+    }
+
+    // Collect bookmark IDs
+    let bookmark_ids: Vec<i64> = bookmarks.iter().map(|b| b.id).collect();
+
+    // Fetch ALL nested bookmarks in one query
+    let all_nested = if !bookmark_ids.is_empty() {
+        // Build query with IN clause
+        let placeholders = bookmark_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let query_str = format!(
+            "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+             FROM nested_bookmarks
+             WHERE parent_bookmark_id IN ({})
+             ORDER BY parent_bookmark_id, display_order, alias",
+            placeholders
+        );
+
+        let mut query = sqlx::query_as::<_, NestedBookmark>(&query_str);
+        for id in &bookmark_ids {
+            query = query.bind(id);
+        }
+
+        query.fetch_all(pool).await?
+    } else {
+        vec![]
+    };
+
+    // Group nested bookmarks by parent_id
+    let mut nested_map: HashMap<i64, Vec<NestedBookmark>> = HashMap::new();
+    for nested in all_nested {
+        nested_map.entry(nested.parent_bookmark_id)
+            .or_insert_with(Vec::new)
+            .push(nested);
+    }
+
+    // Combine bookmarks with their nested bookmarks
+    let result = bookmarks
+        .into_iter()
+        .map(|bookmark| {
+            let nested = nested_map.remove(&bookmark.id).unwrap_or_default();
+            (bookmark, nested)
+        })
+        .collect();
+
+    Ok(result)
 }

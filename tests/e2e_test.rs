@@ -142,7 +142,7 @@ async fn test_e2e_comprehensive() {
         .unwrap();
 
     // Test 1: Auto-seeding
-    let global_count = app.db_query_count("SELECT COUNT(*) FROM global_bookmarks;");
+    let global_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global';");
     assert!(global_count >= 20, "Should have at least 20 global bookmarks seeded, got {}", global_count);
     println!("✓ Auto-seeding: {} global bookmarks", global_count);
 
@@ -215,7 +215,7 @@ async fn test_e2e_comprehensive() {
     println!("✓ Import personal bookmark (YAML)");
 
     // Test 4: Verify imported bookmark in database
-    let bookmark_exists = app.db_query("SELECT alias FROM user_bookmarks WHERE alias='e2e-test1';");
+    let bookmark_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'personal' AND alias='e2e-test1';");
     assert_eq!(bookmark_exists, "e2e-test1", "Bookmark should be in database");
     println!("✓ Imported bookmark persisted to database");
 
@@ -272,7 +272,7 @@ async fn test_e2e_comprehensive() {
     assert!(import_nested.text().await.unwrap().contains("Successfully imported 1 bookmarks"));
 
     let nested_count = app.db_query_count(
-        "SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id = (SELECT id FROM user_bookmarks WHERE alias='e2e-nested');"
+        "SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id = (SELECT id FROM bookmarks WHERE scope = 'personal' AND alias='e2e-nested');"
     );
     assert_eq!(nested_count, 2, "Should have 2 nested bookmarks");
     println!("✓ Import nested bookmark with 2 sub-commands");
@@ -297,7 +297,7 @@ async fn test_e2e_comprehensive() {
 
     assert!(import_global.text().await.unwrap().contains("Successfully imported 1 bookmarks"));
 
-    let global_exists = app.db_query("SELECT alias FROM global_bookmarks WHERE alias='e2e-global';");
+    let global_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'global' AND alias='e2e-global';");
     assert_eq!(global_exists, "e2e-global");
     println!("✓ Import global bookmark (admin only)");
 
@@ -400,7 +400,7 @@ async fn test_e2e_comprehensive() {
         }
         Err(e) => {
             // Might fail due to app state, verify in database instead
-            let personal_g = app.db_query("SELECT url FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+            let personal_g = app.db_query("SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
             assert!(personal_g.contains("custom-google.com"),
                     "Personal 'g' bookmark should exist in DB");
             println!("✓ Personal bookmark overrides global (verified in DB)");
@@ -423,7 +423,7 @@ async fn test_e2e_comprehensive() {
         Err(e) => {
             println!("  Note: YouTube search skipped due to connection error: {}", e);
             // Verify bookmark exists in DB instead
-            let yt_exists = app.db_query("SELECT COUNT(*) FROM global_bookmarks WHERE alias='yt';");
+            let yt_exists = app.db_query("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global' AND alias='yt';");
             assert_eq!(yt_exists, "1");
             println!("✓ Global bookmark exists (YouTube verified in DB)");
         }
@@ -637,8 +637,8 @@ async fn test_e2e_comprehensive() {
     println!("✓ Login with return_to parameter redirects to original page");
 
     // Final statistics
-    let total_global = app.db_query_count("SELECT COUNT(*) FROM global_bookmarks;");
-    let total_personal = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks;");
+    let total_global = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global';");
+    let total_personal = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal';");
     let total_users = app.db_query_count("SELECT COUNT(*) FROM users;");
 
     println!("\nFinal Statistics:");
@@ -865,7 +865,7 @@ async fn test_e2e_nested_global_bookmarks() {
 
     // Verify in database
     let nested_count = app.db_query_count(
-        "SELECT COUNT(*) FROM global_nested_bookmarks WHERE parent_bookmark_id = (SELECT id FROM global_bookmarks WHERE alias='e2e-gnest');"
+        "SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id = (SELECT id FROM bookmarks WHERE scope = 'global' AND alias='e2e-gnest');"
     );
     assert_eq!(nested_count, 2);
     println!("✓ Nested global sub-commands persisted");
@@ -950,13 +950,13 @@ async fn test_e2e_bulk_operations() {
         .await
         .unwrap();
 
-    let initial_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    let initial_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(initial_count, 4, "Should have 4 test bookmarks");
     println!("✓ Imported 4 test bookmarks");
 
     // Get the IDs of the first 2 bookmarks
-    let id1 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test1';");
-    let id2 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test2';");
+    let id1 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test1';");
+    let id2 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test2';");
 
     // Test bulk delete
     let bulk_delete_response = client
@@ -974,7 +974,7 @@ async fn test_e2e_bulk_operations() {
     println!("✓ Bulk delete: deleted 2 bookmarks");
 
     // Verify bookmarks were deleted
-    let after_delete_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    let after_delete_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(after_delete_count, 2, "Should have 2 bookmarks remaining");
     println!("✓ Verified bulk delete removed correct bookmarks");
 
@@ -1023,8 +1023,8 @@ async fn test_e2e_bulk_operations() {
     println!("✓ Verified bulk enable updated overrides");
 
     // Test deleting all remaining bookmarks
-    let id3 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test3';");
-    let id4 = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='bulk-test4';");
+    let id3 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test3';");
+    let id4 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test4';");
 
     let delete_all = client
         .post(format!("{}/manage/bookmarks/bulk-delete", app.base_url))
@@ -1094,13 +1094,13 @@ async fn test_e2e_fork_global_bookmarks() {
     println!("✓ Forked simple global bookmark 'g'");
 
     // Verify bookmark was created in user bookmarks
-    let g_exists = app.db_query("SELECT alias FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    let g_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
     assert_eq!(g_exists, "g", "Forked bookmark should exist");
 
-    let g_type = app.db_query("SELECT bookmark_type FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    let g_type = app.db_query("SELECT bookmark_type FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
     assert_eq!(g_type, "templated", "Should preserve bookmark type");
 
-    let g_url = app.db_query("SELECT url FROM user_bookmarks WHERE user_id=1 AND alias='g';");
+    let g_url = app.db_query("SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
     assert!(g_url.contains("google.com"), "Should preserve URL");
     println!("✓ Forked bookmark has correct data");
 
@@ -1156,7 +1156,7 @@ async fn test_e2e_fork_global_bookmarks() {
     println!("✓ Forked nested global bookmark 'test-nested-global'");
 
     // Verify nested bookmarks were copied
-    let nested_id = app.db_query("SELECT id FROM user_bookmarks WHERE user_id=1 AND alias='test-nested-global';");
+    let nested_id = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='test-nested-global';");
     let nested_count = app.db_query_count(
         &format!("SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};", nested_id.trim())
     );
@@ -1165,7 +1165,7 @@ async fn test_e2e_fork_global_bookmarks() {
     println!("✓ Nested bookmark forked with {} sub-commands", nested_count);
 
     // Verify the user now has 2 personal bookmarks
-    let final_count = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    let final_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(final_count, 2, "Should have 2 forked bookmarks");
     println!("✓ Total personal bookmarks: 2");
 

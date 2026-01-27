@@ -17,7 +17,6 @@ use axum::{
     Router,
 };
 use domain::Command;
-use config::commands::AliasAndCommand;
 use error::AppError;
 use serde::Deserialize;
 use sqlx::SqlitePool;
@@ -53,7 +52,7 @@ struct SearchParams {
 
 // Application state
 pub struct AppState {
-    pub alias_to_bookmark_map: HashMap<String, Box<dyn Command>>,
+    pub alias_to_bookmark_map: HashMap<String, Command>,
     pub default_alias: String,
     pub db_pool: SqlitePool,
     pub bookmark_service: std::sync::Arc<services::bookmark_service::BookmarkService>,

@@ -7,8 +7,8 @@ async fn test_global_bookmarks_auto_seed() {
     let pool = common::setup_test_db().await;
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
-    // Verify table is empty
-    let is_empty = brunnylol::db::is_global_bookmarks_empty(&pool)
+    // Verify table is empty (use v2 API)
+    let is_empty = brunnylol::db::is_bookmarks_empty(&pool, brunnylol::db::BookmarkScope::Global)
         .await
         .unwrap();
     assert!(is_empty, "Global bookmarks table should be empty initially");
@@ -18,14 +18,14 @@ async fn test_global_bookmarks_auto_seed() {
 
     assert!(count >= 20, "Should seed at least 20 bookmarks from commands.yml, got {}", count);
 
-    // Verify table is no longer empty
-    let is_empty_after = brunnylol::db::is_global_bookmarks_empty(&pool)
+    // Verify table is no longer empty (use v2 API)
+    let is_empty_after = brunnylol::db::is_bookmarks_empty(&pool, brunnylol::db::BookmarkScope::Global)
         .await
         .unwrap();
     assert!(!is_empty_after, "Global bookmarks table should have data after seeding");
 
-    // Verify specific bookmarks exist
-    let bookmarks = brunnylol::db::get_all_global_bookmarks(&pool)
+    // Verify specific bookmarks exist (use v2 API)
+    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Global)
         .await
         .unwrap();
 
@@ -64,7 +64,7 @@ async fn test_import_personal_bookmarks_yaml() {
     assert_eq!(result.errors.len(), 0, "Should have 0 errors");
 
     // Verify in database
-    let bookmarks = brunnylol::db::get_user_bookmarks(&pool, user_id)
+    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
         .await
         .unwrap();
 
@@ -128,7 +128,7 @@ async fn test_import_global_bookmarks_admin_only() {
     assert_eq!(result.imported, 1);
 
     // Verify in global_bookmarks table
-    let bookmarks = brunnylol::db::get_all_global_bookmarks(&pool)
+    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Global)
         .await
         .unwrap();
 
@@ -168,7 +168,7 @@ async fn test_import_nested_bookmarks() {
     assert_eq!(result.imported, 1);
 
     // Verify parent bookmark
-    let bookmarks = brunnylol::db::get_user_bookmarks(&pool, user_id)
+    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
         .await
         .unwrap();
     assert_eq!(bookmarks.len(), 1);
@@ -192,13 +192,14 @@ async fn test_export_personal_bookmarks_yaml() {
     // Create some bookmarks
     brunnylol::db::create_bookmark(
         &pool,
-        user_id,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         "export1",
         "simple",
         "https://export1.com",
         "Export test 1",
         None,
         true,
+        Some(user_id),
     ).await.unwrap();
 
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
@@ -221,8 +222,9 @@ async fn test_export_global_bookmarks_json() {
     let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create a global bookmark
-    brunnylol::db::create_global_bookmark(
+    brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "gtest",
         "templated",
         "https://gtest.com",
@@ -251,8 +253,9 @@ async fn test_export_global_nested_bookmarks() {
     let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create nested global bookmark
-    let parent_id = brunnylol::db::create_global_bookmark(
+    let parent_id = brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "gnest",
         "nested",
         "https://gnest.com",
@@ -262,7 +265,7 @@ async fn test_export_global_nested_bookmarks() {
         Some(admin_id),
     ).await.unwrap();
 
-    brunnylol::db::create_global_nested_bookmark(
+    brunnylol::db::create_nested_bookmark(
         &pool,
         parent_id,
         "sub",
@@ -332,8 +335,9 @@ async fn test_personal_overrides_global() {
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
-    brunnylol::db::create_global_bookmark(
+    brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "override-test",
         "simple",
         "https://global.com",
@@ -346,13 +350,14 @@ async fn test_personal_overrides_global() {
     // Create personal bookmark with same alias
     brunnylol::db::create_bookmark(
         &pool,
-        user_id,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         "override-test",
         "simple",
         "https://personal.com",
         "Personal version",
         None,
         true,
+        Some(user_id),
     ).await.unwrap();
 
     // Load user bookmarks (should include personal, not global for conflicting alias)
@@ -374,8 +379,9 @@ async fn test_disabled_global_bookmarks() {
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
-    brunnylol::db::create_global_bookmark(
+    brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "disable-test",
         "simple",
         "https://disabled.com",
@@ -502,8 +508,9 @@ async fn test_load_global_bookmarks_as_commands() {
     let (admin_id, _) = common::create_admin_user(&pool).await;
 
     // Create test global bookmarks
-    brunnylol::db::create_global_bookmark(
+    brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "loadtest",
         "templated",
         "https://loadtest.com",
@@ -531,8 +538,9 @@ async fn test_merge_global_and_personal_bookmarks() {
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
 
     // Create global bookmark
-    brunnylol::db::create_global_bookmark(
+    brunnylol::db::create_bookmark(
         &pool,
+        brunnylol::db::BookmarkScope::Global,
         "merge-global",
         "simple",
         "https://global-merge.com",
@@ -545,13 +553,14 @@ async fn test_merge_global_and_personal_bookmarks() {
     // Create personal bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        user_id,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         "merge-personal",
         "simple",
         "https://personal-merge.com",
         "Personal merge test",
         None,
         true,
+        Some(user_id),
     ).await.unwrap();
 
     // Load merged bookmarks

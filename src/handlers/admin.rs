@@ -44,7 +44,7 @@ pub async fn admin_page(
     // Get bookmark counts for each user
     let mut users_display = Vec::new();
     for user in all_users {
-        let bookmarks = db::get_user_bookmarks(&state.db_pool, user.id)
+        let bookmarks = db::get_bookmarks(&state.db_pool, db::BookmarkScope::Personal { user_id: user.id })
             .await
             .db_err()?;
 

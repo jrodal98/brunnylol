@@ -33,6 +33,12 @@ pub async fn setup_test_db() -> SqlitePool {
         .await
         .expect("Failed to run migration 003");
 
+    let migration_4 = include_str!("../../migrations/004_consolidate_bookmarks.sql");
+    sqlx::query(migration_4)
+        .execute(&pool)
+        .await
+        .expect("Failed to run migration 004");
+
     pool
 }
 

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use crate::{
     config::yml_settings::YmlSettings,
-    db::{self, GlobalBookmark, UserBookmark, NestedBookmark},
+    db::{self, NestedBookmark},
     domain::Command,
     services::serializers::BookmarkSerializer,
 };
@@ -34,7 +34,7 @@ impl BookmarkService {
     }
 
     /// Load all bookmarks for a user (global + personal, with overrides)
-    pub async fn load_user_bookmarks(&self, user_id: i64) -> Result<HashMap<String, Box<dyn Command>>> {
+    pub async fn load_user_bookmarks(&self, user_id: i64) -> Result<HashMap<String, Command>> {
         // 1. Load global bookmarks
         let global = self.load_global_bookmarks().await?;
 
@@ -66,45 +66,13 @@ impl BookmarkService {
     }
 
     /// Load all global bookmarks as Command objects
-    pub async fn load_global_bookmarks(&self) -> Result<HashMap<String, Box<dyn Command>>> {
-        let global_bookmarks = db::get_all_global_bookmarks(&self.pool).await?;
+    pub async fn load_global_bookmarks(&self) -> Result<HashMap<String, Command>> {
+        // Use optimized function that fetches bookmarks + nested in single query (fixes N+1)
+        let bookmarks_with_nested = db::get_bookmarks_with_nested(&self.pool, db::BookmarkScope::Global).await?;
         let mut commands = HashMap::new();
 
-        for bookmark in global_bookmarks {
-            let nested = if bookmark.bookmark_type == "nested" {
-                db::get_global_nested_bookmarks(&self.pool, bookmark.id).await?
-            } else {
-                vec![]
-            };
-
-            // Convert to NestedBookmark type expected by bookmark_to_command
-            let nested_converted: Vec<NestedBookmark> = nested
-                .into_iter()
-                .map(|n| NestedBookmark {
-                    id: n.id,
-                    parent_bookmark_id: n.parent_bookmark_id,
-                    alias: n.alias,
-                    url: n.url,
-                    description: n.description,
-                    command_template: n.command_template,
-                    encode_query: n.encode_query,
-                    display_order: n.display_order,
-                })
-                .collect();
-
-            // Reuse existing conversion logic
-            let user_bookmark = UserBookmark {
-                id: bookmark.id,
-                user_id: 0, // Not used for globals
-                alias: bookmark.alias.clone(),
-                bookmark_type: bookmark.bookmark_type,
-                url: bookmark.url,
-                description: bookmark.description,
-                command_template: bookmark.command_template,
-                encode_query: bookmark.encode_query,
-            };
-
-            match db::bookmarks::bookmark_to_command(&user_bookmark, nested_converted) {
+        for (bookmark, nested) in bookmarks_with_nested {
+            match db::bookmarks::bookmark_to_command(&bookmark, nested) {
                 Ok(command) => {
                     commands.insert(bookmark.alias.clone(), command);
                 }
@@ -184,7 +152,7 @@ impl BookmarkService {
 
     /// Seed global bookmarks from embedded commands.yml if DB is empty
     pub async fn seed_global_bookmarks(&self) -> Result<usize> {
-        let is_empty = db::is_global_bookmarks_empty(&self.pool).await?;
+        let is_empty = db::is_bookmarks_empty(&self.pool, db::BookmarkScope::Global).await?;
 
         if !is_empty {
             return Ok(0); // Already seeded
@@ -227,13 +195,14 @@ impl BookmarkService {
 
         let bookmark_id = db::create_bookmark(
             &self.pool,
-            user_id,
+            db::BookmarkScope::Personal { user_id },
             &setting.alias,
             bookmark_type,
             &setting.url,
             &setting.description,
             setting.command.as_deref(),
             setting.encode.unwrap_or(true),
+            Some(user_id),
         ).await?;
 
         // Import nested commands if present
@@ -258,8 +227,9 @@ impl BookmarkService {
     async fn import_global_bookmark(&self, setting: &YmlSettings, created_by: Option<i64>) -> Result<i64> {
         let bookmark_type = Self::determine_bookmark_type(setting);
 
-        let bookmark_id = db::create_global_bookmark(
+        let bookmark_id = db::create_bookmark(
             &self.pool,
+            db::BookmarkScope::Global,
             &setting.alias,
             bookmark_type,
             &setting.url,
@@ -272,7 +242,7 @@ impl BookmarkService {
         // Import nested commands if present
         if let Some(nested) = &setting.nested {
             for (i, nested_setting) in nested.iter().enumerate() {
-                db::create_global_nested_bookmark(
+                db::create_nested_bookmark(
                     &self.pool,
                     bookmark_id,
                     &nested_setting.alias,
@@ -289,54 +259,25 @@ impl BookmarkService {
     }
 
     async fn export_personal_bookmarks(&self, user_id: i64) -> Result<Vec<YmlSettings>> {
-        let bookmarks = db::get_user_bookmarks(&self.pool, user_id).await?;
+        let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Personal { user_id }).await?;
         self.bookmarks_to_yml_settings(bookmarks).await
     }
 
     async fn export_global_bookmarks(&self) -> Result<Vec<YmlSettings>> {
-        let bookmarks = db::get_all_global_bookmarks(&self.pool).await?;
-
-        let mut settings = Vec::new();
-
-        for bookmark in bookmarks {
-            let nested = if bookmark.bookmark_type == "nested" {
-                // Query global nested bookmarks table, not user nested bookmarks
-                let nested_bookmarks = db::get_global_nested_bookmarks(&self.pool, bookmark.id).await?;
-                Some(
-                    nested_bookmarks
-                        .into_iter()
-                        .map(|n| YmlSettings {
-                            alias: n.alias,
-                            description: n.description,
-                            url: n.url,
-                            command: n.command_template,
-                            encode: Some(n.encode_query),
-                            nested: None,
-                        })
-                        .collect()
-                )
-            } else {
-                None
-            };
-
-            settings.push(YmlSettings {
-                alias: bookmark.alias,
-                description: bookmark.description,
-                url: bookmark.url,
-                command: bookmark.command_template,
-                encode: Some(bookmark.encode_query),
-                nested,
-            });
-        }
-
-        Ok(settings)
+        let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Global).await?;
+        self.bookmarks_to_yml(bookmarks).await
     }
 
-    async fn bookmarks_to_yml_settings(&self, bookmarks: Vec<UserBookmark>) -> Result<Vec<YmlSettings>> {
+    async fn bookmarks_to_yml_settings(&self, bookmarks: Vec<db::Bookmark>) -> Result<Vec<YmlSettings>> {
+        self.bookmarks_to_yml(bookmarks).await
+    }
+
+    async fn bookmarks_to_yml(&self, bookmarks: Vec<db::Bookmark>) -> Result<Vec<YmlSettings>> {
         let mut settings = Vec::new();
 
         for bookmark in bookmarks {
             let nested = if bookmark.bookmark_type == "nested" {
+                // Use unified nested bookmarks API
                 let nested_bookmarks = db::get_nested_bookmarks(&self.pool, bookmark.id).await?;
                 Some(
                     nested_bookmarks
