@@ -8,9 +8,9 @@
         <a href="/manage">My Bookmarks</a>
         <a href="/admin">Admin</a>
     </div>
-    <div style="display: flex; align-items: center; gap: 15px;">
+    <div class="flex-center flex-gap-4">
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="margin: 0;">
+        <form method="post" action="/logout" class="m-0">
             <button type="submit">Logout</button>
         </form>
     </div>
@@ -18,22 +18,8 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/css/admin.css">
 <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
-
-<style>
-    .header {
-        margin-bottom: var(--space-8);
-    }
-
-    .admin-badge {
-        background-color: var(--color-success);
-        color: var(--text-white);
-        padding: var(--space-1) var(--space-2);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-size-xs);
-        font-weight: 600;
-    }
-</style>
 
 <div class="container" style="margin-top: var(--space-8);">
     <div class="header">

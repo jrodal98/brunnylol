@@ -12,15 +12,44 @@ use tower::ServiceExt;
 async fn test_register_page_blocked_after_first_user() {
     let app = common::create_test_app().await;
 
-    let response = app
+    // First registration should succeed (no users exist yet)
+    let first_response = app
+        .clone()
         .oneshot(Request::builder().uri("/register").body(Body::empty()).unwrap())
         .await
         .unwrap();
 
-    // Should return Forbidden since admin user already exists
-    assert_eq!(response.status(), StatusCode::FORBIDDEN);
+    // First user registration page should load successfully
+    assert_eq!(first_response.status(), StatusCode::OK);
 
-    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+    // Now create a user via the registration endpoint
+    let register_form = "username=testadmin&password=testpass123&confirm_password=testpass123";
+    let create_user_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/register")
+                .method("POST")
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .body(Body::from(register_form))
+                .unwrap()
+        )
+        .await
+        .unwrap();
+
+    // User creation should succeed
+    assert!(create_user_response.status().is_redirection() || create_user_response.status().is_success());
+
+    // Second attempt to access registration page should be blocked
+    let blocked_response = app
+        .oneshot(Request::builder().uri("/register").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+
+    // Should return Forbidden since admin user now exists
+    assert_eq!(blocked_response.status(), StatusCode::FORBIDDEN);
+
+    let body = axum::body::to_bytes(blocked_response.into_body(), usize::MAX)
         .await
         .unwrap();
     let body_str = String::from_utf8(body.to_vec()).unwrap();

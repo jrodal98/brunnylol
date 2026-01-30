@@ -8,7 +8,8 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
+use crate::{auth::middleware::AdminUser, db, error::{AppError, DbResultExt}, validation};
+use super::common::{ErrorTemplate, SuccessTemplate, SuccessWithLinkTemplate};
 
 // Template struct
 #[derive(Template)]
@@ -27,14 +28,9 @@ struct UserDisplay {
 
 // GET /admin - Admin panel
 pub async fn admin_page(
-    current_user: CurrentUser,
+    _admin_user: AdminUser,
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
-    // Check if user is admin
-    if !current_user.0.is_admin {
-        return Err(AppError::Forbidden("Admin access required".to_string()));
-    }
-
     // Get all users
     let all_users = db::list_all_users(&state.db_pool)
         .await
@@ -64,18 +60,16 @@ pub async fn admin_page(
 
 // POST /admin/cleanup-sessions - Clean up expired sessions
 pub async fn cleanup_sessions(
-    current_user: CurrentUser,
+    _admin_user: AdminUser,
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
-    if !current_user.0.is_admin {
-        return Err(AppError::Forbidden("Admin access required".to_string()));
-    }
-
     let deleted = db::cleanup_expired_sessions(&state.db_pool)
         .await
         .db_err()?;
 
-    Ok(Html(format!("<div>Cleaned up {} expired sessions</div>", deleted)))
+    let message = format!("Cleaned up {} expired sessions", deleted);
+    let template = SuccessTemplate { message: &message };
+    Ok(Html(template.render()?))
 }
 
 // Form struct for creating users
@@ -89,30 +83,26 @@ pub struct CreateUserForm {
 
 // POST /admin/create-user - Create new user
 pub async fn create_user(
-    current_user: CurrentUser,
+    _admin_user: AdminUser,
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<CreateUserForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Check if user is admin
-    if !current_user.0.is_admin {
-        return Err(AppError::Forbidden("Admin access required".to_string()));
-    }
-
     // Validate passwords match
-    if let Err(_) = validation::validate_passwords_match(&form.password, &form.confirm_password) {
-        return Ok(Html(
-            r#"<div style="color: #d32f2f;">Passwords do not match</div>"#.to_string()
-        ));
+    if validation::validate_passwords_match(&form.password, &form.confirm_password).is_err() {
+        let template = ErrorTemplate { message: "Passwords do not match" };
+        return Ok(Html(template.render()?));
     }
 
     // Validate username
     if let Err(e) = crate::auth::validate_username(&form.username) {
-        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+        let template = ErrorTemplate { message: &e.to_string() };
+        return Ok(Html(template.render()?));
     }
 
     // Validate password
     if let Err(e) = crate::auth::validate_password(&form.password) {
-        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+        let template = ErrorTemplate { message: &e.to_string() };
+        return Ok(Html(template.render()?));
     }
 
     // Hash password
@@ -136,8 +126,11 @@ pub async fn create_user(
             }
         })?;
 
-    Ok(Html(format!(
-        r#"<div class="success-message">User '{}' created successfully! <a href="/admin">Refresh</a></div>"#,
-        form.username
-    )))
+    let message = format!("User '{}' created successfully!", form.username);
+    let template = SuccessWithLinkTemplate {
+        message: &message,
+        link: "/admin",
+        link_text: "Refresh",
+    };
+    Ok(Html(template.render()?))
 }

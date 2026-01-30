@@ -91,3 +91,28 @@ where
         Ok(OptionalUser(user))
     }
 }
+
+// Extractor for admin users only
+// Usage: async fn handler(admin_user: AdminUser) { ... }
+// Returns Forbidden error if user is not an admin
+pub struct AdminUser(#[allow(dead_code)] pub User);
+
+impl<S> FromRequestParts<S> for AdminUser
+where
+    S: Send + Sync,
+    Arc<crate::AppState>: FromRef<S>,
+{
+    type Rejection = AppError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        // First authenticate the user (reuse CurrentUser logic)
+        let CurrentUser(user) = CurrentUser::from_request_parts(parts, state).await?;
+
+        // Check if user is admin
+        if !user.is_admin {
+            return Err(AppError::Forbidden("Admin access required".to_string()));
+        }
+
+        Ok(AdminUser(user))
+    }
+}

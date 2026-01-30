@@ -8,14 +8,17 @@ mod auth;
 mod handlers;
 pub mod services;
 pub mod validation;
+mod security;
 
 use askama::Template;
 use axum::{
-    extract::{Query, State},
+    extract::{DefaultBodyLimit, Query, State},
+    middleware,
     response::{Html, IntoResponse, Redirect},
     routing::{delete, get, post},
     Router,
 };
+use tower_http::services::ServeDir;
 use domain::Command;
 use error::AppError;
 use serde::Deserialize;
@@ -266,8 +269,9 @@ pub async fn create_router() -> Router {
         .await
         .expect("Failed to initialize database");
 
-    // Seed test user in development
-    if cfg!(debug_assertions) {
+    // Seed test user in development (but not for in-memory databases used in tests)
+    #[cfg(debug_assertions)]
+    if db_path != ":memory:" {
         let _ = db::seed::seed_test_user(&db_pool).await;
     }
 
@@ -319,7 +323,11 @@ pub async fn create_router() -> Router {
         .route("/manage/bookmark/{id}/nested/list", get(handlers::bookmarks::list_nested_bookmarks))
         .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
         .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
-        .route("/manage/import", post(handlers::bookmarks::import_bookmarks))
+        .route("/manage/import",
+            post(handlers::bookmarks::import_bookmarks)
+                // Limit import request body to 2MB (1MB for content + overhead for form encoding)
+                .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
+        )
         .route("/manage/export", get(handlers::bookmarks::export_bookmarks))
         .route("/manage/bookmarks/bulk-delete", post(handlers::bookmarks::bulk_delete_bookmarks))
         .route("/manage/overrides/bulk-disable", post(handlers::bookmarks::bulk_toggle_global))
@@ -336,5 +344,10 @@ pub async fn create_router() -> Router {
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
         .route("/admin/create-user", post(handlers::admin::create_user))
 
+        // Serve static files (JavaScript, CSS, etc.)
+        .nest_service("/static", ServeDir::new("static"))
+
         .with_state(state)
+        // Apply security headers to all responses
+        .layer(middleware::from_fn(security::security_headers))
 }

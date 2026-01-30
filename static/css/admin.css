@@ -1,0 +1,10 @@
+/* Admin page specific styles */
+
+.admin-badge {
+  background-color: var(--color-success);
+  color: var(--text-white);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}

@@ -1,0 +1,38 @@
+<tr id="global-{{ alias }}">
+    <td>
+        <input type="checkbox" class="global-checkbox" value="{{ alias }}">
+    </td>
+    <td><strong>{{ alias }}</strong></td>
+    <td>{{ description }}</td>
+    <td id="status-{{ alias }}">
+        {% if is_disabled %}
+        <span style="color: #d32f2f;">✗ Disabled</span>
+        {% else %}
+        <span style="color: #4caf50;">✓ Active</span>
+        {% endif %}
+    </td>
+    <td>
+        <div style="display: flex; gap: 0.5em; align-items: center;">
+            {% if is_disabled %}
+            <form hx-post="/manage/override" hx-target="#global-{{ alias }}" hx-swap="outerHTML" style="margin: 0;">
+                <input type="hidden" name="builtin_alias" value="{{ alias }}">
+                <button type="submit" class="btn-primary">Enable</button>
+            </form>
+            {% else %}
+            <form hx-post="/manage/override" hx-target="#global-{{ alias }}" hx-swap="outerHTML" style="margin: 0;">
+                <input type="hidden" name="builtin_alias" value="{{ alias }}">
+                <input type="hidden" name="is_disabled" value="true">
+                <button type="submit" class="btn-secondary">Disable</button>
+            </form>
+            {% endif %}
+            <form hx-post="/manage/fork-global"
+                  hx-target="#fork-result-{{ alias }}"
+                  hx-swap="innerHTML"
+                  style="margin: 0;">
+                <input type="hidden" name="alias" value="{{ alias }}">
+                <button type="submit" class="btn-secondary">Fork</button>
+            </form>
+        </div>
+        <div id="fork-result-{{ alias }}"></div>
+    </td>
+</tr>

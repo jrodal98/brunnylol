@@ -10,9 +10,9 @@
         <a href="/admin">Admin</a>
         {% endif %}
     </div>
-    <div style="display: flex; align-items: center; gap: 15px;">
+    <div class="flex-center flex-gap-4">
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="margin: 0;">
+        <form method="post" action="/logout" class="m-0">
             <button type="submit">Logout</button>
         </form>
     </div>
@@ -20,88 +20,8 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/css/manage.css">
 <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
-
-<style>
-    .header {
-        margin-bottom: var(--space-8);
-        padding-bottom: var(--space-4);
-        border-bottom: 2px solid var(--color-border-dark);
-    }
-
-    .tabs {
-        display: flex;
-        gap: var(--space-3);
-        border-bottom: 3px solid var(--gradient-start);
-        margin-bottom: var(--space-5);
-        background-color: var(--bg-secondary);
-        padding: var(--space-3);
-        border-radius: var(--radius-md) var(--radius-md) 0 0;
-    }
-
-    .tab {
-        padding: var(--space-3) var(--space-6);
-        cursor: pointer;
-        border: none;
-        background: none;
-        font-size: var(--font-size-base);
-        color: var(--text-secondary);
-        font-weight: 500;
-        border-bottom: 3px solid transparent;
-        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-        transition: var(--transition-base);
-    }
-
-    .tab:hover {
-        background-color: rgba(102, 126, 234, 0.1);
-        color: var(--gradient-start);
-    }
-
-    .tab.active {
-        color: var(--text-primary);
-        font-weight: bold;
-        border-bottom-color: var(--gradient-start);
-        background-color: var(--bg-elevated);
-    }
-
-    .tab-content {
-        display: none;
-    }
-
-    .tab-content.active {
-        display: block;
-    }
-
-    .conflict-warning {
-        background-color: var(--color-warning-bg);
-        color: var(--color-warning-text);
-        padding: var(--space-3);
-        border-radius: var(--radius-sm);
-        margin-bottom: var(--space-5);
-    }
-
-    .success-message {
-        background-color: var(--color-success-bg);
-        color: var(--color-success-text);
-        padding: var(--space-3);
-        border-radius: var(--radius-sm);
-        margin-bottom: var(--space-5);
-    }
-
-    .nested-commands {
-        margin-left: var(--space-5);
-        padding-left: var(--space-5);
-        border-left: 3px solid var(--color-border);
-    }
-
-    .dynamic-field {
-        display: none;
-    }
-
-    .dynamic-field.show {
-        display: block;
-    }
-</style>
 
 <div class="container" style="margin-top: var(--space-8);">
     <div class="header">
@@ -118,11 +38,11 @@
     {% endif %}
 
     <div class="tabs">
-        <button class="tab active" onclick="showTab('create')">Create Bookmark</button>
-        <button class="tab" onclick="showTab('personal')">My Bookmarks</button>
-        <button class="tab" onclick="showTab('global')">Built-in Bookmarks</button>
+        <button class="tab active" data-tab="create">Create Bookmark</button>
+        <button class="tab" data-tab="personal">My Bookmarks</button>
+        <button class="tab" data-tab="global">Built-in Bookmarks</button>
         {% if user.is_admin %}
-        <button class="tab" onclick="showTab('admin')">Admin Panel</button>
+        <button class="tab" data-tab="admin">Admin Panel</button>
         {% endif %}
     </div>
 
@@ -145,7 +65,7 @@
 
             <div class="form-group">
                 <label for="bookmark_type">Bookmark Type *</label>
-                <select id="bookmark_type" name="bookmark_type" required onchange="toggleFields()">
+                <select id="bookmark_type" name="bookmark_type" required>
                     <option value="simple">Simple Bookmark (static URL)</option>
                     <option value="templated">Search Template (URL with query)</option>
                     <option value="nested">Nested Commands</option>
@@ -188,7 +108,7 @@
                     <!-- Dynamic nested command rows will be added here -->
                 </div>
 
-                <button type="button" onclick="addNestedRow();" class="btn-secondary" style="margin-top: var(--space-3);">
+                <button type="button" id="add-nested-btn" class="btn-secondary" style="margin-top: var(--space-3);">
                     + Add Sub-command
                 </button>
 
@@ -200,7 +120,7 @@
         </form>
 
         <!-- Import/Export Section -->
-        <hr style="margin: var(--space-8) 0; border: none; border-top: 2px solid var(--color-border);">
+        <hr class="section-divider">
 
         <h2 style="margin-top: var(--space-8);">Import Bookmarks</h2>
         <div id="import-result"></div>
@@ -213,7 +133,7 @@
 
             <div class="form-group">
                 <label for="import-source">Import From *</label>
-                <select id="import-source" name="source" required onchange="toggleImportFields()">
+                <select id="import-source" name="source" required>
                     <option value="paste">Paste YAML/JSON Content</option>
                     <option value="url">Fetch from URL</option>
                 </select>
@@ -265,18 +185,18 @@
         {% else %}
 
         <!-- Bulk Actions for Personal Bookmarks -->
-        <div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); align-items: center;">
-            <button class="btn-danger" onclick="deleteSelectedPersonal()" id="delete-selected-btn" disabled>
+        <div class="bulk-actions">
+            <button class="btn-danger" id="delete-selected-btn" disabled>
                 Delete Selected
             </button>
-            <span id="personal-selected-count" style="color: var(--text-secondary);"></span>
+            <span id="personal-selected-count" class="selection-count"></span>
         </div>
 
         <table>
             <thead>
                 <tr>
-                    <th style="width: 40px;">
-                        <input type="checkbox" id="select-all-personal" onchange="toggleAllPersonal(this)">
+                    <th class="col-checkbox">
+                        <input type="checkbox" id="select-all-personal">
                     </th>
                     <th>Alias</th>
                     <th>Type</th>
@@ -289,7 +209,7 @@
                 {% for bookmark in personal_bookmarks %}
                 <tr id="bookmark-{{ bookmark.id }}">
                     <td>
-                        <input type="checkbox" class="personal-checkbox" value="{{ bookmark.id }}" onchange="updatePersonalSelection()">
+                        <input type="checkbox" class="personal-checkbox" value="{{ bookmark.id }}">
                     </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.bookmark_type }}</td>
@@ -302,8 +222,13 @@
                     </td>
                     <td>{{ bookmark.description }}</td>
                     <td>
-                        <button class="btn-secondary"
-                                onclick="showEditForm({{ bookmark.id }}, '{{ bookmark.alias }}', '{{ bookmark.url }}', '{{ bookmark.description }}', '{{ bookmark.command_template }}', {{ bookmark.encode_query }})">
+                        <button class="btn-secondary btn-edit"
+                                data-id="{{ bookmark.id }}"
+                                data-alias="{{ bookmark.alias }}"
+                                data-url="{{ bookmark.url }}"
+                                data-description="{{ bookmark.description }}"
+                                data-template="{{ bookmark.command_template }}"
+                                data-encode="{{ bookmark.encode_query }}">
                             Edit
                         </button>
                         <button class="btn-danger"
@@ -314,7 +239,9 @@
                             Delete
                         </button>
                         {% if bookmark.bookmark_type == "nested" %}
-                        <button class="btn-secondary" onclick="showNestedManager({{ bookmark.id }}, '{{ bookmark.alias }}')">
+                        <button class="btn-secondary btn-nested-manager"
+                                data-id="{{ bookmark.id }}"
+                                data-alias="{{ bookmark.alias }}">
                             Manage Nested ({{ bookmark.nested_count }})
                         </button>
                         {% endif %}
@@ -325,11 +252,11 @@
         </table>
 
         <h3 style="margin-top: var(--space-6);">Export Personal Bookmarks</h3>
-        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-3);">
-            <button onclick="window.location.href='/manage/export?scope=personal&format=yaml'" class="btn-primary">
+        <div class="export-buttons">
+            <button data-export-url="/manage/export?scope=personal&format=yaml" class="btn-primary export-btn">
                 Export as YAML
             </button>
-            <button onclick="window.location.href='/manage/export?scope=personal&format=json'" class="btn-secondary">
+            <button data-export-url="/manage/export?scope=personal&format=json" class="btn-secondary export-btn">
                 Export as JSON
             </button>
         </div>
@@ -342,21 +269,21 @@
         <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
 
         <!-- Bulk Actions for Global Bookmarks -->
-        <div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); align-items: center;">
-            <button class="btn-secondary" onclick="disableSelectedGlobal()" id="disable-selected-btn" disabled>
+        <div class="bulk-actions">
+            <button class="btn-secondary" id="disable-selected-btn" disabled>
                 Disable Selected
             </button>
-            <button class="btn-primary" onclick="enableSelectedGlobal()" id="enable-selected-btn" disabled>
+            <button class="btn-primary" id="enable-selected-btn" disabled>
                 Enable Selected
             </button>
-            <span id="global-selected-count" style="color: var(--text-secondary);"></span>
+            <span id="global-selected-count" class="selection-count"></span>
         </div>
 
         <table>
             <thead>
                 <tr>
-                    <th style="width: 40px;">
-                        <input type="checkbox" id="select-all-global" onchange="toggleAllGlobal(this)">
+                    <th class="col-checkbox">
+                        <input type="checkbox" id="select-all-global">
                     </th>
                     <th>Alias</th>
                     <th>Description</th>
@@ -368,7 +295,7 @@
                 {% for bookmark in global_bookmarks %}
                 <tr id="global-{{ bookmark.alias }}">
                     <td>
-                        <input type="checkbox" class="global-checkbox" value="{{ bookmark.alias }}" onchange="updateGlobalSelection()">
+                        <input type="checkbox" class="global-checkbox" value="{{ bookmark.alias }}">
                     </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.description }}</td>
@@ -414,11 +341,11 @@
 
         {% if user.is_admin %}
         <h3 style="margin-top: var(--space-6);">Export Global Bookmarks (Admin)</h3>
-        <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; margin-top: var(--space-3);">
-            <button onclick="window.location.href='/manage/export?scope=global&format=yaml'" class="btn-primary">
+        <div class="export-buttons">
+            <button data-export-url="/manage/export?scope=global&format=yaml" class="btn-primary export-btn">
                 Export as YAML
             </button>
-            <button onclick="window.location.href='/manage/export?scope=global&format=json'" class="btn-secondary">
+            <button data-export-url="/manage/export?scope=global&format=json" class="btn-secondary export-btn">
                 Export as JSON
             </button>
         </div>
@@ -436,15 +363,15 @@
 </div>
 
 <!-- Nested Command Manager Modal (will be shown via JavaScript) -->
-<div id="nested-manager" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--bg-secondary); border: 2px solid var(--gradient-start); padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow-glow-lg); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 id="nested-manager-title" style="color: var(--text-accent); margin-bottom: var(--space-5);">Manage Nested Commands</h3>
+<div id="nested-manager" class="modal">
+    <h3 id="nested-manager-title" class="modal-title">Manage Nested Commands</h3>
     <div id="nested-manager-content"></div>
-    <button onclick="hideNestedManager()" class="btn-secondary" style="margin-top: var(--space-4);">Close</button>
+    <button id="close-nested-manager" class="btn-secondary" style="margin-top: var(--space-4);">Close</button>
 </div>
 
 <!-- Edit Bookmark Modal -->
-<div id="edit-modal" style="display: none; position: fixed; top: 50px; left: 50%; transform: translateX(-50%); background: var(--bg-secondary); border: 2px solid var(--gradient-start); padding: var(--space-6); border-radius: var(--radius-lg); box-shadow: var(--shadow-glow-lg); max-width: 700px; width: 90%; z-index: 1000;">
-    <h3 style="color: var(--text-accent); margin-bottom: var(--space-5);">Edit Bookmark</h3>
+<div id="edit-modal" class="modal">
+    <h3 class="modal-title">Edit Bookmark</h3>
     <div id="edit-result"></div>
     <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: var(--space-4);">
         <input type="hidden" id="edit-id" name="edit-id">
@@ -477,432 +404,10 @@
         </div>
 
         <button type="submit" class="btn-primary">Save Changes</button>
-        <button type="button" onclick="hideEditForm()" class="btn-secondary">Cancel</button>
+        <button type="button" id="cancel-edit-btn" class="btn-secondary">Cancel</button>
     </form>
 </div>
 
-<script>
-function showTab(tabName) {
-    // Hide all tabs
-    document.querySelectorAll('.tab-content').forEach(content => {
-        content.classList.remove('active');
-    });
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.classList.remove('active');
-    });
-
-    // Show selected tab
-    document.getElementById(tabName).classList.add('active');
-    event.target.classList.add('active');
-}
-
-function toggleFields() {
-    const bookmarkType = document.getElementById('bookmark_type').value;
-    const templatedFields = document.getElementById('templated-fields');
-    const nestedInfo = document.getElementById('nested-info');
-
-    // Hide all dynamic fields
-    templatedFields.classList.remove('show');
-    nestedInfo.classList.remove('show');
-
-    // Show relevant fields
-    if (bookmarkType === 'templated') {
-        templatedFields.classList.add('show');
-    } else if (bookmarkType === 'nested') {
-        nestedInfo.classList.add('show');
-    }
-}
-
-let nestedCounter = 0;
-
-function addNestedRow() {
-    console.log('addNestedRow called, counter:', nestedCounter);
-    const container = document.getElementById('nested-commands-list');
-    console.log('Container found:', container);
-    if (!container) {
-        alert('ERROR: nested-commands-list not found!');
-        return;
-    }
-    const rowId = `nested-row-${nestedCounter++}`;
-    console.log('Creating row:', rowId);
-
-    const row = document.createElement('div');
-    row.id = rowId;
-    row.style.border = '2px solid #667eea';
-    row.style.padding = '20px';
-    row.style.marginBottom = '15px';
-    row.style.borderRadius = '8px';
-    row.style.backgroundColor = '#2a2d3a';
-    row.style.boxShadow = '0 2px 8px rgba(102, 126, 234, 0.3)';
-
-    row.innerHTML = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-            <h4 style="margin: 0; color: #8b9aff;">Sub-command #${nestedCounter}</h4>
-            <button type="button" onclick="removeNestedRow('${rowId}')" class="btn-danger" style="padding: 6px 12px; font-size: 13px;">Remove</button>
-        </div>
-
-        <div class="form-group">
-            <label>Sub-alias:</label>
-            <input type="text" name="nested_alias[]" required placeholder="e.g., r" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div class="form-group">
-            <label>Type:</label>
-            <select name="nested_type[]" onchange="toggleNestedTemplate(this)" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                <option value="simple">Simple Bookmark</option>
-                <option value="templated">Search Template</option>
-            </select>
-        </div>
-
-        <div class="form-group">
-            <label>URL:</label>
-            <input type="url" name="nested_url[]" required placeholder="https://example.com" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div class="form-group">
-            <label>Description:</label>
-            <input type="text" name="nested_description[]" required placeholder="What this sub-command does" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div class="form-group nested-template-field" style="display: none;">
-            <label>Template (with {}):</label>
-            <input type="text" name="nested_template[]" placeholder="https://example.com/search?q={}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div class="form-group nested-encode-field" style="display: none;">
-            <label>
-                <input type="checkbox" name="nested_encode[]" value="true" checked>
-                URL-encode query
-            </label>
-        </div>
-    `;
-
-    container.appendChild(row);
-    console.log('Row appended to container, total children:', container.children.length);
-}
-
-function removeNestedRow(rowId) {
-    document.getElementById(rowId).remove();
-}
-
-function toggleNestedTemplate(selectElement) {
-    const row = selectElement.closest('div[id^="nested-row-"]');
-    const templateField = row.querySelector('.nested-template-field');
-    const encodeField = row.querySelector('.nested-encode-field');
-
-    if (selectElement.value === 'templated') {
-        templateField.style.display = 'block';
-        encodeField.style.display = 'block';
-    } else {
-        templateField.style.display = 'none';
-        encodeField.style.display = 'none';
-    }
-}
-
-function prepareNestedCommands() {
-    console.log('prepareNestedCommands called');
-    const bookmarkType = document.getElementById('bookmark_type').value;
-    console.log('Bookmark type:', bookmarkType);
-
-    if (bookmarkType !== 'nested') {
-        // Not a nested bookmark, clear the JSON field
-        document.getElementById('nested_commands_json').value = '';
-        console.log('Not nested, cleared JSON');
-        return;
-    }
-
-    // Collect all nested command data
-    const nestedCommands = [];
-    const container = document.getElementById('nested-commands-list');
-    const rows = container.querySelectorAll('div[id^="nested-row-"]');
-    console.log('Found rows:', rows.length);
-
-    rows.forEach((row, index) => {
-        const aliasInput = row.querySelector('input[name="nested_alias[]"]');
-        const typeSelect = row.querySelector('select[name="nested_type[]"]');
-        const urlInput = row.querySelector('input[name="nested_url[]"]');
-        const descInput = row.querySelector('input[name="nested_description[]"]');
-        const templateInput = row.querySelector('input[name="nested_template[]"]');
-        const encodeCheckbox = row.querySelector('input[name="nested_encode[]"]');
-
-        nestedCommands.push({
-            alias: aliasInput ? aliasInput.value : '',
-            type: typeSelect ? typeSelect.value : 'simple',
-            url: urlInput ? urlInput.value : '',
-            description: descInput ? descInput.value : '',
-            template: templateInput ? templateInput.value : null,
-            encode: encodeCheckbox ? encodeCheckbox.checked : true
-        });
-    });
-
-    // Serialize to JSON and set in hidden field
-    const jsonValue = JSON.stringify(nestedCommands);
-    document.getElementById('nested_commands_json').value = jsonValue;
-    console.log('Prepared nested commands:', nestedCommands);
-    console.log('JSON value:', jsonValue);
-}
-
-function showNestedManager(bookmarkId, alias) {
-    document.getElementById('nested-manager-title').textContent = `Manage Nested Commands for '${alias}'`;
-
-    // Load existing nested commands via HTMX
-    const contentDiv = document.getElementById('nested-manager-content');
-    contentDiv.innerHTML = `
-        <div id="nested-list" hx-get="/manage/bookmark/${bookmarkId}/nested/list"
-             hx-trigger="load, nested-added from:body"
-             hx-swap="innerHTML">
-            Loading...
-        </div>
-
-        <h4 style="margin-top: 20px;">Add New Sub-command</h4>
-        <div id="nested-add-result" style="margin-bottom: 15px;"></div>
-        <form hx-post="/manage/bookmark/${bookmarkId}/nested"
-              hx-target="#nested-add-result"
-              hx-swap="innerHTML"
-              hx-on::after-request="if(event.detail.successful) { htmx.trigger('#nested-list', 'nested-added'); this.reset(); }"
-              style="margin-top: 15px;">
-            <input type="hidden" name="parent_id" value="${bookmarkId}">
-
-            <div class="form-group">
-                <label>Sub-alias:</label>
-                <input type="text" name="alias" required placeholder="e.g., r">
-            </div>
-
-            <div class="form-group">
-                <label>Type:</label>
-                <select name="nested_type" onchange="toggleNestedFormFields(this)">
-                    <option value="simple">Simple Bookmark</option>
-                    <option value="templated">Search Template</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label>URL:</label>
-                <input type="url" name="url" required placeholder="https://example.com">
-            </div>
-
-            <div class="form-group">
-                <label>Description:</label>
-                <input type="text" name="description" required>
-            </div>
-
-            <div class="form-group nested-template-field" style="display: none;">
-                <label>Template (with {}):</label>
-                <input type="text" name="command_template" placeholder="https://example.com/search?q={}">
-            </div>
-
-            <div class="form-group nested-encode-field" style="display: none;">
-                <label>
-                    <input type="checkbox" name="encode_query" value="true" checked>
-                    URL-encode query
-                </label>
-            </div>
-
-            <button type="submit" class="btn-primary">Add Sub-command</button>
-        </form>
-    `;
-
-    document.getElementById('nested-manager').style.display = 'block';
-
-    // Re-initialize HTMX on the new content
-    htmx.process(contentDiv);
-}
-
-function toggleNestedFormFields(selectElement) {
-    const form = selectElement.closest('form');
-    const templateField = form.querySelector('.nested-template-field');
-    const encodeField = form.querySelector('.nested-encode-field');
-
-    if (selectElement.value === 'templated') {
-        templateField.style.display = 'block';
-        encodeField.style.display = 'block';
-    } else {
-        templateField.style.display = 'none';
-        encodeField.style.display = 'none';
-    }
-}
-
-function hideNestedManager() {
-    document.getElementById('nested-manager').style.display = 'none';
-}
-
-function showEditForm(id, alias, url, description, template, encodeQuery) {
-    document.getElementById('edit-id').value = id;
-    document.getElementById('edit-alias').value = alias;
-    document.getElementById('edit-url').value = url;
-    document.getElementById('edit-description').value = description;
-    document.getElementById('edit-template').value = template || '';
-    document.getElementById('edit-encode').checked = encodeQuery;
-
-    // Set the form action URL
-    document.getElementById('edit-form').setAttribute('hx-put', `/manage/bookmark/${id}`);
-    htmx.process(document.getElementById('edit-form'));
-
-    document.getElementById('edit-modal').style.display = 'block';
-}
-
-function hideEditForm() {
-    document.getElementById('edit-modal').style.display = 'none';
-    document.getElementById('edit-result').innerHTML = '';
-}
-
-function toggleImportFields() {
-    const source = document.getElementById('import-source').value;
-    const pasteDiv = document.getElementById('import-paste');
-    const urlDiv = document.getElementById('import-url');
-
-    if (source === 'paste') {
-        pasteDiv.style.display = 'block';
-        urlDiv.style.display = 'none';
-    } else if (source === 'url') {
-        pasteDiv.style.display = 'none';
-        urlDiv.style.display = 'block';
-    }
-}
-
-// Multi-select functions for personal bookmarks
-function toggleAllPersonal(checkbox) {
-    const checkboxes = document.querySelectorAll('.personal-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-    updatePersonalSelection();
-}
-
-function updatePersonalSelection() {
-    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
-    const count = checkboxes.length;
-    const deleteBtn = document.getElementById('delete-selected-btn');
-    const countSpan = document.getElementById('personal-selected-count');
-
-    deleteBtn.disabled = count === 0;
-    countSpan.textContent = count > 0 ? `${count} selected` : '';
-}
-
-function deleteSelectedPersonal() {
-    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
-    const ids = Array.from(checkboxes).map(cb => cb.value);
-
-    if (ids.length === 0) return;
-
-    if (!confirm(`Delete ${ids.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual delete buttons via HTMX (reuse existing working functionality)
-    ids.forEach(id => {
-        const row = document.getElementById(`bookmark-${id}`);
-        if (row) {
-            const deleteButton = row.querySelector('button[hx-delete]');
-            if (deleteButton) {
-                // Programmatically trigger the HTMX delete button
-                htmx.trigger(deleteButton, 'click');
-            }
-        }
-    });
-
-    // Uncheck select all after a short delay
-    setTimeout(() => {
-        document.getElementById('select-all-personal').checked = false;
-        updatePersonalSelection();
-    }, 300);
-}
-
-// Multi-select functions for global bookmarks
-function toggleAllGlobal(checkbox) {
-    const checkboxes = document.querySelectorAll('.global-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-    updateGlobalSelection();
-}
-
-function updateGlobalSelection() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const count = checkboxes.length;
-    const disableBtn = document.getElementById('disable-selected-btn');
-    const enableBtn = document.getElementById('enable-selected-btn');
-    const countSpan = document.getElementById('global-selected-count');
-
-    disableBtn.disabled = count === 0;
-    enableBtn.disabled = count === 0;
-    countSpan.textContent = count > 0 ? `${count} selected` : '';
-}
-
-function disableSelectedGlobal() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const aliases = Array.from(checkboxes).map(cb => cb.value);
-
-    if (aliases.length === 0) return;
-
-    if (!confirm(`Disable ${aliases.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual disable buttons via HTMX (reuse existing functionality)
-    aliases.forEach(alias => {
-        const row = document.getElementById(`global-${alias}`);
-        if (row) {
-            const statusCell = row.querySelector(`#status-${alias}`);
-            // Only disable if currently active
-            if (statusCell && statusCell.textContent.includes('✓ Active')) {
-                const disableButton = row.querySelector('button.btn-secondary');
-                if (disableButton && disableButton.textContent.includes('Disable')) {
-                    // Programmatically click the disable button (HTMX will handle update)
-                    disableButton.click();
-                }
-            }
-        }
-    });
-
-    // Uncheck all after HTMX finishes (give it time to process)
-    setTimeout(() => {
-        document.getElementById('select-all-global').checked = false;
-        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
-        updateGlobalSelection();
-    }, 500);
-}
-
-function enableSelectedGlobal() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const aliases = Array.from(checkboxes).map(cb => cb.value);
-
-    if (aliases.length === 0) return;
-
-    if (!confirm(`Enable ${aliases.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual enable buttons via HTMX (reuse existing functionality)
-    aliases.forEach(alias => {
-        const row = document.getElementById(`global-${alias}`);
-        if (row) {
-            const statusCell = row.querySelector(`#status-${alias}`);
-            // Only enable if currently disabled
-            if (statusCell && statusCell.textContent.includes('✗ Disabled')) {
-                const enableButton = row.querySelector('button.btn-primary');
-                if (enableButton && enableButton.textContent.includes('Enable')) {
-                    // Programmatically click the enable button (HTMX will handle update)
-                    enableButton.click();
-                }
-            }
-        }
-    });
-
-    // Uncheck all after HTMX finishes
-    setTimeout(() => {
-        document.getElementById('select-all-global').checked = false;
-        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
-        updateGlobalSelection();
-    }, 500);
-}
-
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOMContentLoaded fired');
-    toggleFields();
-
-    // Add HTMX event listener to prepare nested commands before submission
-    const createForm = document.getElementById('create-bookmark-form');
-    console.log('Create form found:', createForm !== null);
-    if (createForm) {
-        createForm.addEventListener('htmx:configRequest', function(event) {
-            console.log('htmx:configRequest event fired');
-            prepareNestedCommands();
-        });
-        console.log('HTMX event listener added');
-    }
-});
-</script>
+<script src="/static/js/manage.js"></script>
 
 {% endblock %}

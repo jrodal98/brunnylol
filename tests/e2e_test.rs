@@ -1091,7 +1091,8 @@ async fn test_e2e_fork_global_bookmarks() {
         .await
         .unwrap();
 
-    assert!(fork_simple.text().await.unwrap().contains("Forked 'g'"));
+    let fork_response = fork_simple.text().await.unwrap();
+    assert!(fork_response.contains("Forked"), "Response should confirm fork: {}", fork_response);
     println!("✓ Forked simple global bookmark 'g'");
 
     // Verify bookmark was created in user bookmarks
@@ -1153,7 +1154,8 @@ async fn test_e2e_fork_global_bookmarks() {
         .await
         .unwrap();
 
-    assert!(fork_nested.text().await.unwrap().contains("Forked 'test-nested-global'"));
+    let fork_nested_response = fork_nested.text().await.unwrap();
+    assert!(fork_nested_response.contains("Forked"), "Response should confirm fork: {}", fork_nested_response);
     println!("✓ Forked nested global bookmark 'test-nested-global'");
 
     // Verify nested bookmarks were copied

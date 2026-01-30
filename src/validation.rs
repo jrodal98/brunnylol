@@ -2,6 +2,56 @@
 // Provides reusable validation logic for forms and user input
 
 use crate::error::AppError;
+use url::Url;
+
+/// Check if an IPv4 address is private or reserved
+fn is_private_ipv4(octets: [u8; 4]) -> Option<&'static str> {
+    // Localhost and loopback (127.0.0.0/8)
+    if octets[0] == 127 {
+        return Some("Cannot fetch from loopback address");
+    }
+    // 10.0.0.0/8
+    if octets[0] == 10 {
+        return Some("Cannot fetch from private IP range");
+    }
+    // 172.16.0.0/12
+    if octets[0] == 172 && octets[1] >= 16 && octets[1] <= 31 {
+        return Some("Cannot fetch from private IP range");
+    }
+    // 192.168.0.0/16
+    if octets[0] == 192 && octets[1] == 168 {
+        return Some("Cannot fetch from private IP range");
+    }
+    // 169.254.0.0/16 (link-local)
+    if octets[0] == 169 && octets[1] == 254 {
+        return Some("Cannot fetch from link-local address");
+    }
+    None
+}
+
+/// Check if an IPv6 address is private or reserved
+fn is_private_ipv6(ipv6: std::net::Ipv6Addr) -> Option<&'static str> {
+    // Block IPv6 loopback
+    if ipv6.is_loopback() {
+        return Some("Cannot fetch from loopback address");
+    }
+
+    // Block IPv4-mapped IPv6 addresses (::ffff:x.x.x.x)
+    if let Some(ipv4) = ipv6.to_ipv4_mapped() {
+        return is_private_ipv4(ipv4.octets());
+    }
+
+    // Block IPv6 unique local addresses (fc00::/7)
+    let segments = ipv6.segments();
+    if segments[0] >= 0xfc00 && segments[0] <= 0xfdff {
+        return Some("Cannot fetch from private IP range");
+    }
+    // Block IPv6 link-local addresses (fe80::/10)
+    if segments[0] >= 0xfe80 && segments[0] <= 0xfebf {
+        return Some("Cannot fetch from link-local address");
+    }
+    None
+}
 
 /// Validate that a template string contains the placeholder "{}"
 ///
@@ -12,6 +62,32 @@ pub fn validate_template(template: &str) -> Result<(), AppError> {
             "Template must contain '{}' placeholder for the search query".to_string()
         ));
     }
+
+    // Validate URL scheme (only allow http, https)
+    if !template.is_empty() {
+        validate_url_scheme(template)?;
+    }
+
+    Ok(())
+}
+
+/// Validate that a URL has a safe scheme (http or https only)
+///
+/// Returns Ok(()) if valid, Err(AppError::BadRequest) if invalid
+pub fn validate_url_scheme(url: &str) -> Result<(), AppError> {
+    let url_lower = url.to_lowercase();
+
+    // Check if it starts with a scheme
+    if url_lower.contains("://") || url_lower.starts_with("javascript:")
+        || url_lower.starts_with("data:") || url_lower.starts_with("file:") {
+        // Only allow http and https
+        if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
+            return Err(AppError::BadRequest(
+                "Only http:// and https:// URLs are allowed".to_string()
+            ));
+        }
+    }
+
     Ok(())
 }
 
@@ -32,6 +108,73 @@ pub fn validate_not_empty(field_name: &str, value: &str) -> Result<(), AppError>
     if value.trim().is_empty() {
         return Err(AppError::BadRequest(format!("{} cannot be empty", field_name)));
     }
+    Ok(())
+}
+
+/// Validate URL for SSRF protection
+///
+/// Only allows http/https URLs and blocks private IP ranges
+pub fn validate_url_for_fetch(url_str: &str) -> Result<(), AppError> {
+    // Parse URL
+    let url = url_str.parse::<Url>()
+        .map_err(|_| AppError::BadRequest("Invalid URL format".to_string()))?;
+
+    // Only allow http and https
+    let scheme = url.scheme();
+    if scheme != "http" && scheme != "https" {
+        return Err(AppError::BadRequest("Only http:// and https:// URLs are allowed".to_string()));
+    }
+
+    // Get host
+    let host = url.host_str()
+        .ok_or(AppError::BadRequest("URL must have a host".to_string()))?;
+
+    // Block localhost variants
+    if host == "localhost" || host == "127.0.0.1" || host.starts_with("127.")
+        || host == "::1" || host == "0.0.0.0" {
+        return Err(AppError::BadRequest("Cannot fetch from localhost".to_string()));
+    }
+
+    // Block private IP ranges (IPv4 and IPv6)
+    if let Ok(ip) = host.parse::<std::net::IpAddr>() {
+        match ip {
+            std::net::IpAddr::V4(ipv4) => {
+                if let Some(error_msg) = is_private_ipv4(ipv4.octets()) {
+                    return Err(AppError::BadRequest(error_msg.to_string()));
+                }
+            }
+            std::net::IpAddr::V6(ipv6) => {
+                if let Some(error_msg) = is_private_ipv6(ipv6) {
+                    return Err(AppError::BadRequest(error_msg.to_string()));
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Validate a resolved IP address for SSRF protection
+///
+/// This provides basic localhost and private IP blocking.
+pub fn validate_resolved_ip(ip: std::net::IpAddr) -> Result<(), AppError> {
+    match ip {
+        std::net::IpAddr::V4(ipv4) => {
+            // Check for unspecified address (0.0.0.0)
+            if ipv4.is_unspecified() {
+                return Err(AppError::BadRequest("Cannot fetch from unspecified address".to_string()));
+            }
+            if let Some(error_msg) = is_private_ipv4(ipv4.octets()) {
+                return Err(AppError::BadRequest(error_msg.to_string()));
+            }
+        }
+        std::net::IpAddr::V6(ipv6) => {
+            if let Some(error_msg) = is_private_ipv6(ipv6) {
+                return Err(AppError::BadRequest(error_msg.to_string()));
+            }
+        }
+    }
+
     Ok(())
 }
 

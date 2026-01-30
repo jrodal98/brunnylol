@@ -12,10 +12,10 @@
         {% endif %}
         {% endif %}
     </div>
-    <div style="display: flex; align-items: center; gap: 15px;">
+    <div class="flex-center flex-gap-4">
         {% if has_user %}
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="margin: 0;">
+        <form method="post" action="/logout" class="m-0">
             <button type="submit">Logout</button>
         </form>
         {% else %}
@@ -31,7 +31,7 @@
     <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
 
     <form id="search-form-Brunnylol" class="form-inline mb-6 mt-6" action="/search?q=%25s" method="get">
-        <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus placeholder="Search Brunnylol" name="q" alt="Search Brunnylol" onkeydown="if(event.keyCode === 13) { this.form.submit(); return false; }">
+        <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus placeholder="Search Brunnylol" name="q" alt="Search Brunnylol">
     </form>
 
     <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">

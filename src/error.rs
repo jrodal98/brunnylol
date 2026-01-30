@@ -6,6 +6,15 @@ use axum::{
 };
 use std::fmt;
 
+/// HTML escape a string to prevent XSS
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+     .replace('<', "&lt;")
+     .replace('>', "&gt;")
+     .replace('"', "&quot;")
+     .replace('\'', "&#x27;")
+}
+
 /// Application error type
 #[derive(Debug)]
 pub enum AppError {
@@ -57,7 +66,7 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal error: {}", msg)),
         };
 
-        // Return a simple HTML error page
+        // Return a simple HTML error page with escaped message to prevent XSS
         let error_html = format!(
             r#"<!DOCTYPE html>
 <html>
@@ -80,8 +89,8 @@ impl IntoResponse for AppError {
     <p><a href="/">Return to home</a></p>
 </body>
 </html>"#,
-            status.as_str(),
-            message
+            html_escape(status.as_str()),
+            html_escape(&message)
         );
 
         (status, Html(error_html)).into_response()

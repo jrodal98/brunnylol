@@ -10,6 +10,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
+use super::common::{SuccessTemplate, SuccessWithLinkTemplate};
 
 // Template structs
 #[derive(Template)]
@@ -40,6 +41,20 @@ struct GlobalBookmarkDisplay {
     alias: String,
     description: String,
     is_overridden: bool,
+    is_disabled: bool,
+}
+
+#[derive(Template)]
+#[template(path = "partials/nested_list.html")]
+struct NestedListTemplate {
+    nested: Vec<db::NestedBookmark>,
+}
+
+#[derive(Template)]
+#[template(path = "partials/global_bookmark_row.html")]
+struct GlobalBookmarkRowTemplate<'a> {
+    alias: &'a str,
+    description: &'a str,
     is_disabled: bool,
 }
 
@@ -194,6 +209,9 @@ pub async fn create_bookmark(
         return Err(AppError::BadRequest("Invalid alias length".to_string()));
     }
 
+    // Validate URL scheme for all bookmark types
+    validation::validate_url_scheme(&form.url)?;
+
     // Validate templated bookmarks have a valid template with {}
     if form.bookmark_type == "templated" {
         let template = form.command_template.as_deref().unwrap_or(&form.url);
@@ -230,6 +248,9 @@ pub async fn create_bookmark(
                 .map_err(|e| AppError::Internal(format!("Failed to parse nested commands: {}", e)))?;
 
             for (i, nested_cmd) in nested_commands.iter().enumerate() {
+                // Validate nested URL scheme
+                validation::validate_url_scheme(&nested_cmd.url)?;
+
                 let nested_template = if nested_cmd.cmd_type == "templated" {
                     nested_cmd.template.as_deref()
                 } else {
@@ -262,10 +283,13 @@ pub async fn create_bookmark(
     }
 
     // Return success message as HTMX fragment
-    Ok(Html(format!(
-        r#"<div class="success-message">Bookmark '{}' created successfully! <a href="/manage">Refresh to see changes</a></div>"#,
-        form.alias
-    )))
+    let message = format!("Bookmark '{}' created successfully!", form.alias);
+    let template = SuccessWithLinkTemplate {
+        message: &message,
+        link: "/manage",
+        link_text: "Refresh to see changes",
+    };
+    Ok(Html(template.render()?))
 }
 
 // DELETE /manage/bookmark/:id - Delete a bookmark
@@ -289,6 +313,9 @@ pub async fn update_bookmark(
     Path(bookmark_id): Path<i64>,
     Form(form): Form<UpdateBookmarkForm>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Validate URL scheme
+    validation::validate_url_scheme(&form.url)?;
+
     let encode_query = form.encode_query.is_some();
 
     // Validate command template if provided
@@ -309,10 +336,9 @@ pub async fn update_bookmark(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update bookmark: {}", e)))?;
 
-    Ok(Html(format!(
-        r#"<div class="success-message">Bookmark '{}' updated successfully!</div>"#,
-        form.alias
-    )))
+    let message = format!("Bookmark '{}' updated successfully!", form.alias);
+    let template = SuccessTemplate { message: &message };
+    Ok(Html(template.render()?))
 }
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark
@@ -330,6 +356,9 @@ pub async fn create_nested_bookmark(
     if parent.user_id != Some(current_user.0.id) {
         return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
     }
+
+    // Validate URL scheme
+    validation::validate_url_scheme(&form.url)?;
 
     let encode_query = form.encode_query.is_some();
 
@@ -358,10 +387,9 @@ pub async fn create_nested_bookmark(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
 
-    Ok(Html(format!(
-        r#"<div class="success-message">Sub-command '{}' added successfully!</div>"#,
-        form.alias
-    )))
+    let message = format!("Sub-command '{}' added successfully!", form.alias);
+    let template = SuccessTemplate { message: &message };
+    Ok(Html(template.render()?))
 }
 
 // DELETE /manage/nested/:id - Delete nested bookmark
@@ -412,46 +440,8 @@ pub async fn list_nested_bookmarks(
         .await
         .db_err()?;
 
-    let mut html = String::from("<div class='nested-commands'>");
-
-    if nested.is_empty() {
-        html.push_str("<p><em>No sub-commands yet. Add one below.</em></p>");
-    } else {
-        html.push_str("<table style='width: 100%; border-collapse: collapse;'>");
-        html.push_str("<thead><tr><th>Alias</th><th>URL/Template</th><th>Description</th><th>Actions</th></tr></thead>");
-        html.push_str("<tbody>");
-
-        for n in nested {
-            let url_display = if let Some(ref template) = n.command_template {
-                template.clone()
-            } else {
-                n.url.clone()
-            };
-
-            html.push_str(&format!(
-                "<tr id=\"nested-{}\">
-                    <td><strong>{}</strong></td>
-                    <td>{}</td>
-                    <td>{}</td>
-                    <td>
-                        <button class=\"btn-danger\"
-                                hx-delete=\"/manage/nested/{}\"
-                                hx-target=\"#nested-{}\"
-                                hx-swap=\"outerHTML\"
-                                hx-confirm=\"Delete sub-command '{}'?\">
-                            Delete
-                        </button>
-                    </td>
-                </tr>",
-                n.id, n.alias, url_display, n.description, n.id, n.id, n.alias
-            ));
-        }
-
-        html.push_str("</tbody></table>");
-    }
-
-    html.push_str("</div>");
-    Ok(Html(html))
+    let template = NestedListTemplate { nested };
+    Ok(Html(template.render()?))
 }
 
 // POST /manage/override - Disable/enable global bookmark
@@ -479,65 +469,12 @@ pub async fn toggle_global_bookmark(
         .map(|cmd| cmd.description())
         .unwrap_or("Built-in bookmark");
 
-    // Return updated table row
-    let status_html = if is_disabled {
-        "<span style=\"color: #d32f2f;\">✗ Disabled</span>"
-    } else {
-        "<span style=\"color: #4caf50;\">✓ Active</span>"
-    };
-
-    let button_html = if is_disabled {
-        format!(
-            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"margin: 0;\">
-                <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
-                <button type=\"submit\" class=\"btn-primary\">Enable</button>
-            </form>",
-            form.builtin_alias, form.builtin_alias
-        )
-    } else {
-        format!(
-            "<form hx-post=\"/manage/override\" hx-target=\"#global-{}\" hx-swap=\"outerHTML\" style=\"margin: 0;\">
-                <input type=\"hidden\" name=\"builtin_alias\" value=\"{}\">
-                <input type=\"hidden\" name=\"is_disabled\" value=\"true\">
-                <button type=\"submit\" class=\"btn-secondary\">Disable</button>
-            </form>",
-            form.builtin_alias, form.builtin_alias
-        )
-    };
-
-    Ok(Html(format!(
-        "<tr id=\"global-{}\">
-            <td>
-                <input type=\"checkbox\" class=\"global-checkbox\" value=\"{}\" onchange=\"updateGlobalSelection()\">
-            </td>
-            <td><strong>{}</strong></td>
-            <td>{}</td>
-            <td id=\"status-{}\">{}</td>
-            <td>
-                <div style=\"display: flex; gap: 0.5em; align-items: center;\">
-                    {}
-                    <form hx-post=\"/manage/fork-global\"
-                          hx-target=\"#fork-result-{}\"
-                          hx-swap=\"innerHTML\"
-                          style=\"margin: 0;\">
-                        <input type=\"hidden\" name=\"alias\" value=\"{}\">
-                        <button type=\"submit\" class=\"btn-secondary\">Fork</button>
-                    </form>
-                </div>
-                <div id=\"fork-result-{}\"></div>
-            </td>
-        </tr>",
-        form.builtin_alias,
-        form.builtin_alias,
-        form.builtin_alias,
+    let template = GlobalBookmarkRowTemplate {
+        alias: &form.builtin_alias,
         description,
-        form.builtin_alias,
-        status_html,
-        button_html,
-        form.builtin_alias,
-        form.builtin_alias,
-        form.builtin_alias
-    )))
+        is_disabled,
+    };
+    Ok(Html(template.render()?))
 }
 
 // Form structs for import/export
@@ -598,21 +535,79 @@ pub async fn import_bookmarks(
             // Fetch from URL
             let url = form.url.ok_or(AppError::BadRequest("No URL provided".to_string()))?;
 
+            // Validate URL for SSRF protection (first check)
+            validation::validate_url_for_fetch(&url)?;
+
+            // Parse URL to get host and port for DNS resolution
+            let parsed_url = url.parse::<url::Url>()
+                .map_err(|_| AppError::BadRequest("Invalid URL format".to_string()))?;
+
+            let host = parsed_url.host_str()
+                .ok_or(AppError::BadRequest("URL must have a host".to_string()))?;
+
+            let port = parsed_url.port_or_known_default()
+                .ok_or(AppError::BadRequest("Cannot determine port for URL".to_string()))?;
+
+            // Manually resolve hostname to prevent DNS rebinding attacks
+            // This ensures we validate the ACTUAL IP that will be connected to
+            let socket_addrs = tokio::net::lookup_host(format!("{}:{}", host, port))
+                .await
+                .map_err(|e| AppError::Internal(format!("DNS resolution failed: {}", e)))?
+                .collect::<Vec<_>>();
+
+            if socket_addrs.is_empty() {
+                return Err(AppError::BadRequest("Could not resolve hostname".to_string()));
+            }
+
+            // Validate ALL resolved IPs to prevent DNS rebinding
+            // An attacker could configure DNS to return multiple IPs (public + private)
+            for socket_addr in &socket_addrs {
+                validation::validate_resolved_ip(socket_addr.ip())?;
+            }
+
+            // Create a client with timeout and redirect disabled
+            // Disabling redirects helps mitigate DNS rebinding attacks where
+            // the initial request passes validation but redirects to internal IPs
+            let client = reqwest::Client::builder()
+                .timeout(std::time::Duration::from_secs(10))
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
+
             // Use reqwest to fetch URL content
-            let response = reqwest::get(&url)
+            let response = client.get(&url)
+                .send()
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to fetch URL: {}", e)))?;
 
             if !response.status().is_success() {
+                // Handle redirects explicitly - we don't follow them for security
+                if response.status().is_redirection() {
+                    return Err(AppError::BadRequest("URL redirects are not allowed for security".to_string()));
+                }
                 return Err(AppError::Internal(format!("URL returned status {}", response.status())));
             }
 
-            response.text()
+            // Stream response and limit actual bytes received (not trusting Content-Length)
+            const MAX_SIZE: usize = 1_000_000;
+            let bytes = response.bytes()
                 .await
-                .map_err(|e| AppError::Internal(format!("Failed to read URL content: {}", e)))?
+                .map_err(|e| AppError::Internal(format!("Failed to read URL content: {}", e)))?;
+
+            if bytes.len() > MAX_SIZE {
+                return Err(AppError::BadRequest("URL content too large (max 1MB)".to_string()));
+            }
+
+            String::from_utf8(bytes.to_vec())
+                .map_err(|_| AppError::BadRequest("URL content is not valid UTF-8".to_string()))?
         }
         _ => return Err(AppError::BadRequest("Invalid import source".to_string())),
     };
+
+    // Validate content size (protect against YAML bombs and large files)
+    if content.len() > 1_000_000 {
+        return Err(AppError::BadRequest("Content too large (max 1MB)".to_string()));
+    }
 
     // Select serializer
     let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match form.format.as_str() {
@@ -641,10 +636,12 @@ pub async fn import_bookmarks(
         )
     };
 
-    Ok(Html(format!(
-        r#"<div class="success-message">{} <a href="/manage">Refresh to see changes</a></div>"#,
-        message
-    )))
+    let template = SuccessWithLinkTemplate {
+        message: &message,
+        link: "/manage",
+        link_text: "Refresh to see changes",
+    };
+    Ok(Html(template.render()?))
 }
 
 // GET /manage/export - Export bookmarks
@@ -822,8 +819,11 @@ pub async fn fork_global_bookmark(
         }
     }
 
-    Ok(Html(format!(
-        r#"<div class="success-message">Forked '{}' to your personal bookmarks! <a href="/manage">Refresh to see changes</a></div>"#,
-        form.alias
-    )))
+    let message = format!("Forked '{}' to your personal bookmarks!", form.alias);
+    let template = SuccessWithLinkTemplate {
+        message: &message,
+        link: "/manage",
+        link_text: "Refresh to see changes",
+    };
+    Ok(Html(template.render()?))
 }

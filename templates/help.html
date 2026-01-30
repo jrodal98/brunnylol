@@ -12,10 +12,10 @@
         {% endif %}
         {% endif %}
     </div>
-    <div style="display: flex; align-items: center; gap: 15px;">
+    <div class="flex-center flex-gap-4">
         {% if has_user %}
         <a href="/settings">Settings</a>
-        <form method="post" action="/logout" style="margin: 0;">
+        <form method="post" action="/logout" class="m-0">
             <button type="submit">Logout</button>
         </form>
         {% else %}
@@ -27,52 +27,13 @@
 {% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="/static/css/help.css">
 
 <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
 
-<style>
-    h2 {
-        margin-top: var(--space-8);
-        color: var(--text-accent) !important;
-        font-weight: 700;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-    }
-
-    #search {
-        width: 100%;
-        padding: var(--space-3);
-        margin-bottom: var(--space-5);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-size-base);
-        background-color: var(--bg-secondary);
-        color: var(--text-primary);
-        transition: var(--transition-base);
-    }
-
-    #search:focus {
-        outline: none;
-        border-color: var(--gradient-start);
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-        background-color: var(--bg-elevated);
-    }
-
-    .command {
-        display: flex;
-        align-items: center;
-        margin-bottom: var(--space-2);
-    }
-
-    .command-key {
-        font-weight: 600;
-        margin-right: var(--space-2);
-        color: var(--text-primary);
-    }
-</style>
-
 <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
 
-<input type="text" id="search" onkeyup="searchTable()" placeholder="Search for aliases..">
+<input type="text" id="search" placeholder="Search for aliases..">
 
 {% if !personal_aliases.is_empty() %}
 <h2>Your Personal Bookmarks</h2>
@@ -104,11 +65,11 @@
         <th>Description</th>
     </tr>
     {% for (alias, description_parts, is_disabled) in alias_to_description %}
-    <tr {% if is_disabled %}style="opacity: 0.5; text-decoration: line-through;"{% endif %}>
+    <tr {% if is_disabled %}class="disabled-row"{% endif %}>
         <td>
             {{ alias }}
             {% if is_disabled %}
-            <span style="color: #dc3545; font-size: 11px; margin-left: 5px;">(disabled)</span>
+            <span class="disabled-badge">(disabled)</span>
             {% endif %}
         </td>
         <td>
@@ -122,37 +83,7 @@
     {% endfor %}
 </table>
 
-<script>
-function searchTable() {
-  var input, filter;
-  input = document.getElementById("search");
-  filter = input.value.toUpperCase();
-
-  // Search both personal and global tables
-  var tables = ["personal-aliases", "aliases"];
-
-  tables.forEach(function(tableId) {
-    var table = document.getElementById(tableId);
-    if (!table) return;
-
-    var tr = table.getElementsByTagName("tr");
-
-    for (var i = 0; i < tr.length; i++) {
-      var td1 = tr[i].getElementsByTagName("td")[0];
-      var td2 = tr[i].getElementsByTagName("td")[1];
-      if (td1 || td2) {
-        var txtValue1 = td1 ? (td1.textContent || td1.innerText) : "";
-        var txtValue2 = td2 ? (td2.textContent || td2.innerText) : "";
-        if ((txtValue1.toUpperCase().indexOf(filter) > -1) || (txtValue2.toUpperCase().indexOf(filter) > -1)) {
-          tr[i].style.display = "";
-        } else {
-          tr[i].style.display = "none";
-        }
-      }
-    }
-  });
-}
-</script>
+<script src="/static/js/help.js"></script>
 
 </div>
 {% endblock %}

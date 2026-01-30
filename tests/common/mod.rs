@@ -5,7 +5,7 @@ use sqlx::SqlitePool;
 /// Set up an in-memory SQLite database for testing
 #[allow(dead_code)]
 pub async fn setup_test_db() -> SqlitePool {
-    let pool = SqlitePool::connect("sqlite::memory:")
+    let pool = SqlitePool::connect(":memory:")
         .await
         .expect("Failed to create in-memory database");
 
@@ -95,6 +95,6 @@ pub async fn create_regular_user(pool: &SqlitePool, username: &str) -> (i64, Str
 #[allow(dead_code)]
 pub async fn create_test_app() -> axum::Router {
     // Use in-memory database for testing
-    std::env::set_var("DATABASE_URL", "sqlite::memory:");
+    std::env::set_var("BRUNNYLOL_DB", ":memory:");
     brunnylol::create_router().await
 }

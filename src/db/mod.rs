@@ -11,8 +11,8 @@ use std::collections::HashMap;
 pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
     let database_url = format!("sqlite:{}", db_path);
 
-    // Create the database file if it doesn't exist
-    if !std::path::Path::new(db_path).exists() {
+    // Create the database file if it doesn't exist (skip for in-memory databases)
+    if db_path != ":memory:" && !std::path::Path::new(db_path).exists() {
         std::fs::File::create(db_path)?;
     }
 

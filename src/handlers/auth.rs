@@ -10,6 +10,36 @@ use serde::Deserialize;
 use std::sync::Arc;
 
 use crate::{auth, auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
+use super::common::{ErrorTemplate, SuccessTemplate, SuccessWithLinkTemplate};
+
+/// Build a secure session cookie with consistent settings
+fn build_session_cookie(session_id: String) -> Cookie<'static> {
+    #[allow(unused_mut)]
+    let mut cookie_builder = Cookie::build(("session_id", session_id))
+        .path("/")
+        .http_only(true)
+        .same_site(axum_extra::extract::cookie::SameSite::Strict) // CSRF protection
+        .max_age(time::Duration::days(3650)); // 10 years - essentially permanent
+
+    // Only set Secure flag in release builds (production)
+    #[cfg(not(debug_assertions))]
+    {
+        cookie_builder = cookie_builder.secure(true);
+    }
+
+    cookie_builder.build()
+}
+
+/// Sanitize return_to URL to prevent open redirects
+/// Only allows relative paths starting with / and no protocol handlers
+fn sanitize_return_url(url: &str) -> String {
+    // Only allow relative paths, no protocol handlers or protocol-relative URLs
+    if url.starts_with('/') && !url.contains("://") && !url.starts_with("//") {
+        url.to_string()
+    } else {
+        "/manage".to_string()
+    }
+}
 
 // Template structs
 #[derive(Template)]
@@ -57,7 +87,7 @@ pub async fn login_page(
         return Ok(Redirect::to("/manage").into_response());
     }
 
-    let return_to = query.return_to.unwrap_or_else(|| "/manage".to_string());
+    let return_to = sanitize_return_url(&query.return_to.unwrap_or_else(|| "/manage".to_string()));
     let template = LoginTemplate {
         error: String::new(),
         return_to,
@@ -85,7 +115,7 @@ pub async fn login_submit(
 
     if !valid {
         // Return login page with error, preserve return_to
-        let return_to = form.return_to.unwrap_or_else(|| "/manage".to_string());
+        let return_to = sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
         let template = LoginTemplate {
             error: "Invalid username or password".to_string(),
             return_to,
@@ -98,15 +128,9 @@ pub async fn login_submit(
         .await
         .map_err(|e| AppError::Internal(format!("Session creation error: {}", e)))?;
 
-    // Set secure cookie and return with redirect
-    let cookie = Cookie::build(("session_id", session_id.clone()))
-        .path("/")
-        .http_only(true)
-        .max_age(time::Duration::days(3650)) // 10 years - essentially permanent
-        .build();
-
-    // Redirect to the original page or /manage if no return_to
-    let redirect_url = form.return_to.unwrap_or_else(|| "/manage".to_string());
+    // Set secure cookie and redirect
+    let cookie = build_session_cookie(session_id);
+    let redirect_url = sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
     Ok((jar.add(cookie), Redirect::to(&redirect_url)).into_response())
 }
 
@@ -200,13 +224,8 @@ pub async fn register_submit(
         .await
         .map_err(|e| AppError::Internal(format!("Session creation error: {}", e)))?;
 
-    // Set secure cookie and return with redirect
-    let cookie = Cookie::build(("session_id", session_id.clone()))
-        .path("/")
-        .http_only(true)
-        .max_age(time::Duration::days(3650)) // 10 years - essentially permanent
-        .build();
-
+    // Set secure cookie and redirect to manage page
+    let cookie = build_session_cookie(session_id);
     Ok((jar.add(cookie), Redirect::to("/manage")).into_response())
 }
 
@@ -275,7 +294,8 @@ pub async fn change_username(
 ) -> Result<impl IntoResponse, AppError> {
     // Validate new username
     if let Err(e) = auth::validate_username(&form.new_username) {
-        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+        let template = ErrorTemplate { message: &e.to_string() };
+        return Ok(Html(template.render()?));
     }
 
     // Update username in database
@@ -292,10 +312,13 @@ pub async fn change_username(
             }
         })?;
 
-    Ok(Html(format!(
-        r#"<div class="success-message">Username updated to '{}'! Please <a href="/logout">log out</a> and log back in.</div>"#,
-        form.new_username
-    )))
+    let message = format!("Username updated to '{}'! Please", form.new_username);
+    let template = SuccessWithLinkTemplate {
+        message: &message,
+        link: "/logout",
+        link_text: "log out",
+    };
+    Ok(Html(template.render()?))
 }
 
 // POST /settings/password - Change password
@@ -317,21 +340,20 @@ pub async fn change_password(
         .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?;
 
     if !valid {
-        return Ok(Html(
-            r#"<div style="color: #d32f2f;">Current password is incorrect</div>"#.to_string()
-        ));
+        let template = ErrorTemplate { message: "Current password is incorrect" };
+        return Ok(Html(template.render()?));
     }
 
     // Validate new passwords match
-    if let Err(_) = validation::validate_passwords_match(&form.new_password, &form.confirm_password) {
-        return Ok(Html(
-            r#"<div style="color: #d32f2f;">New passwords do not match</div>"#.to_string()
-        ));
+    if validation::validate_passwords_match(&form.new_password, &form.confirm_password).is_err() {
+        let template = ErrorTemplate { message: "New passwords do not match" };
+        return Ok(Html(template.render()?));
     }
 
     // Validate new password strength
     if let Err(e) = auth::validate_password(&form.new_password) {
-        return Ok(Html(format!(r#"<div style="color: #d32f2f;">{}</div>"#, e)));
+        let template = ErrorTemplate { message: &e.to_string() };
+        return Ok(Html(template.render()?));
     }
 
     // Hash new password
@@ -351,9 +373,12 @@ pub async fn change_password(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to invalidate sessions: {}", e)))?;
 
-    Ok(Html(
-        r#"<div class="success-message">Password updated successfully! You have been logged out. Please <a href="/login">log in again</a>.</div>"#.to_string()
-    ))
+    let template = SuccessWithLinkTemplate {
+        message: "Password updated successfully! You have been logged out. Please",
+        link: "/login",
+        link_text: "log in again",
+    };
+    Ok(Html(template.render()?))
 }
 
 // POST /settings/default-alias - Change default alias for unknown aliases
@@ -375,13 +400,11 @@ pub async fn change_default_alias(
         .db_err()?;
 
     let message = if let Some(alias) = default_alias {
-        format!(
-            r#"<div class="success-message">Default alias set to '{}'. Unknown aliases will now redirect to this bookmark.</div>"#,
-            alias
-        )
+        format!("Default alias set to '{}'. Unknown aliases will now redirect to this bookmark.", alias)
     } else {
-        r#"<div class="success-message">Default alias cleared. Unknown aliases will now show a 404 error.</div>"#.to_string()
+        "Default alias cleared. Unknown aliases will now show a 404 error.".to_string()
     };
 
-    Ok(Html(message))
+    let template = SuccessTemplate { message: &message };
+    Ok(Html(template.render()?))
 }

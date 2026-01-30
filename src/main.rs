@@ -24,7 +24,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Listening on http://{}", addr);
 
     let app = brunnylol::create_router().await;
-    axum::serve(listener, app).await?;
+
+    // Enable ConnectInfo to get real client IP for rate limiting
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>()
+    ).await?;
 
     Ok(())
 }

@@ -43,3 +43,6 @@ CREATE TABLE IF NOT EXISTS nested_bookmarks (
 CREATE INDEX IF NOT EXISTS idx_bookmarks_scope_user ON bookmarks(scope, user_id);
 CREATE INDEX IF NOT EXISTS idx_bookmarks_alias ON bookmarks(alias);
 CREATE INDEX IF NOT EXISTS idx_nested_bookmarks_parent ON nested_bookmarks(parent_bookmark_id);
+
+-- Mark this migration as applied
+INSERT OR IGNORE INTO schema_migrations (version) VALUES (4);
