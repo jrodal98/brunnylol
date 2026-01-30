@@ -1,6 +1,6 @@
 extern crate clap;
 
-mod domain;
+pub mod domain;
 pub mod config;
 mod error;
 pub mod db;
