@@ -151,7 +151,7 @@ fn parse_named_variables(query: &str) -> (HashMap<String, String>, Option<String
 
 // Application state
 pub struct AppState {
-    pub alias_to_bookmark_map: HashMap<String, Command>,
+    pub alias_to_bookmark_map: Arc<tokio::sync::RwLock<HashMap<String, Command>>>,
     pub default_alias: String,
     pub db_pool: SqlitePool,
     pub bookmark_service: std::sync::Arc<services::bookmark_service::BookmarkService>,
@@ -214,8 +214,8 @@ async fn help(
     };
 
     // Pre-process global descriptions with disabled status
-    let alias_to_description: Vec<(String, Vec<String>, bool)> = state
-        .alias_to_bookmark_map
+    let bookmark_map = state.alias_to_bookmark_map.read().await;
+    let alias_to_description: Vec<(String, Vec<String>, bool)> = bookmark_map
         .iter()
         .map(|(alias, cmd)| {
             let parts = split_command_description(&cmd.description());
@@ -274,6 +274,7 @@ async fn redirect(
     };
 
     // Try user bookmarks first (if logged in), then global bookmarks (if not disabled)
+    let bookmark_map = state.alias_to_bookmark_map.read().await;
     let command = user_bookmarks
         .as_ref()
         .and_then(|user_map| user_map.get(bookmark_alias))
@@ -282,12 +283,12 @@ async fn redirect(
             if disabled_globals.contains(bookmark_alias) {
                 None
             } else {
-                state.alias_to_bookmark_map.get(bookmark_alias)
+                bookmark_map.get(bookmark_alias)
             }
-        });
+        }).cloned();
 
     let redirect_url = match command {
-        Some(Command::Variable { base_url, template, .. }) => {
+        Some(Command::Variable { ref base_url, ref template, .. }) => {
             // Handle named mode
             if matches!(usage_mode, UsageMode::Named) {
                 let (mut vars, remaining) = parse_named_variables(query);
@@ -341,9 +342,9 @@ async fn redirect(
                     if disabled_globals.contains(default_alias) {
                         None
                     } else {
-                        state.alias_to_bookmark_map.get(default_alias)
+                        bookmark_map.get(default_alias)
                     }
-                });
+                }).cloned();
 
             default_command
                 .map(|cmd| cmd.get_redirect_url(&params.q))
@@ -432,7 +433,7 @@ pub async fn create_router() -> Router {
         .expect("Failed to load global bookmarks");
 
     let state = Arc::new(AppState {
-        alias_to_bookmark_map,
+        alias_to_bookmark_map: Arc::new(tokio::sync::RwLock::new(alias_to_bookmark_map)),
         default_alias,
         db_pool: db_pool.clone(),
         bookmark_service,
@@ -482,6 +483,7 @@ pub async fn create_router() -> Router {
         .route("/admin", get(handlers::admin::admin_page))
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
         .route("/admin/create-user", post(handlers::admin::create_user))
+        .route("/admin/reload-global", post(handlers::admin::reload_global_bookmarks))
 
         // Serve static files (JavaScript, CSS, etc.)
         .nest_service("/static", ServeDir::new("static"))

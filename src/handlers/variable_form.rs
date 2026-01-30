@@ -50,10 +50,12 @@ pub async fn show_variable_form(
         if let Some(ref map) = user_bookmarks {
             map.get(&alias).cloned()
         } else {
-            state.alias_to_bookmark_map.get(&alias).cloned()
+            let bookmark_map = state.alias_to_bookmark_map.read().await;
+            bookmark_map.get(&alias).cloned()
         }
     } else {
-        state.alias_to_bookmark_map.get(&alias).cloned()
+        let bookmark_map = state.alias_to_bookmark_map.read().await;
+        bookmark_map.get(&alias).cloned()
     };
 
     let command = command.ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", alias)))?;
@@ -121,10 +123,12 @@ pub async fn submit_variable_form(
         if let Some(ref map) = user_bookmarks {
             map.get(&alias).cloned()
         } else {
-            state.alias_to_bookmark_map.get(&alias).cloned()
+            let bookmark_map = state.alias_to_bookmark_map.read().await;
+            bookmark_map.get(&alias).cloned()
         }
     } else {
-        state.alias_to_bookmark_map.get(&alias).cloned()
+        let bookmark_map = state.alias_to_bookmark_map.read().await;
+        bookmark_map.get(&alias).cloned()
     };
 
     match command {

@@ -163,9 +163,10 @@ pub async fn manage_page(
     let mut global_bookmarks = Vec::new();
     let mut conflicts = Vec::new();
 
-    for (alias, command) in state.alias_to_bookmark_map.iter() {
-        let is_overridden = user_aliases.contains(alias);
-        let is_disabled = disabled_aliases.contains(alias);
+    let bookmark_map = state.alias_to_bookmark_map.read().await;
+    for (alias, command) in bookmark_map.iter() {
+        let is_overridden = user_aliases.contains(alias.as_str());
+        let is_disabled = disabled_aliases.contains(alias.as_str());
 
         // Only show conflict if overridden AND not disabled
         if is_overridden && !is_disabled {
@@ -464,7 +465,8 @@ pub async fn toggle_global_bookmark(
     .map_err(|e| AppError::Internal(format!("Failed to update override: {}", e)))?;
 
     // Get description from command map
-    let description = state.alias_to_bookmark_map
+    let bookmark_map = state.alias_to_bookmark_map.read().await;
+    let description = bookmark_map
         .get(&form.builtin_alias)
         .map(|cmd| cmd.description())
         .unwrap_or("Built-in bookmark");

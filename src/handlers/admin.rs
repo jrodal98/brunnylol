@@ -134,3 +134,25 @@ pub async fn create_user(
     };
     Ok(Html(template.render()?))
 }
+
+// POST /admin/reload-global - Reload global bookmarks from database
+pub async fn reload_global_bookmarks(
+    _admin_user: AdminUser,
+    State(state): State<Arc<crate::AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    // Reload bookmarks from database
+    let new_map = state.bookmark_service
+        .load_global_bookmarks()
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
+
+    // Atomic swap with write lock
+    let mut write_lock = state.alias_to_bookmark_map.write().await;
+    *write_lock = new_map;
+    drop(write_lock);
+
+    let template = SuccessTemplate {
+        message: "Global bookmarks reloaded successfully",
+    };
+    Ok(Html(template.render()?))
+}
