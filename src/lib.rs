@@ -339,6 +339,9 @@ pub async fn create_router() -> Router {
         .route("/settings/password", post(handlers::auth::change_password))
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
 
+        // Variable form routes
+        .route("/f/{alias}", get(handlers::variable_form::show_variable_form))
+
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))

@@ -8,6 +8,7 @@ mod parser;
 mod pipeline;
 mod resolver;
 mod variable;
+pub mod form_builder;
 
 pub use ast::{PipelineOp, Template, TemplatePart, VariableExpr};
 pub use parser::TemplateParser;
