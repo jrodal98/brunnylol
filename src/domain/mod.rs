@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+pub mod template;
+
 // Domain model for bookmark commands
 // Uses enum instead of trait for better performance (no heap allocation, no vtable dispatch)
 
