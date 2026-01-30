@@ -17,6 +17,12 @@ pub enum Command {
         description: String,
         encode_query: bool,
     },
+    Variable {
+        base_url: String,
+        template: template::Template,  // Parsed AST
+        description: String,
+        metadata: Option<template::TemplateMetadata>,
+    },
     Nested {
         children: HashMap<String, Command>,
         description: String,
@@ -28,6 +34,7 @@ impl Command {
         match self {
             Command::Simple { description, .. } => description,
             Command::Templated { description, .. } => description,
+            Command::Variable { description, .. } => description,
             Command::Nested { description, .. } => description,
         }
     }
@@ -47,6 +54,29 @@ impl Command {
                     };
                     template.replace("{}", &query_encoded)
                 }
+            }
+            Command::Variable { base_url, template, .. } => {
+                // For variable templates, map query to variables
+                // Simple implementation: map query to "query" variable or first variable
+                if query.trim().is_empty() {
+                    return base_url.clone();
+                }
+
+                let mut vars = HashMap::new();
+
+                // Check if template has a "query" variable
+                let has_query_var = template.variables().iter().any(|v| v.name == "query");
+
+                if has_query_var {
+                    vars.insert("query".to_string(), query.to_string());
+                } else if let Some(first_var) = template.variables().first() {
+                    // Map to first variable
+                    vars.insert(first_var.name.clone(), query.to_string());
+                }
+
+                // Use resolver to expand template
+                let resolver = template::TemplateResolver::new();
+                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
             }
             Command::Nested { children, .. } => {
                 let parts: Vec<&str> = query.splitn(2, ' ').collect();

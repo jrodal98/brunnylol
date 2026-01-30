@@ -1,20 +1,20 @@
 ---
 active: true
 iteration: 1
-max_iterations: 10
+max_iterations: 100
 completion_promise: "I can honestly say that I have completed the job"
-auto_fix: false
+auto_fix: true
 report_base: "execute-on-all-phases-of-the-plan-an-iteration-sh"
 report_dir: "/tmp"
-timestamp: "20260130-145449"
+timestamp: "20260130-151450"
 session_id: "pending"
-started_at: "2026-01-30T22:54:49Z"
+started_at: "2026-01-30T23:14:50Z"
 ---
 
 Execute on all phases of the plan. An iteration should not stop until all phases are address and cargo test is passing all tests.
 
 [RALPH LOOP INSTRUCTIONS]:
-1. SINGLE CUMULATIVE REPORT: /tmp/ralph-execute-on-all-phases-of-the-plan-an-iteration-sh-20260130-145449-report.md
+1. SINGLE CUMULATIVE REPORT: /tmp/ralph-execute-on-all-phases-of-the-plan-an-iteration-sh-20260130-151450-report.md
 2. Each iteration UPDATES the same file with:
    - Validation of ALL previous findings (check accuracy, completeness)
    - New findings from current iteration
@@ -41,12 +41,13 @@ In Iteration 1, you MUST include a complexity assessment in the report:
 
 This helps calibrate expectations and catch runaway loops early.
 
-🔒 REPORT-ONLY MODE (--auto-fix not specified):
-- DO NOT make any changes to files
-- ONLY report and document issues found
-- Propose fixes but DO NOT implement them
-- All issues remain as ⏳ PENDING VALIDATION (never fixed)
-- This is useful for review/audit tasks where you want analysis without modifications
+⚠️  AUTO-FIX MODE ENABLED:
+- You MAY implement fixes for confirmed issues
+- VALIDATE-BEFORE-FIX RULE still applies:
+  - NEVER fix a problem in the same iteration it was discovered!
+  - NEW problems: Document as ⏳ PENDING VALIDATION, propose fix, do NOT implement
+  - NEXT iteration: RE-CHECK source code, if confirmed → ✅ CONFIRMED → implement fix
+  - This prevents fixing hallucinated problems or implementing incorrect fixes
 
 [CUMULATIVE REPORT FORMAT - APPEND MODE]:
 The report is structured chronologically with oldest first, newest at bottom.
@@ -63,7 +64,7 @@ A FINAL SUMMARY section at the end consolidates all findings.
 
 ## Iteration Log (APPEND MODE - oldest first, newest at bottom)
 
-### Iteration 1 (2026-01-30T22:54:49Z)
+### Iteration 1 (2026-01-30T23:14:50Z)
 
 #### Work Completed
 [What you discovered/accomplished]
@@ -109,8 +110,8 @@ CRITICAL RULES FOR REPORT UPDATES:
 5. Mark findings with confidence: ✅ HIGH/MEDIUM/LOW CONFIDENCE | 🔄 Corrected | ❌ Invalid | ⏳ Pending
 6. If report exceeds 500KB, summarize OLDEST iterations at the top (keep newest detailed)
 
-🔒 REPORT-ONLY MODE RULES:
-7. DO NOT modify any files - only report issues
-8. ALL problems stay as ⏳ PENDING VALIDATION (never implement fixes)
-9. Document proposed fixes in the report but DO NOT implement them
-10. This mode is for review/audit only - no changes allowed
+⚠️  VALIDATE-BEFORE-FIX RULE (AUTO-FIX MODE):
+7. NEVER fix a problem in the same iteration it was discovered
+8. NEW problems → ⏳ PENDING VALIDATION (propose fix, do NOT implement)
+9. NEXT iteration → RE-CHECK source, if real → ✅ CONFIRMED → implement fix
+10. After implementing a fix, it MUST be validated in at least 2 subsequent iterations before completion
