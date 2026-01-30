@@ -1187,3 +1187,4 @@ async fn test_e2e_fork_global_bookmarks() {
 
     app.stop().await;
 }
+

@@ -67,8 +67,8 @@ fn parse_alias_and_mode(input: &str) -> (&str, UsageMode) {
         return (input, UsageMode::Direct);
     }
 
-    // Check for ?$ suffix (chained mode)
-    if input.ends_with("?$") {
+    // Check for ?$ or $? suffix (chained mode - both orders)
+    if input.ends_with("?$") || input.ends_with("$?") {
         return (&input[..input.len() - 2], UsageMode::Chained);
     }
 
@@ -105,17 +105,37 @@ fn parse_named_variables(query: &str) -> (HashMap<String, String>, Option<String
 
             // Parse the value (quoted or until semicolon/end)
             let (value, rest) = if remaining.trim_start().starts_with('"') {
-                // Quoted value
+                // Quoted value with escape support
                 remaining = remaining.trim_start();
                 remaining = &remaining[1..]; // Skip opening quote
 
-                if let Some(close_quote) = remaining.find('"') {
-                    let val = remaining[..close_quote].to_string();
-                    let rest = &remaining[close_quote + 1..];
-                    (val, rest)
+                let mut value = String::new();
+                let mut chars = remaining.chars();
+                let mut escaped = false;
+                let mut bytes_consumed = 0;
+                let mut found_close = false;
+
+                while let Some(ch) = chars.next() {
+                    bytes_consumed += ch.len_utf8();
+                    if escaped {
+                        value.push(ch);
+                        escaped = false;
+                    } else if ch == '\\' {
+                        escaped = true;
+                    } else if ch == '"' {
+                        // Found closing quote
+                        found_close = true;
+                        break;
+                    } else {
+                        value.push(ch);
+                    }
+                }
+
+                if found_close {
+                    (value, &remaining[bytes_consumed..])
                 } else {
-                    // No closing quote, take everything
-                    (remaining.to_string(), "")
+                    // No closing quote found
+                    (value, "")
                 }
             } else {
                 // Unquoted value until semicolon
@@ -477,7 +497,8 @@ pub async fn create_router() -> Router {
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
 
         // Variable form routes
-        .route("/f/{alias}", get(handlers::variable_form::show_variable_form))
+        .route("/f/{alias}", get(handlers::variable_form::show_variable_form)
+                             .post(handlers::variable_form::submit_variable_form))
 
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))

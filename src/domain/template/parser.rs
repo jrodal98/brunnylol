@@ -211,11 +211,11 @@ impl TemplateParser {
     }
 
     fn peek_char(&self) -> Option<char> {
-        self.input.chars().nth(self.pos)
+        self.input[self.pos..].chars().next()
     }
 
     fn peek_ahead(&self, offset: usize) -> Option<char> {
-        self.input.chars().nth(self.pos + offset)
+        self.input[self.pos..].chars().nth(offset)
     }
 
     fn consume_char(&mut self) -> char {

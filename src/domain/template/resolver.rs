@@ -38,24 +38,16 @@ impl TemplateResolver {
 
                     match value {
                         Some(mut val) => {
-                            // Apply default encoding unless explicitly disabled
-                            let should_encode = !var_expr
-                                .pipelines
-                                .iter()
-                                .any(|p| matches!(p, PipelineOp::NoEncode));
-
                             // Apply pipeline operations
                             for pipeline_op in &var_expr.pipelines {
                                 val = self.apply_pipeline(&val, pipeline_op)?;
                             }
 
-                            // Apply encoding by default if no explicit encode/noencode
-                            if should_encode
-                                && !var_expr
-                                    .pipelines
-                                    .iter()
-                                    .any(|p| matches!(p, PipelineOp::Encode))
-                            {
+                            // Apply default encoding ONLY if no encoding-related pipeline exists
+                            let has_encoding_pipeline = var_expr.pipelines.iter()
+                                .any(|p| matches!(p, PipelineOp::Encode | PipelineOp::NoEncode));
+
+                            if !has_encoding_pipeline {
                                 val = urlencoding::encode(&val).to_string();
                             }
 

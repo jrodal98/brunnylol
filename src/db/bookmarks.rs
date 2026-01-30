@@ -24,6 +24,29 @@ fn is_variable_template(template: &str) -> bool {
         || template.contains('|')
 }
 
+// Create a Command::Variable from template string
+fn create_variable_command(
+    template_str: &str,
+    base_url: String,
+    description: String,
+    variable_metadata: Option<&String>,
+) -> Result<Command> {
+    let parsed_template = crate::domain::template::TemplateParser::parse(template_str)?;
+
+    let metadata = if let Some(ref json) = variable_metadata {
+        serde_json::from_str(json).ok()
+    } else {
+        Some(crate::domain::template::TemplateMetadata::from_template(&parsed_template))
+    };
+
+    Ok(Command::Variable {
+        base_url,
+        template: parsed_template,
+        description,
+        metadata,
+    })
+}
+
 // Convert a unified database bookmark to a Command enum (v2 API)
 pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> Result<Command> {
     match bookmark.bookmark_type.as_str() {
@@ -38,22 +61,12 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
 
             // Check if this is a variable template
             if is_variable_template(template) {
-                // Parse template
-                let parsed_template = crate::domain::template::TemplateParser::parse(template)?;
-
-                // Deserialize metadata if present
-                let metadata = if let Some(ref json) = bookmark.variable_metadata {
-                    serde_json::from_str(json).ok()
-                } else {
-                    Some(crate::domain::template::TemplateMetadata::from_template(&parsed_template))
-                };
-
-                Ok(Command::Variable {
-                    base_url: bookmark.url.clone(),
-                    template: parsed_template,
-                    description: bookmark.description.clone(),
-                    metadata,
-                })
+                create_variable_command(
+                    template,
+                    bookmark.url.clone(),
+                    bookmark.description.clone(),
+                    bookmark.variable_metadata.as_ref(),
+                )
             } else {
                 // Simple template with just {query}
                 Ok(Command::Templated {
@@ -71,19 +84,12 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
                 let nested_cmd = if let Some(template) = &nested_bm.command_template {
                     // Check if variable template
                     if is_variable_template(template) {
-                        let parsed_template = crate::domain::template::TemplateParser::parse(template)?;
-                        let metadata = if let Some(ref json) = nested_bm.variable_metadata {
-                            serde_json::from_str(json).ok()
-                        } else {
-                            Some(crate::domain::template::TemplateMetadata::from_template(&parsed_template))
-                        };
-
-                        Command::Variable {
-                            base_url: nested_bm.url.clone(),
-                            template: parsed_template,
-                            description: nested_bm.description.clone(),
-                            metadata,
-                        }
+                        create_variable_command(
+                            template,
+                            nested_bm.url.clone(),
+                            nested_bm.description.clone(),
+                            nested_bm.variable_metadata.as_ref(),
+                        )?
                     } else {
                         Command::Templated {
                             base_url: nested_bm.url.clone(),
