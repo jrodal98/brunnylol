@@ -84,6 +84,71 @@ fn parse_alias_and_mode(input: &str) -> (&str, UsageMode) {
     }
 }
 
+// Parse named variables from query string
+// Example: "$page=home; $repo=rust; rest of query" -> ({page: "home", repo: "rust"}, Some("rest of query"))
+fn parse_named_variables(query: &str) -> (HashMap<String, String>, Option<String>) {
+    let mut variables = HashMap::new();
+    let mut remaining = query;
+
+    loop {
+        remaining = remaining.trim_start();
+
+        // Check if starts with $
+        if !remaining.starts_with('$') {
+            break;
+        }
+
+        // Find the variable name (between $ and =)
+        if let Some(eq_pos) = remaining.find('=') {
+            let var_name = remaining[1..eq_pos].trim().to_string();
+            remaining = &remaining[eq_pos + 1..];
+
+            // Parse the value (quoted or until semicolon/end)
+            let (value, rest) = if remaining.trim_start().starts_with('"') {
+                // Quoted value
+                remaining = remaining.trim_start();
+                remaining = &remaining[1..]; // Skip opening quote
+
+                if let Some(close_quote) = remaining.find('"') {
+                    let val = remaining[..close_quote].to_string();
+                    let rest = &remaining[close_quote + 1..];
+                    (val, rest)
+                } else {
+                    // No closing quote, take everything
+                    (remaining.to_string(), "")
+                }
+            } else {
+                // Unquoted value until semicolon
+                if let Some(semi) = remaining.find(';') {
+                    let val = remaining[..semi].trim().to_string();
+                    (val, &remaining[semi + 1..])
+                } else {
+                    (remaining.trim().to_string(), "")
+                }
+            };
+
+            variables.insert(var_name, value);
+            remaining = rest;
+
+            // Skip semicolon if present
+            remaining = remaining.trim_start();
+            if remaining.starts_with(';') {
+                remaining = &remaining[1..];
+            }
+        } else {
+            break;
+        }
+    }
+
+    let remaining_query = if remaining.is_empty() {
+        None
+    } else {
+        Some(remaining.trim().to_string())
+    };
+
+    (variables, remaining_query)
+}
+
 // Application state
 pub struct AppState {
     pub alias_to_bookmark_map: HashMap<String, Command>,
@@ -222,6 +287,36 @@ async fn redirect(
         });
 
     let redirect_url = match command {
+        Some(Command::Variable { base_url, template, .. }) => {
+            // Handle named mode
+            if matches!(usage_mode, UsageMode::Named) {
+                let (mut vars, remaining) = parse_named_variables(query);
+
+                // Add remaining query to "query" variable if it exists
+                if let Some(rem) = remaining {
+                    if !rem.is_empty() {
+                        vars.insert("query".to_string(), rem);
+                    }
+                }
+
+                let resolver = domain::template::TemplateResolver::new();
+                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
+            } else {
+                // Direct mode - use existing simple mapping
+                let mut vars = HashMap::new();
+                if !query.trim().is_empty() {
+                    let has_query_var = template.variables().iter().any(|v| v.name == "query");
+                    if has_query_var {
+                        vars.insert("query".to_string(), query.to_string());
+                    } else if let Some(first_var) = template.variables().first() {
+                        vars.insert(first_var.name.clone(), query.to_string());
+                    }
+                }
+
+                let resolver = domain::template::TemplateResolver::new();
+                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
+            }
+        }
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => {
             // Check if user has a custom default alias preference
