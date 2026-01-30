@@ -71,6 +71,48 @@ pub fn validate_template(template: &str) -> Result<(), AppError> {
     Ok(())
 }
 
+/// Validate variable template syntax (RFC 6570-style)
+///
+/// Returns Ok(()) if valid, Err(AppError::BadRequest) if invalid
+pub fn validate_variable_template(template: &str) -> Result<(), AppError> {
+    // Parse template to validate syntax
+    let parsed = crate::domain::template::TemplateParser::parse(template)
+        .map_err(|e| AppError::BadRequest(format!("Invalid template syntax: {}", e)))?;
+
+    // Validate URL scheme
+    validate_url_scheme(template)?;
+
+    // Disallow multiple {} or {query} placeholders
+    let query_vars = parsed
+        .variables()
+        .iter()
+        .filter(|v| v.name == "query")
+        .count();
+
+    if query_vars > 1 {
+        return Err(AppError::BadRequest(
+            "Template cannot have multiple {} or {query} placeholders".to_string(),
+        ));
+    }
+
+    // Validate variable names (alphanumeric + underscore only)
+    for var in parsed.variables() {
+        if var.name != "query" && !is_valid_variable_name(&var.name) {
+            return Err(AppError::BadRequest(format!(
+                "Invalid variable name '{}': must contain only letters, numbers, and underscores",
+                var.name
+            )));
+        }
+    }
+
+    Ok(())
+}
+
+/// Check if a variable name is valid (alphanumeric + underscore)
+fn is_valid_variable_name(name: &str) -> bool {
+    !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_')
+}
+
 /// Validate that a URL has a safe scheme (http or https only)
 ///
 /// Returns Ok(()) if valid, Err(AppError::BadRequest) if invalid
