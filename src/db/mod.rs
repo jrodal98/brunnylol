@@ -53,6 +53,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to run migration 004")?;
 
+    // Run migration 005 (variable templates)
+    let migration_sql_5 = include_str!("../../migrations/005_variable_templates.sql");
+    let _ = sqlx::query(migration_sql_5)
+        .execute(&pool)
+        .await;
+
     Ok(pool)
 }
 
@@ -228,6 +234,7 @@ pub struct Bookmark {
     pub command_template: Option<String>,
     pub encode_query: bool,
     pub created_by: Option<i64>,  // Track who created global bookmarks
+    pub variable_metadata: Option<String>,  // JSON metadata for template variables
 }
 
 impl Bookmark {
@@ -252,11 +259,12 @@ pub struct NestedBookmark {
     pub command_template: Option<String>,
     pub encode_query: bool,
     pub display_order: i32,
+    pub variable_metadata: Option<String>,  // JSON metadata for template variables
 }
 
 pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Result<Option<NestedBookmark>> {
     let nested = sqlx::query_as::<_, NestedBookmark>(
-        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order, variable_metadata
          FROM nested_bookmarks
          WHERE id = ?"
     )
@@ -386,7 +394,7 @@ pub async fn get_bookmarks(
     scope: BookmarkScope,
 ) -> Result<Vec<Bookmark>> {
     let bookmarks = sqlx::query_as::<_, Bookmark>(
-        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by, variable_metadata
          FROM bookmarks
          WHERE scope = ? AND (user_id = ? OR user_id IS NULL)
          ORDER BY alias"
@@ -405,7 +413,7 @@ pub async fn get_bookmark_by_id(
     bookmark_id: i64,
 ) -> Result<Option<Bookmark>> {
     let bookmark = sqlx::query_as::<_, Bookmark>(
-        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by
+        "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, encode_query, created_by, variable_metadata
          FROM bookmarks
          WHERE id = ?"
     )
@@ -471,7 +479,7 @@ pub async fn get_nested_bookmarks(
     parent_bookmark_id: i64,
 ) -> Result<Vec<NestedBookmark>> {
     let nested = sqlx::query_as::<_, NestedBookmark>(
-        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+        "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order, variable_metadata
          FROM nested_bookmarks
          WHERE parent_bookmark_id = ?
          ORDER BY display_order, alias"
@@ -559,7 +567,7 @@ pub async fn get_bookmarks_with_nested(
         // Build query with IN clause
         let placeholders = bookmark_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let query_str = format!(
-            "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order
+            "SELECT id, parent_bookmark_id, alias, url, description, command_template, encode_query, display_order, variable_metadata
              FROM nested_bookmarks
              WHERE parent_bookmark_id IN ({})
              ORDER BY parent_bookmark_id, display_order, alias",

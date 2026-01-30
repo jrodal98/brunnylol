@@ -40,6 +40,12 @@ pub async fn setup_test_db() -> SqlitePool {
         .await
         .expect("Failed to run migration 004");
 
+    let migration_5 = include_str!("../../migrations/005_variable_templates.sql");
+    sqlx::query(migration_5)
+        .execute(&pool)
+        .await
+        .expect("Failed to run migration 005");
+
     pool
 }
 
