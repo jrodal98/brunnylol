@@ -52,6 +52,38 @@ struct SearchParams {
     default: Option<String>,
 }
 
+// Usage mode for bookmark aliases
+enum UsageMode {
+    Direct,   // alias value
+    Form,     // alias?
+    Named,    // alias$
+    Chained,  // alias?$
+}
+
+// Parse alias and detect usage mode from suffix
+fn parse_alias_and_mode(input: &str) -> (&str, UsageMode) {
+    // Single-char aliases can end in special characters
+    if input.len() == 1 {
+        return (input, UsageMode::Direct);
+    }
+
+    // Check for ?$ suffix (chained mode)
+    if input.ends_with("?$") {
+        return (&input[..input.len() - 2], UsageMode::Chained);
+    }
+
+    // Check for ? or $ suffix
+    if let Some(ch) = input.chars().last() {
+        match ch {
+            '?' => (&input[..input.len() - 1], UsageMode::Form),
+            '$' => (&input[..input.len() - 1], UsageMode::Named),
+            _ => (input, UsageMode::Direct),
+        }
+    } else {
+        (input, UsageMode::Direct)
+    }
+}
+
 // Application state
 pub struct AppState {
     pub alias_to_bookmark_map: HashMap<String, Command>,
@@ -142,8 +174,17 @@ async fn redirect(
     State(state): State<Arc<AppState>>,
 ) -> axum::response::Response {
     let mut splitted = params.q.splitn(2, ' ');
-    let bookmark_alias = splitted.next().unwrap_or("");
+    let bookmark_alias_raw = splitted.next().unwrap_or("");
     let query = splitted.next().unwrap_or_default();
+
+    // Parse alias and detect usage mode from suffix
+    let (bookmark_alias, usage_mode) = parse_alias_and_mode(bookmark_alias_raw);
+
+    // Handle Form mode - redirect to /f/{alias}
+    if matches!(usage_mode, UsageMode::Form | UsageMode::Chained) {
+        let form_url = format!("/f/{}", bookmark_alias);
+        return Redirect::to(&form_url).into_response();
+    }
 
     // Load user bookmarks and disabled global bookmarks if logged in
     let (user_bookmarks, disabled_globals) = if let Some(user) = &optional_user.0 {
