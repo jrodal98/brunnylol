@@ -84,6 +84,18 @@ impl TemplateResolver {
                     .context("trim operation not registered")?;
                 pipeline_op.apply(value)
             }
+            PipelineOp::Options { values, strict } => {
+                // Validate value against options if strict
+                if *strict && !values.contains(&value.to_string()) {
+                    anyhow::bail!(
+                        "Invalid value '{}'. Must be one of: {}",
+                        value,
+                        values.join(", ")
+                    );
+                }
+                // Options pipeline doesn't transform the value, just validates
+                Ok(value.to_string())
+            }
         }
     }
 

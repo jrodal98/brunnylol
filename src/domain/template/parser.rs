@@ -178,6 +178,59 @@ impl TemplateParser {
             ("encode", true) => Ok(PipelineOp::NoEncode),
             ("trim", false) => Ok(PipelineOp::Trim),
             ("trim", true) => bail!("Cannot negate 'trim' operation"),
+            ("options", false) => {
+                // Parse options[val1,val2,val3] or options[val1,val2][strict]
+                self.skip_whitespace();
+                if self.peek_char() != Some('[') {
+                    bail!("Expected '[' after 'options' at position {}", self.pos);
+                }
+                self.consume_char(); // consume [
+
+                // Parse comma-separated values
+                let mut values = Vec::new();
+                let mut current_value = String::new();
+
+                loop {
+                    self.skip_whitespace();
+                    match self.peek_char() {
+                        Some(']') => {
+                            if !current_value.is_empty() {
+                                values.push(current_value.trim().to_string());
+                                current_value.clear();
+                            }
+                            self.consume_char(); // consume ]
+                            break;
+                        }
+                        Some(',') => {
+                            if !current_value.is_empty() {
+                                values.push(current_value.trim().to_string());
+                                current_value.clear();
+                            }
+                            self.consume_char(); // consume ,
+                        }
+                        Some(ch) => {
+                            current_value.push(ch);
+                            self.consume_char();
+                        }
+                        None => bail!("Unexpected end of input in options list"),
+                    }
+                }
+
+                // Check for [strict] modifier
+                self.skip_whitespace();
+                let strict = if self.peek_char() == Some('[') {
+                    self.consume_char(); // consume [
+                    let modifier = self.parse_identifier()?;
+                    self.skip_whitespace();
+                    self.expect_char(']')?;
+                    modifier == "strict"
+                } else {
+                    false
+                };
+
+                Ok(PipelineOp::Options { values, strict })
+            }
+            ("options", true) => bail!("Cannot negate 'options' operation"),
             (name, _) => bail!("Unknown pipeline operation: {}", name),
         }
     }

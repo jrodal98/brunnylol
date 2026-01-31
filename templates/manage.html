@@ -95,7 +95,8 @@
                     <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0;">
                         <strong>Variable syntax:</strong> Use <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default)<br>
                         <strong>Pipelines:</strong> <code>{var|!encode}</code> (no encoding), <code>{var|trim}</code> (trim whitespace)<br>
-                        <strong>Examples:</strong> <code>https://github.com/{org}/{repo}</code> or <code>https://{product}.proton.me</code>
+                        <strong>Options:</strong> <code>{product|options[mail,drive,sheets]}</code> or <code>{product|options[mail,drive][strict]}</code> (enforce validation)<br>
+                        <strong>Examples:</strong> <code>https://github.com/{org}/{repo}</code> or <code>https://{product|options[mail,drive,sheets]}.proton.me</code>
                     </p>
                 </div>
             </div>

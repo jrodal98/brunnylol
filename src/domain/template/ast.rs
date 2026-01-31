@@ -73,6 +73,10 @@ pub enum PipelineOp {
     Encode,
     NoEncode,
     Trim,
+    Options {
+        values: Vec<String>,
+        strict: bool,
+    },
 }
 
 /// Metadata about all variables in a template (for database storage)

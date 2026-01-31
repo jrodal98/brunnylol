@@ -29,11 +29,20 @@ pub fn build_form_data(
             m.variables.iter().find(|v| v.name == var_expr.name)
         });
 
+        // Extract options and strict from pipelines
+        let (options, strict) = var_expr.pipelines.iter()
+            .find_map(|p| {
+                if let super::ast::PipelineOp::Options { values, strict } = p {
+                    Some((Some(values.clone()), *strict))
+                } else {
+                    None
+                }
+            })
+            .unwrap_or((None, false));
+
         let is_required = !var_expr.is_optional && var_expr.default.is_none();
         let default_value = var_expr.default.clone();
         let current_value = prefilled.get(&var_expr.name).cloned();
-        let options = var_metadata.and_then(|m| m.options.clone());
-        let strict = var_metadata.map(|m| m.strict).unwrap_or(false);
 
         form_vars.push(FormVariable {
             name: var_expr.name.clone(),
