@@ -343,7 +343,20 @@ async fn redirect(
                 }
             }
 
+            // Check if all required variables are provided
             let resolver = domain::template::TemplateResolver::new();
+            let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+
+            if !missing.is_empty() {
+                // Redirect to form page with prefilled values
+                let query_string: String = vars
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+                    .collect::<Vec<_>>()
+                    .join("&");
+                return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+            }
+
             resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
         }
         Some(bookmark) => bookmark.get_redirect_url(query),
