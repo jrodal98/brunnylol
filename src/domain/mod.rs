@@ -44,6 +44,9 @@ impl Command {
                 let mut vars = HashMap::new();
                 let template_vars = template.variables();
 
+                // Add {url} as built-in variable mapped to base_url
+                vars.insert("url".to_string(), base_url.clone());
+
                 // Check if template has a "query" variable
                 let has_query_var = template_vars.iter().any(|v| v.name == "query");
 
@@ -57,7 +60,12 @@ impl Command {
                     // Multiple variables - split query by whitespace and map positionally
                     let query_parts: Vec<&str> = query.split_whitespace().collect();
 
-                    for (i, var) in template_vars.iter().enumerate() {
+                    // Filter out built-in variables like {url} for positional mapping
+                    let user_vars: Vec<_> = template_vars.iter()
+                        .filter(|v| v.name != "url")
+                        .collect();
+
+                    for (i, var) in user_vars.iter().enumerate() {
                         if i < query_parts.len() {
                             vars.insert(var.name.clone(), query_parts[i].to_string());
                         }
@@ -65,8 +73,8 @@ impl Command {
                     }
 
                     // If there are extra args beyond the variables, join them as "query" if it exists
-                    if query_parts.len() > template_vars.len() && has_query_var {
-                        let remaining = query_parts[template_vars.len()..].join(" ");
+                    if query_parts.len() > user_vars.len() && has_query_var {
+                        let remaining = query_parts[user_vars.len()..].join(" ");
                         vars.insert("query".to_string(), remaining);
                     }
                 }

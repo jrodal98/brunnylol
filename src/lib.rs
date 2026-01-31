@@ -371,24 +371,32 @@ async fn redirect(
                 }
             }
         }
-        Some(Command::Variable { ref template, .. }) => {
+        Some(Command::Variable { ref template, ref base_url, .. }) => {
             // Direct mode with Variable command - validate before resolving
             // Build variable map
             let mut vars = HashMap::new();
             let template_vars = template.variables();
             let has_query_var = template_vars.iter().any(|v| v.name == "query");
 
-            if has_query_var && template_vars.len() == 1 {
+            // Add {url} as built-in variable
+            vars.insert("url".to_string(), base_url.clone());
+
+            // Filter out built-in variables for positional mapping
+            let user_vars: Vec<_> = template_vars.iter()
+                .filter(|v| v.name != "url")
+                .collect();
+
+            if has_query_var && user_vars.len() == 1 && user_vars[0].name == "query" {
                 vars.insert("query".to_string(), query.to_string());
-            } else {
+            } else if !user_vars.is_empty() {
                 let query_parts: Vec<&str> = query.split_whitespace().collect();
-                for (i, var) in template_vars.iter().enumerate() {
+                for (i, var) in user_vars.iter().enumerate() {
                     if i < query_parts.len() {
                         vars.insert(var.name.clone(), query_parts[i].to_string());
                     }
                 }
-                if query_parts.len() > template_vars.len() && has_query_var {
-                    let remaining = query_parts[template_vars.len()..].join(" ");
+                if query_parts.len() > user_vars.len() && has_query_var {
+                    let remaining = query_parts[user_vars.len()..].join(" ");
                     vars.insert("query".to_string(), remaining);
                 }
             }
@@ -409,6 +417,7 @@ async fn redirect(
                     // Validation failed - redirect to form with current values
                     let query_string: String = vars
                         .iter()
+                        .filter(|(k, _)| *k != "url") // Don't include url in query params
                         .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
                         .collect::<Vec<_>>()
                         .join("&");

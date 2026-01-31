@@ -24,6 +24,11 @@ pub fn build_form_data(
     let mut form_vars = Vec::new();
 
     for var_expr in template.variables() {
+        // Skip built-in variables (url is auto-populated from base_url)
+        if var_expr.name == "url" {
+            continue;
+        }
+
         // Find metadata for this variable if it exists
         let var_metadata = metadata.and_then(|m| {
             m.variables.iter().find(|v| v.name == var_expr.name)
