@@ -22,7 +22,7 @@
     <h1>Fill Variables for '{{ alias }}'</h1>
     <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">{{ description }}</p>
 
-    <form method="post" action="/f/{{ alias }}">
+    <form id="variable-form" method="get">
         {% for var in variables %}
         <div style="margin-bottom: var(--space-4);">
             <label for="{{ var.name }}" style="display: block; margin-bottom: var(--space-2); font-weight: 600;">
@@ -54,5 +54,19 @@
 
         <button type="submit" style="margin-top: var(--space-4);">Go</button>
     </form>
+
+    <script>
+    document.getElementById('variable-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const params = new URLSearchParams();
+        for (const [key, value] of formData.entries()) {
+            if (value) {
+                params.append(key, value);
+            }
+        }
+        window.location.href = '/f/{{ alias }}?' + params.toString();
+    });
+    </script>
 </div>
 {% endblock %}
