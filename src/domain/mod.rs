@@ -42,15 +42,33 @@ impl Command {
                 }
 
                 let mut vars = HashMap::new();
+                let template_vars = template.variables();
 
                 // Check if template has a "query" variable
-                let has_query_var = template.variables().iter().any(|v| v.name == "query");
+                let has_query_var = template_vars.iter().any(|v| v.name == "query");
 
-                if has_query_var {
+                if has_query_var && template_vars.len() == 1 {
+                    // Single query variable - map entire query
                     vars.insert("query".to_string(), query.to_string());
-                } else if let Some(first_var) = template.variables().first() {
-                    // Map to first variable
-                    vars.insert(first_var.name.clone(), query.to_string());
+                } else if template_vars.is_empty() {
+                    // No variables in template, just return base URL
+                    return base_url.clone();
+                } else {
+                    // Multiple variables - split query by whitespace and map positionally
+                    let query_parts: Vec<&str> = query.split_whitespace().collect();
+
+                    for (i, var) in template_vars.iter().enumerate() {
+                        if i < query_parts.len() {
+                            vars.insert(var.name.clone(), query_parts[i].to_string());
+                        }
+                        // If not enough args provided, variables will use defaults or be empty
+                    }
+
+                    // If there are extra args beyond the variables, join them as "query" if it exists
+                    if query_parts.len() > template_vars.len() && has_query_var {
+                        let remaining = query_parts[template_vars.len()..].join(" ");
+                        vars.insert("query".to_string(), remaining);
+                    }
                 }
 
                 // Use resolver to expand template

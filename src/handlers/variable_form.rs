@@ -64,20 +64,9 @@ pub async fn show_variable_form(
 
     // Only Variable commands have forms
     match command {
-        Command::Variable { template, metadata, description, base_url, .. } => {
-            // If variables are provided in query params, resolve and redirect
-            let has_any_variable = params.keys().any(|k| {
-                template.variables().iter().any(|v| &v.name == k)
-            });
-
-            if has_any_variable {
-                // Form was submitted - resolve variables and redirect
-                let resolver = crate::domain::template::TemplateResolver::new();
-                let url = resolver.resolve(&template, &params).unwrap_or(base_url);
-                return Ok(Redirect::to(&url).into_response());
-            }
-
-            // No variables provided - show form
+        Command::Variable { template, metadata, description, .. } => {
+            // ALWAYS show the form - even if variables are prefilled
+            // The form will be rendered with current_value set from query params
             let form_data = form_builder::build_form_data(&template, metadata.as_ref(), &params);
 
             let variables = form_data
@@ -160,10 +149,13 @@ pub async fn submit_variable_form(
     match command {
         Some(Command::Variable { base_url, template, .. }) => {
             let resolver = crate::domain::template::TemplateResolver::new();
-            match resolver.resolve(&template, &form_data) {
-                Ok(url) => Redirect::to(&url).into_response(),
-                Err(_) => Redirect::to(&base_url).into_response(),
-            }
+            let url = resolver.resolve(&template, &form_data).unwrap_or(base_url);
+            // Return URL as plain text for JavaScript to navigate
+            axum::http::Response::builder()
+                .header("Content-Type", "text/plain")
+                .body(axum::body::Body::from(url))
+                .unwrap()
+                .into_response()
         }
         _ => crate::error::AppError::NotFound(format!("Unknown alias: '{}'", alias)).into_response(),
     }
