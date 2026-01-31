@@ -7,23 +7,6 @@ use std::collections::HashMap;
 use crate::domain::Command;
 use crate::db::{self, Bookmark, NestedBookmark};
 
-// Detect if a template uses variable syntax (beyond simple {query})
-fn is_variable_template(template: &str) -> bool {
-    if !template.contains('{') {
-        return false;
-    }
-
-    // Check for advanced variable syntax:
-    // - Multiple variables: {var1}/{var2}
-    // - Optional marker: {var?}
-    // - Default value: {var=default}
-    // - Pipeline operations: {var|encode}
-    template.matches('{').count() > 1
-        || template.contains('?')
-        || template.contains('=')
-        || template.contains('|')
-}
-
 // Create a Command::Variable from template string
 fn create_variable_command(
     template_str: &str,
@@ -59,45 +42,25 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
         "templated" => {
             let template = bookmark.command_template.as_deref().unwrap_or(&bookmark.url);
 
-            // Check if this is a variable template
-            if is_variable_template(template) {
-                create_variable_command(
-                    template,
-                    bookmark.url.clone(),
-                    bookmark.description.clone(),
-                    bookmark.variable_metadata.as_ref(),
-                )
-            } else {
-                // Simple template with just {query}
-                Ok(Command::Templated {
-                    base_url: bookmark.url.clone(),
-                    template: template.to_string(),
-                    description: bookmark.description.clone(),
-                    encode_query: bookmark.encode_query,
-                })
-            }
+            // All templates become Variable commands
+            create_variable_command(
+                template,
+                bookmark.url.clone(),
+                bookmark.description.clone(),
+                bookmark.variable_metadata.as_ref(),
+            )
         }
         "nested" => {
             // Build nested commands HashMap
             let mut nested_commands = HashMap::new();
             for nested_bm in nested {
                 let nested_cmd = if let Some(template) = &nested_bm.command_template {
-                    // Check if variable template
-                    if is_variable_template(template) {
-                        create_variable_command(
-                            template,
-                            nested_bm.url.clone(),
-                            nested_bm.description.clone(),
-                            nested_bm.variable_metadata.as_ref(),
-                        )?
-                    } else {
-                        Command::Templated {
-                            base_url: nested_bm.url.clone(),
-                            template: template.clone(),
-                            description: nested_bm.description.clone(),
-                            encode_query: nested_bm.encode_query,
-                        }
-                    }
+                    create_variable_command(
+                        template,
+                        nested_bm.url.clone(),
+                        nested_bm.description.clone(),
+                        nested_bm.variable_metadata.as_ref(),
+                    )?
                 } else {
                     Command::Simple {
                         url: nested_bm.url.clone(),

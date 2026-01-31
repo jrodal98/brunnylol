@@ -11,12 +11,6 @@ pub enum Command {
         url: String,
         description: String,
     },
-    Templated {
-        base_url: String,  // Fallback URL when query is empty
-        template: String,
-        description: String,
-        encode_query: bool,
-    },
     Variable {
         base_url: String,
         template: template::Template,  // Parsed AST
@@ -33,7 +27,6 @@ impl Command {
     pub fn description(&self) -> &str {
         match self {
             Command::Simple { description, .. } => description,
-            Command::Templated { description, .. } => description,
             Command::Variable { description, .. } => description,
             Command::Nested { description, .. } => description,
         }
@@ -42,22 +35,8 @@ impl Command {
     pub fn get_redirect_url(&self, query: &str) -> String {
         match self {
             Command::Simple { url, .. } => url.clone(),
-            Command::Templated { base_url, template, encode_query, .. } => {
-                // If query is empty, return base URL (not template with empty query)
-                if query.trim().is_empty() {
-                    base_url.clone()
-                } else {
-                    let query_encoded = if *encode_query {
-                        urlencoding::encode(query).to_string()
-                    } else {
-                        query.to_string()
-                    };
-                    template.replace("{}", &query_encoded)
-                }
-            }
             Command::Variable { base_url, template, .. } => {
                 // For variable templates, map query to variables
-                // Simple implementation: map query to "query" variable or first variable
                 if query.trim().is_empty() {
                     return base_url.clone();
                 }

@@ -1,86 +1,86 @@
 - alias: g
   url: https://www.google.com
-  command: https://www.google.com/search?q={}
+  command: https://www.google.com/search?q={query}
   description: Search google
 
 - alias: ddg
   url: https://www.duckduckgo.com
-  command: https://duckduckgo.com/?q={}
+  command: https://duckduckgo.com/?q={query}
   description: Search duckduckgo
 
 - alias: yt
   url: https://www.youtube.com
-  command: https://www.youtube.com/results?search_query={}
+  command: https://www.youtube.com/results?search_query={query}
   description: Search youtube
 
 - alias: b
   url: https://www.bing.com
-  command: https://www.bing.com/search?q={}
+  command: https://www.bing.com/search?q={query}
   description: Search bing
 
 - alias: w
   url: https://www.wikipedia.org/
-  command: https://en.wikipedia.org/wiki/Special:Search/{}
+  command: https://en.wikipedia.org/wiki/Special:Search/{query}
   description: Search wikipedia
 
 - alias: aw
   url: https://wiki.archlinux.org/
-  command: https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={}
+  command: https://wiki.archlinux.org/index.php?title=Special%3ASearch&search={query}
   description: Search the arch wiki
 
 - alias: def
   url: https://www.dictionary.com/
-  command: https://www.dictionary.com/browse/{}?s=t
+  command: https://www.dictionary.com/browse/{query}?s=t
   description: Define a word with dictionary.com
 
 - alias: wut
   url: https://www.urbandictionary.com/
-  command: https://www.urbandictionary.com/define.php?term={}
+  command: https://www.urbandictionary.com/define.php?term={query}
   description: Searches for a phrase on urban dictionary
 
 - alias: am
   url: https://amazon.com/
-  command: https://amazon.com/s?k={}&ref=nb_sb_noss_2
+  command: https://amazon.com/s?k={query}&ref=nb_sb_noss_2
   description: Search amazon
 
 - alias: fb
   url: https://www.facebook.com/
-  command: https://www.facebook.com/search/top?q={}
+  command: https://www.facebook.com/search/top?q={query}
   description: Search Facebook
 
 - alias: ig
   url: https://www.instagram.com/
-  command: https://www.instagram.com/{}/
+  command: https://www.instagram.com/{query}/
   description: Search instagram
 
 - alias: li
   url: https://www.linkedin.com/
-  command: https://www.linkedin.com/search/results/all/?keywords={}&origin=GLOBAL_SEARCH_HEADER
+  command: https://www.linkedin.com/search/results/all/?keywords={query}&origin=GLOBAL_SEARCH_HEADER
   description: Search LinkedIn
 
 - alias: img
   url: https://images.google.com/
-  command: https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={}
+  command: https://images.google.com/images?um=1&hl=en&safe=active&nfpr=1&q={query}
   description: Search google images
 
 - alias: dbl
   url: http://localhost:8000/
-  command: http://localhost:8000/search?q={}
+  command: http://localhost:8000/search?q={query}
   description: Forward the query to your local version of brunnylol (port 8000)
 
 - alias: eb
   url: https://www.ebay.com/
-  command: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={}&_sacat=0
+  command: https://www.ebay.com/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={query}&_sacat=0
   description: Search ebay
 
 - alias: maps
   url: https://www.google.com/maps
-  command: https://www.google.com/maps/search/{}
+  command: https://www.google.com/maps/search/{query}
   description: Search Google maps
 
 - alias: so
   url: https://stackoverflow.com
-  command: https://stackoverflow.com/search?q={}
+  command: https://stackoverflow.com/search?q={query}
   description: Search questions on stackoverflow
 
 - alias: help
@@ -89,11 +89,10 @@
 
 - alias: bl
   url: /
-  command: /search?q={}
+  command: /search?q={query}
   description: Brunnylol search
 
 - alias: gh
   url: https://github.com
-  command: https://github.com/{}
+  command: https://github.com/{query|!encode}
   description: Go to github repo
-  encode: false

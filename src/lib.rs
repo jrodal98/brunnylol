@@ -308,35 +308,19 @@ async fn redirect(
         }).cloned();
 
     let redirect_url = match command {
-        Some(Command::Variable { ref base_url, ref template, .. }) => {
+        Some(Command::Variable { ref base_url, ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
             // Handle named mode
-            if matches!(usage_mode, UsageMode::Named) {
-                let (mut vars, remaining) = parse_named_variables(query);
+            let (mut vars, remaining) = parse_named_variables(query);
 
-                // Add remaining query to "query" variable if it exists
-                if let Some(rem) = remaining {
-                    if !rem.is_empty() {
-                        vars.insert("query".to_string(), rem);
-                    }
+            // Add remaining query to "query" variable if it exists
+            if let Some(rem) = remaining {
+                if !rem.is_empty() {
+                    vars.insert("query".to_string(), rem);
                 }
-
-                let resolver = domain::template::TemplateResolver::new();
-                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
-            } else {
-                // Direct mode - use existing simple mapping
-                let mut vars = HashMap::new();
-                if !query.trim().is_empty() {
-                    let has_query_var = template.variables().iter().any(|v| v.name == "query");
-                    if has_query_var {
-                        vars.insert("query".to_string(), query.to_string());
-                    } else if let Some(first_var) = template.variables().first() {
-                        vars.insert(first_var.name.clone(), query.to_string());
-                    }
-                }
-
-                let resolver = domain::template::TemplateResolver::new();
-                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
             }
+
+            let resolver = domain::template::TemplateResolver::new();
+            resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
         }
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => {
