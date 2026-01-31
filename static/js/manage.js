@@ -59,15 +59,7 @@ function addNestedRow() {
 
         <div class="form-group">
             <label>Sub-alias:</label>
-            <input type="text" name="nested_alias[]" required placeholder="e.g., r" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-        </div>
-
-        <div class="form-group">
-            <label>Type:</label>
-            <select name="nested_type[]" class="nested-type-select" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                <option value="simple">Simple Bookmark</option>
-                <option value="templated">Search Template</option>
-            </select>
+            <input type="text" name="nested_alias[]" required placeholder="sub1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" maxlength="50">
         </div>
 
         <div class="form-group">
@@ -80,17 +72,13 @@ function addNestedRow() {
             <input type="text" name="nested_description[]" required placeholder="What this sub-command does" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
         </div>
 
-        <div class="form-group nested-template-field" style="display: none;">
-            <label>Template (with {}):</label>
-            <input type="text" name="nested_template[]" placeholder="https://example.com/search?q={}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+        <div class="form-group">
+            <label>Template (optional):</label>
+            <input type="text" name="nested_template[]" placeholder="{url}/search?q={query}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <small>Leave empty for simple redirect. Use {var} syntax for variables.</small>
         </div>
 
-        <div class="form-group nested-encode-field" style="display: none;">
-            <label>
-                <input type="checkbox" name="nested_encode[]" value="true" checked>
-                URL-encode query
-            </label>
-        </div>
+        <input type="hidden" name="nested_type[]" value="templated">
     `;
 
     container.appendChild(row);
@@ -197,14 +185,6 @@ function showNestedManager(bookmarkId, alias) {
             </div>
 
             <div class="form-group">
-                <label>Type:</label>
-                <select name="nested_type" class="nested-form-type-select">
-                    <option value="simple">Simple Bookmark</option>
-                    <option value="templated">Search Template</option>
-                </select>
-            </div>
-
-            <div class="form-group">
                 <label>URL:</label>
                 <input type="url" name="url" required placeholder="https://example.com">
             </div>
@@ -214,11 +194,13 @@ function showNestedManager(bookmarkId, alias) {
                 <input type="text" name="description" required>
             </div>
 
-            <div class="form-group nested-template-field" style="display: none;">
-                <label>Template (with {}):</label>
-                <input type="text" name="command_template" placeholder="https://example.com/search?q={query}">
-                <small>Use {var}, {var?}, {var=default} for variables. Add |!encode to disable URL encoding.</small>
+            <div class="form-group">
+                <label>Template (optional):</label>
+                <input type="text" name="command_template" placeholder="{url}/search?q={query}">
+                <small>Leave empty for simple redirect. Use {var}, {var?}, {var=default} for variables. Add |!encode to disable URL encoding.</small>
             </div>
+
+            <input type="hidden" name="nested_type" value="templated">
 
             <button type="submit" class="btn-primary">Add Sub-command</button>
         </form>
@@ -228,25 +210,6 @@ function showNestedManager(bookmarkId, alias) {
 
     // Re-initialize HTMX on the new content
     htmx.process(contentDiv);
-
-    // Wire up event listener for the nested form type select
-    const nestedFormTypeSelect = contentDiv.querySelector('.nested-form-type-select');
-    if (nestedFormTypeSelect) {
-        nestedFormTypeSelect.addEventListener('change', function() {
-            toggleNestedFormFields(this);
-        });
-    }
-}
-
-function toggleNestedFormFields(selectElement) {
-    const form = selectElement.closest('form');
-    const templateField = form.querySelector('.nested-template-field');
-
-    if (selectElement.value === 'templated') {
-        templateField.style.display = 'block';
-    } else {
-        templateField.style.display = 'none';
-    }
 }
 
 function hideNestedManager() {

@@ -39,11 +39,12 @@ pub async fn security_headers(request: Request, next: Next) -> Response<Body> {
 
     // Content Security Policy - restrict content sources
     // Allow self for scripts/styles, and htmx from unpkg CDN
+    // Note: unsafe-eval required for HTMX 1.9.12 (uses new Function() internally)
     headers.insert(
         header::CONTENT_SECURITY_POLICY,
         HeaderValue::from_static(
             "default-src 'self'; \
-             script-src 'self' https://unpkg.com; \
+             script-src 'self' https://unpkg.com 'unsafe-eval'; \
              style-src 'self' 'unsafe-inline'; \
              img-src 'self' data:; \
              font-src 'self'; \
@@ -52,14 +53,6 @@ pub async fn security_headers(request: Request, next: Next) -> Response<Body> {
              base-uri 'self'; \
              form-action 'self'"
         ),
-    );
-
-    // HSTS - only in production (requires HTTPS)
-    // 1 year max-age, include subdomains
-    #[cfg(not(debug_assertions))]
-    headers.insert(
-        header::STRICT_TRANSPORT_SECURITY,
-        HeaderValue::from_static("max-age=31536000; includeSubDomains"),
     );
 
     // Permissions Policy - restrict browser features

@@ -279,10 +279,13 @@ pub async fn create_bookmark(
     // Validate URL scheme for all bookmark types
     validation::validate_url_scheme(&form.url)?;
 
-    // Validate templated bookmarks have a valid template
-    if form.bookmark_type == "templated" {
-        let template = form.command_template.as_deref().unwrap_or(&form.url);
-        validation::validate_variable_template(template)?;
+    // Validate templated bookmarks have a valid template (if provided)
+    if form.bookmark_type == "templated" && form.command_template.is_some() {
+        if let Some(ref template) = form.command_template {
+            if !template.is_empty() {
+                validation::validate_variable_template(template)?;
+            }
+        }
     }
 
     let encode_query = form.encode_query.unwrap_or("true".to_string()) == "true";

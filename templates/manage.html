@@ -66,16 +66,16 @@
             <div class="form-group">
                 <label for="bookmark_type">Bookmark Type *</label>
                 <select id="bookmark_type" name="bookmark_type" required>
-                    <option value="simple">Simple Bookmark (static URL)</option>
-                    <option value="templated">Search Template (URL with query)</option>
-                    <option value="nested">Nested Commands</option>
+                    <option value="templated">Standard Bookmark</option>
+                    <option value="nested">Nested Commands (with sub-aliases)</option>
                 </select>
+                <small>Standard: Simple redirect or search template. Nested: Parent with multiple sub-commands.</small>
             </div>
 
             <div class="form-group">
                 <label for="url">Base URL *</label>
                 <input type="url" id="url" name="url" required placeholder="https://example.com">
-                <small>The URL to redirect to (or base URL for search templates)</small>
+                <small>The URL to redirect to (or base URL for templates)</small>
             </div>
 
             <div class="form-group">
@@ -83,20 +83,20 @@
                 <input type="text" id="description" name="description" required placeholder="What this bookmark does">
             </div>
 
-            <!-- Fields for templated bookmarks -->
+            <!-- Template field (shown by default for standard bookmarks) -->
             <div id="templated-fields" class="dynamic-field">
                 <div class="form-group">
-                    <label for="command_template">Search Template *</label>
-                    <input type="text" id="command_template" name="command_template" placeholder="https://example.com/search?q={}">
-                    <small>Use {} as placeholder for search query</small>
+                    <label for="command_template">Template (optional)</label>
+                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}">
+                    <small>Leave empty for simple redirect. Add variables for search templates.</small>
                 </div>
 
                 <div class="form-group">
                     <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0;">
-                        <strong>Variable syntax:</strong> Use <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default)<br>
+                        <strong>Variable syntax:</strong> <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default), <code>{url}</code> (base URL)<br>
                         <strong>Pipelines:</strong> <code>{var|!encode}</code> (no encoding), <code>{var|trim}</code> (trim whitespace)<br>
                         <strong>Options:</strong> <code>{product|options[mail,drive,sheets]}</code> or <code>{product|options[mail,drive][strict]}</code> (enforce validation)<br>
-                        <strong>Examples:</strong> <code>https://github.com/{org}/{repo}</code> or <code>https://{product|options[mail,drive,sheets]}.proton.me</code>
+                        <strong>Examples:</strong> <code>{url}/search?q={query}</code>, <code>https://github.com/{org}/{repo}</code>, <code>https://{product|options[mail,drive,sheets]}.proton.me</code>
                     </p>
                 </div>
             </div>
