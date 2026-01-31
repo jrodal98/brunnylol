@@ -1,5 +1,5 @@
--- Initial schema for multi-user bookmark management
--- Migration version: 001
+-- Initial schema for multi-user bookmark management with variable template support
+-- Single consolidated migration
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
     username TEXT UNIQUE NOT NULL COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     is_admin BOOLEAN NOT NULL DEFAULT 0,
+    default_alias TEXT, -- User's preferred default alias
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -24,50 +25,53 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
 
--- User custom bookmarks
-CREATE TABLE IF NOT EXISTS user_bookmarks (
+-- Unified bookmarks table (personal and global)
+CREATE TABLE IF NOT EXISTS bookmarks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    scope TEXT NOT NULL CHECK(scope IN ('personal', 'global')),
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE, -- NULL for global bookmarks
     alias TEXT NOT NULL,
     bookmark_type TEXT NOT NULL CHECK(bookmark_type IN ('simple', 'templated', 'nested')),
     url TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
-    command_template TEXT,  -- For templated bookmarks (contains {})
-    encode_query BOOLEAN DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    UNIQUE(user_id, alias)
+    description TEXT NOT NULL,
+    command_template TEXT,
+    encode_query BOOLEAN NOT NULL DEFAULT 1,
+    created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    variable_metadata TEXT, -- JSON metadata for RFC 6570-style template variables
+    UNIQUE(scope, user_id, alias)
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_bookmarks_user_id ON user_bookmarks(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_bookmarks_alias ON user_bookmarks(user_id, alias);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_scope_user ON bookmarks(scope, user_id);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_alias ON bookmarks(alias);
 
--- Nested bookmark sub-commands
+-- Nested bookmarks table
 CREATE TABLE IF NOT EXISTS nested_bookmarks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    parent_bookmark_id INTEGER NOT NULL,
+    parent_bookmark_id INTEGER NOT NULL REFERENCES bookmarks(id) ON DELETE CASCADE,
     alias TEXT NOT NULL,
     url TEXT NOT NULL,
-    description TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL,
     command_template TEXT,
-    encode_query BOOLEAN DEFAULT 1,
-    display_order INTEGER NOT NULL DEFAULT 0,
-    FOREIGN KEY (parent_bookmark_id) REFERENCES user_bookmarks(id) ON DELETE CASCADE,
+    encode_query BOOLEAN NOT NULL DEFAULT 1,
+    display_order INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    variable_metadata TEXT, -- JSON metadata for RFC 6570-style template variables
     UNIQUE(parent_bookmark_id, alias)
 );
 
 CREATE INDEX IF NOT EXISTS idx_nested_bookmarks_parent ON nested_bookmarks(parent_bookmark_id);
 
--- User overrides for built-in bookmarks
--- Allows users to disable, rename, or add aliases to built-in bookmarks
+-- User overrides for global bookmarks
 CREATE TABLE IF NOT EXISTS user_bookmark_overrides (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
-    builtin_alias TEXT NOT NULL,  -- Original alias from commands.yml
+    builtin_alias TEXT NOT NULL,
     is_disabled BOOLEAN NOT NULL DEFAULT 0,
-    custom_alias TEXT,  -- New alias (if renaming)
-    additional_aliases TEXT,  -- JSON array of additional aliases
+    custom_alias TEXT,
+    additional_aliases TEXT, -- JSON array
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

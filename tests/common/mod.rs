@@ -15,36 +15,12 @@ pub async fn setup_test_db() -> SqlitePool {
         .await
         .expect("Failed to enable foreign keys");
 
-    // Run migrations manually (sqlx::migrate! doesn't work well with in-memory databases in tests)
-    let migration_1 = include_str!("../../migrations/001_initial_schema.sql");
-    sqlx::query(migration_1)
+    // Run single consolidated migration
+    let migration = include_str!("../../migrations/001_initial_schema.sql");
+    sqlx::query(migration)
         .execute(&pool)
         .await
         .expect("Failed to run migration 001");
-
-    let migration_2 = include_str!("../../migrations/002_global_bookmarks.sql");
-    sqlx::query(migration_2)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 002");
-
-    let migration_3 = include_str!("../../migrations/003_user_default_alias.sql");
-    sqlx::query(migration_3)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 003");
-
-    let migration_4 = include_str!("../../migrations/004_consolidate_bookmarks.sql");
-    sqlx::query(migration_4)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 004");
-
-    let migration_5 = include_str!("../../migrations/005_variable_templates.sql");
-    sqlx::query(migration_5)
-        .execute(&pool)
-        .await
-        .expect("Failed to run migration 005");
 
     pool
 }

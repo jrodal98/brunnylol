@@ -27,37 +27,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to enable foreign keys")?;
 
-    // Run migrations
+    // Run single consolidated migration
     let migration_sql = include_str!("../../migrations/001_initial_schema.sql");
     sqlx::query(migration_sql)
         .execute(&pool)
         .await
         .context("Failed to run migrations")?;
-
-    let migration_sql_2 = include_str!("../../migrations/002_global_bookmarks.sql");
-    sqlx::query(migration_sql_2)
-        .execute(&pool)
-        .await
-        .context("Failed to run migration 002")?;
-
-    let migration_sql_3 = include_str!("../../migrations/003_user_default_alias.sql");
-    // Ignore "duplicate column" errors (migration may have already run)
-    let _ = sqlx::query(migration_sql_3)
-        .execute(&pool)
-        .await;
-
-    // Run migration 004 (consolidate bookmarks schema)
-    let migration_sql_4 = include_str!("../../migrations/004_consolidate_bookmarks.sql");
-    sqlx::query(migration_sql_4)
-        .execute(&pool)
-        .await
-        .context("Failed to run migration 004")?;
-
-    // Run migration 005 (variable templates)
-    let migration_sql_5 = include_str!("../../migrations/005_variable_templates.sql");
-    let _ = sqlx::query(migration_sql_5)
-        .execute(&pool)
-        .await;
 
     Ok(pool)
 }
