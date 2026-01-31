@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+<script src="/static/js/search.js"></script>
+{% endblock %}
+
 {% block nav %}
 <nav>
     <div>
@@ -33,16 +37,6 @@
     <form id="search-form-Brunnylol" class="form-inline mb-6 mt-6" method="get">
         <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus placeholder="Search Brunnylol" name="q" alt="Search Brunnylol">
     </form>
-
-    <script>
-    document.getElementById('search-form-Brunnylol').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const query = document.getElementById('search-bar-Brunnylol').value;
-        if (query) {
-            window.location.href = '/search?q=' + encodeURIComponent(query);
-        }
-    });
-    </script>
 
     <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
         <li style="margin-bottom: var(--space-3);">Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
