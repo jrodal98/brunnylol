@@ -1,21 +1,21 @@
 - alias: g
   url: https://www.google.com
-  command: {url}/search?q={query}
+  command: "{url}/search?q={query}"
   description: Search google
 
 - alias: ddg
   url: https://www.duckduckgo.com
-  command: {url}/?q={query}
+  command: "{url}/?q={query}"
   description: Search duckduckgo
 
 - alias: yt
   url: https://www.youtube.com
-  command: {url}/results?search_query={query}
+  command: "{url}/results?search_query={query}"
   description: Search youtube
 
 - alias: b
   url: https://www.bing.com
-  command: {url}/search?q={query}
+  command: "{url}/search?q={query}"
   description: Search bing
 
 - alias: w

@@ -373,6 +373,12 @@ async fn redirect(
         }
         Some(Command::Variable { ref template, ref base_url, .. }) => {
             // Direct mode with Variable command - validate before resolving
+
+            // If query is empty, just return base URL
+            if query.trim().is_empty() {
+                return Redirect::to(base_url).into_response();
+            }
+
             // Build variable map
             let mut vars = HashMap::new();
             let template_vars = template.variables();

@@ -7,10 +7,6 @@ pub mod template;
 
 #[derive(Debug, Clone)]
 pub enum Command {
-    Simple {
-        url: String,
-        description: String,
-    },
     Variable {
         base_url: String,
         template: template::Template,  // Parsed AST
@@ -26,7 +22,6 @@ pub enum Command {
 impl Command {
     pub fn description(&self) -> &str {
         match self {
-            Command::Simple { description, .. } => description,
             Command::Variable { description, .. } => description,
             Command::Nested { description, .. } => description,
         }
@@ -34,7 +29,6 @@ impl Command {
 
     pub fn get_redirect_url(&self, query: &str) -> String {
         match self {
-            Command::Simple { url, .. } => url.clone(),
             Command::Variable { base_url, template, .. } => {
                 // For variable templates, map query to variables
                 if query.trim().is_empty() {

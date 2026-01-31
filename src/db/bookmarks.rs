@@ -34,13 +34,17 @@ fn create_variable_command(
 pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> Result<Command> {
     match bookmark.bookmark_type.as_str() {
         "simple" => {
-            Ok(Command::Simple {
-                url: bookmark.url.clone(),
+            // Simple bookmarks become Variable commands with empty template (no variables)
+            let empty_template = crate::domain::template::TemplateParser::parse("")?;
+            Ok(Command::Variable {
+                base_url: bookmark.url.clone(),
+                template: empty_template,
                 description: bookmark.description.clone(),
+                metadata: None,
             })
         }
         "templated" => {
-            let template = bookmark.command_template.as_deref().unwrap_or(&bookmark.url);
+            let template = bookmark.command_template.as_deref().unwrap_or("");
 
             // All templates become Variable commands
             create_variable_command(
@@ -62,9 +66,13 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
                         nested_bm.variable_metadata.as_ref(),
                     )?
                 } else {
-                    Command::Simple {
-                        url: nested_bm.url.clone(),
+                    // No template - create empty Variable command
+                    let empty_template = crate::domain::template::TemplateParser::parse("")?;
+                    Command::Variable {
+                        base_url: nested_bm.url.clone(),
+                        template: empty_template,
                         description: nested_bm.description.clone(),
+                        metadata: None,
                     }
                 };
                 nested_commands.insert(nested_bm.alias.clone(), nested_cmd);
@@ -75,10 +83,13 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
             })
         }
         _ => {
-            // Fallback to simple bookmark
-            Ok(Command::Simple {
-                url: bookmark.url.clone(),
+            // Fallback to empty Variable command
+            let empty_template = crate::domain::template::TemplateParser::parse("")?;
+            Ok(Command::Variable {
+                base_url: bookmark.url.clone(),
+                template: empty_template,
                 description: bookmark.description.clone(),
+                metadata: None,
             })
         }
     }
