@@ -92,10 +92,11 @@
                 </div>
 
                 <div class="form-group">
-                    <label>
-                        <input type="checkbox" name="encode_query" value="true" checked>
-                        URL-encode the query (uncheck for GitHub-style URLs with slashes)
-                    </label>
+                    <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0;">
+                        <strong>Variable syntax:</strong> Use <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default)<br>
+                        <strong>Pipelines:</strong> <code>{var|!encode}</code> (no encoding), <code>{var|trim}</code> (trim whitespace)<br>
+                        <strong>Examples:</strong> <code>https://github.com/{org}/{repo}</code> or <code>https://{product}.proton.me</code>
+                    </p>
                 </div>
             </div>
 
@@ -227,8 +228,7 @@
                                 data-alias="{{ bookmark.alias }}"
                                 data-url="{{ bookmark.url }}"
                                 data-description="{{ bookmark.description }}"
-                                data-template="{{ bookmark.command_template }}"
-                                data-encode="{{ bookmark.encode_query }}">
+                                data-template="{{ bookmark.command_template }}">
                             Edit
                         </button>
                         <button class="btn-danger"
@@ -394,13 +394,6 @@
         <div class="form-group">
             <label>Search Template (optional):</label>
             <input type="text" id="edit-template" name="command_template">
-        </div>
-
-        <div class="form-group">
-            <label>
-                <input type="checkbox" id="edit-encode" name="encode_query" value="true">
-                URL-encode query
-            </label>
         </div>
 
         <button type="submit" class="btn-primary">Save Changes</button>

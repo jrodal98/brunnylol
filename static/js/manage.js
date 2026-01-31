@@ -216,14 +216,8 @@ function showNestedManager(bookmarkId, alias) {
 
             <div class="form-group nested-template-field" style="display: none;">
                 <label>Template (with {}):</label>
-                <input type="text" name="command_template" placeholder="https://example.com/search?q={}">
-            </div>
-
-            <div class="form-group nested-encode-field" style="display: none;">
-                <label>
-                    <input type="checkbox" name="encode_query" value="true" checked>
-                    URL-encode query
-                </label>
+                <input type="text" name="command_template" placeholder="https://example.com/search?q={query}">
+                <small>Use {var}, {var?}, {var=default} for variables. Add |!encode to disable URL encoding.</small>
             </div>
 
             <button type="submit" class="btn-primary">Add Sub-command</button>
@@ -247,14 +241,11 @@ function showNestedManager(bookmarkId, alias) {
 function toggleNestedFormFields(selectElement) {
     const form = selectElement.closest('form');
     const templateField = form.querySelector('.nested-template-field');
-    const encodeField = form.querySelector('.nested-encode-field');
 
     if (selectElement.value === 'templated') {
         templateField.style.display = 'block';
-        encodeField.style.display = 'block';
     } else {
         templateField.style.display = 'none';
-        encodeField.style.display = 'none';
     }
 }
 
@@ -262,13 +253,12 @@ function hideNestedManager() {
     document.getElementById('nested-manager').style.display = 'none';
 }
 
-function showEditForm(id, alias, url, description, template, encodeQuery) {
+function showEditForm(id, alias, url, description, template) {
     document.getElementById('edit-id').value = id;
     document.getElementById('edit-alias').value = alias;
     document.getElementById('edit-url').value = url;
     document.getElementById('edit-description').value = description;
     document.getElementById('edit-template').value = template || '';
-    document.getElementById('edit-encode').checked = encodeQuery;
 
     // Set the form action URL
     document.getElementById('edit-form').setAttribute('hx-put', `/manage/bookmark/${id}`);
@@ -546,8 +536,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dataset.alias,
                 this.dataset.url,
                 this.dataset.description,
-                this.dataset.template,
-                this.dataset.encode === 'true'
+                this.dataset.template
             );
         });
     });

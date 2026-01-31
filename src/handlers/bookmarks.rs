@@ -213,13 +213,13 @@ pub async fn create_bookmark(
     // Validate URL scheme for all bookmark types
     validation::validate_url_scheme(&form.url)?;
 
-    // Validate templated bookmarks have a valid template with {}
+    // Validate templated bookmarks have a valid template
     if form.bookmark_type == "templated" {
         let template = form.command_template.as_deref().unwrap_or(&form.url);
-        validation::validate_template(template)?;
+        validation::validate_variable_template(template)?;
     }
 
-    let encode_query = form.encode_query.is_some();
+    let encode_query = form.encode_query.unwrap_or("true".to_string()) == "true";
 
     // Create parent bookmark in database
     let bookmark_id = db::create_bookmark(

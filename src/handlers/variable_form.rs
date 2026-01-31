@@ -4,7 +4,9 @@ use askama::Template;
 use axum::{
     extract::{Path, Query, State},
     response::{Html, IntoResponse, Redirect, Response},
+    Form,
 };
+use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
@@ -117,6 +119,53 @@ pub async fn show_variable_form(
             "Bookmark '{}' does not support variable forms",
             alias
         ))),
+    }
+}
+
+// POST /f/:alias - Submit variable form and redirect
+pub async fn submit_variable_form(
+    optional_user: OptionalUser,
+    Path(alias): Path<String>,
+    State(state): State<Arc<crate::AppState>>,
+    body: String,
+) -> Response {
+    // Parse form-url-encoded data manually
+    let mut form_data = HashMap::new();
+
+    for pair in body.split('&') {
+        if let Some((key, value)) = pair.split_once('=') {
+            let key_decoded = urlencoding::decode(key).unwrap_or_default().to_string();
+            let value_decoded = urlencoding::decode(value).unwrap_or_default().to_string();
+            form_data.insert(key_decoded, value_decoded);
+        }
+    }
+
+    // Load bookmark
+    let command = if let Some(ref user) = optional_user.0 {
+        let user_bookmarks = crate::db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+            .await
+            .ok();
+
+        if let Some(ref map) = user_bookmarks {
+            map.get(&alias).cloned()
+        } else {
+            let bookmark_map = state.alias_to_bookmark_map.read().await;
+            bookmark_map.get(&alias).cloned()
+        }
+    } else {
+        let bookmark_map = state.alias_to_bookmark_map.read().await;
+        bookmark_map.get(&alias).cloned()
+    };
+
+    match command {
+        Some(Command::Variable { base_url, template, .. }) => {
+            let resolver = crate::domain::template::TemplateResolver::new();
+            match resolver.resolve(&template, &form_data) {
+                Ok(url) => Redirect::to(&url).into_response(),
+                Err(_) => Redirect::to(&base_url).into_response(),
+            }
+        }
+        _ => crate::error::AppError::NotFound(format!("Unknown alias: '{}'", alias)).into_response(),
     }
 }
 
