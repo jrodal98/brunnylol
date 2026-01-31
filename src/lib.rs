@@ -265,9 +265,23 @@ async fn redirect(
     // Parse alias and detect usage mode from suffix
     let (bookmark_alias, usage_mode) = parse_alias_and_mode(bookmark_alias_raw);
 
-    // Handle Form mode - redirect to /f/{alias}
+    // Handle Form and Chained modes - redirect to /f/{alias}
     if matches!(usage_mode, UsageMode::Form | UsageMode::Chained) {
-        let form_url = format!("/f/{}", bookmark_alias);
+        let mut form_url = format!("/f/{}", bookmark_alias);
+
+        // For chained mode, parse named variables and add as query params
+        if matches!(usage_mode, UsageMode::Chained) {
+            let (vars, _) = parse_named_variables(query);
+            if !vars.is_empty() {
+                let query_string: String = vars
+                    .iter()
+                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+                    .collect::<Vec<_>>()
+                    .join("&");
+                form_url = format!("{}?{}", form_url, query_string);
+            }
+        }
+
         return Redirect::to(&form_url).into_response();
     }
 
@@ -480,9 +494,8 @@ pub async fn create_router() -> Router {
         .route("/settings/password", post(handlers::auth::change_password))
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
 
-        // Variable form routes
-        .route("/f/{alias}", get(handlers::variable_form::show_variable_form)
-                             .post(handlers::variable_form::submit_variable_form))
+        // Variable form routes (GET handles both show and submit)
+        .route("/f/{alias}", get(handlers::variable_form::show_variable_form))
 
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))

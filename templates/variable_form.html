@@ -22,9 +22,7 @@
     <h1>Fill Variables for '{{ alias }}'</h1>
     <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">{{ description }}</p>
 
-    <form method="get" action="/search">
-        <input type="hidden" name="q" value="{{ alias }} ">
-
+    <form method="get">
         {% for var in variables %}
         <div style="margin-bottom: var(--space-4);">
             <label for="{{ var.name }}" style="display: block; margin-bottom: var(--space-2); font-weight: 600;">

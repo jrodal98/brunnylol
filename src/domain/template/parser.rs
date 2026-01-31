@@ -1,6 +1,6 @@
 // Template parser using recursive descent
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Result};
 
 use super::ast::{PipelineOp, Template, TemplatePart, VariableExpr};
 

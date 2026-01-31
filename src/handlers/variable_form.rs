@@ -34,13 +34,13 @@ struct FormVariableDisplay {
     has_default: bool,
 }
 
-// GET /f/:alias - Show variable form
+// GET /f/:alias - Show variable form or submit and redirect
 pub async fn show_variable_form(
     optional_user: OptionalUser,
     Path(alias): Path<String>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<crate::AppState>>,
-) -> Result<impl IntoResponse, AppError> {
+) -> Result<Response, AppError> {
     // Load bookmark (try user bookmarks first, then global)
     let command = if let Some(ref user) = optional_user.0 {
         let user_bookmarks = crate::db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
@@ -62,7 +62,20 @@ pub async fn show_variable_form(
 
     // Only Variable commands have forms
     match command {
-        Command::Variable { template, metadata, description, .. } => {
+        Command::Variable { template, metadata, description, base_url, .. } => {
+            // If variables are provided in query params, resolve and redirect
+            let has_any_variable = params.keys().any(|k| {
+                template.variables().iter().any(|v| &v.name == k)
+            });
+
+            if has_any_variable {
+                // Form was submitted - resolve variables and redirect
+                let resolver = crate::domain::template::TemplateResolver::new();
+                let url = resolver.resolve(&template, &params).unwrap_or(base_url);
+                return Ok(Redirect::to(&url).into_response());
+            }
+
+            // No variables provided - show form
             let form_data = form_builder::build_form_data(&template, metadata.as_ref(), &params);
 
             let variables = form_data
@@ -104,42 +117,6 @@ pub async fn show_variable_form(
             "Bookmark '{}' does not support variable forms",
             alias
         ))),
-    }
-}
-
-// POST /f/:alias - Submit variable form and redirect
-pub async fn submit_variable_form(
-    optional_user: OptionalUser,
-    Path(alias): Path<String>,
-    Query(form_data): Query<HashMap<String, String>>,
-    State(state): State<Arc<crate::AppState>>,
-) -> Response {
-    // Load bookmark
-    let command = if let Some(ref user) = optional_user.0 {
-        let user_bookmarks = crate::db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
-            .await
-            .ok();
-
-        if let Some(ref map) = user_bookmarks {
-            map.get(&alias).cloned()
-        } else {
-            let bookmark_map = state.alias_to_bookmark_map.read().await;
-            bookmark_map.get(&alias).cloned()
-        }
-    } else {
-        let bookmark_map = state.alias_to_bookmark_map.read().await;
-        bookmark_map.get(&alias).cloned()
-    };
-
-    match command {
-        Some(Command::Variable { base_url, template, .. }) => {
-            let resolver = crate::domain::template::TemplateResolver::new();
-            match resolver.resolve(&template, &form_data) {
-                Ok(url) => Redirect::to(&url).into_response(),
-                Err(_) => Redirect::to(&base_url).into_response(),
-            }
-        }
-        _ => AppError::NotFound(format!("Unknown alias: '{}'", alias)).into_response(),
     }
 }
 
