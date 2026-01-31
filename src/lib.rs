@@ -48,6 +48,7 @@ struct HelpTemplate {
 // Query parameter struct for search
 #[derive(Deserialize)]
 struct SearchParams {
+    #[serde(default)]
     q: String,
     default: Option<String>,
 }
