@@ -357,7 +357,64 @@ async fn redirect(
                 return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
             }
 
-            resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
+            // Try to resolve - if validation fails (e.g., strict options), redirect to form
+            match resolver.resolve(template, &vars) {
+                Ok(url) => url,
+                Err(_) => {
+                    // Validation error - redirect to form page
+                    let query_string: String = vars
+                        .iter()
+                        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+                        .collect::<Vec<_>>()
+                        .join("&");
+                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+                }
+            }
+        }
+        Some(Command::Variable { ref template, .. }) => {
+            // Direct mode with Variable command - validate before resolving
+            // Build variable map
+            let mut vars = HashMap::new();
+            let template_vars = template.variables();
+            let has_query_var = template_vars.iter().any(|v| v.name == "query");
+
+            if has_query_var && template_vars.len() == 1 {
+                vars.insert("query".to_string(), query.to_string());
+            } else {
+                let query_parts: Vec<&str> = query.split_whitespace().collect();
+                for (i, var) in template_vars.iter().enumerate() {
+                    if i < query_parts.len() {
+                        vars.insert(var.name.clone(), query_parts[i].to_string());
+                    }
+                }
+                if query_parts.len() > template_vars.len() && has_query_var {
+                    let remaining = query_parts[template_vars.len()..].join(" ");
+                    vars.insert("query".to_string(), remaining);
+                }
+            }
+
+            // Validate variables
+            let resolver = domain::template::TemplateResolver::new();
+            let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+
+            if !missing.is_empty() {
+                // Missing required variables - redirect to form
+                return Redirect::to(&format!("/f/{}", bookmark_alias)).into_response();
+            }
+
+            // Try to resolve - if validation fails (strict options), redirect to form
+            match resolver.resolve(template, &vars) {
+                Ok(url) => url,
+                Err(_) => {
+                    // Validation failed - redirect to form with current values
+                    let query_string: String = vars
+                        .iter()
+                        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+                        .collect::<Vec<_>>()
+                        .join("&");
+                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+                }
+            }
         }
         Some(bookmark) => bookmark.get_redirect_url(query),
         None => {

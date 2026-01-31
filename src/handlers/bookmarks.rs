@@ -317,11 +317,13 @@ pub async fn update_bookmark(
     // Validate URL scheme
     validation::validate_url_scheme(&form.url)?;
 
-    let encode_query = form.encode_query.is_some();
+    let encode_query = form.encode_query.unwrap_or("true".to_string()) == "true";
 
     // Validate command template if provided
     if let Some(ref template) = form.command_template {
-        validation::validate_template(template)?;
+        if !template.is_empty() {
+            validation::validate_variable_template(template)?;
+        }
     }
 
     db::update_bookmark(

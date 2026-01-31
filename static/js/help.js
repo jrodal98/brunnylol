@@ -34,4 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
   if (searchInput) {
     searchInput.addEventListener('keyup', searchTable);
   }
+
+  // Wire up Fill Form buttons
+  document.querySelectorAll('.btn-fill-form').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const alias = this.dataset.alias;
+      window.location.href = '/f/' + alias;
+    });
+  });
 });

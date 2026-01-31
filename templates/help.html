@@ -41,6 +41,7 @@
     <tr>
         <th>Alias</th>
         <th>Description</th>
+        <th>Actions</th>
     </tr>
     {% for (alias, description_parts) in personal_aliases %}
     <tr>
@@ -51,6 +52,9 @@
                 <span class="command-key">{{ command }}</span>
             </div>
             {% endfor %}
+        </td>
+        <td>
+            <button class="btn-secondary btn-small btn-fill-form" data-alias="{{ alias }}">Fill Form</button>
         </td>
     </tr>
     {% endfor %}
@@ -63,6 +67,7 @@
     <tr>
         <th>Alias</th>
         <th>Description</th>
+        <th>Actions</th>
     </tr>
     {% for (alias, description_parts, is_disabled) in alias_to_description %}
     <tr {% if is_disabled %}class="disabled-row"{% endif %}>
@@ -78,6 +83,9 @@
                 <span class="command-key">{{ command }}</span>
             </div>
             {% endfor %}
+        </td>
+        <td>
+            <button class="btn-secondary btn-small btn-fill-form" data-alias="{{ alias }}">Fill Form</button>
         </td>
     </tr>
     {% endfor %}
