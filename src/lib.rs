@@ -178,7 +178,16 @@ pub struct AppState {
 }
 
 // Route handlers
-async fn index(optional_user: auth::middleware::OptionalUser) -> Result<impl IntoResponse, AppError> {
+async fn index(
+    optional_user: auth::middleware::OptionalUser,
+    Query(params): Query<SearchParams>,
+) -> Result<impl IntoResponse, AppError> {
+    // If query param is present, redirect to search endpoint
+    if !params.q.is_empty() {
+        let search_url = format!("/search?q={}", urlencoding::encode(&params.q));
+        return Ok(Redirect::to(&search_url).into_response());
+    }
+
     let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
         (true, user.is_admin)
     } else {
