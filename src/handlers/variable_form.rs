@@ -49,11 +49,17 @@ pub async fn show_variable_form(
             .await
             .ok();
 
-        if let Some(ref map) = user_bookmarks {
-            map.get(&alias).cloned()
-        } else {
+        // Try user bookmarks first
+        let from_user = user_bookmarks
+            .as_ref()
+            .and_then(|map| map.get(&alias).cloned());
+
+        // If not in user bookmarks, try global
+        if from_user.is_none() {
             let bookmark_map = state.alias_to_bookmark_map.read().await;
             bookmark_map.get(&alias).cloned()
+        } else {
+            from_user
         }
     } else {
         let bookmark_map = state.alias_to_bookmark_map.read().await;
@@ -135,11 +141,17 @@ pub async fn submit_variable_form(
             .await
             .ok();
 
-        if let Some(ref map) = user_bookmarks {
-            map.get(&alias).cloned()
-        } else {
+        // Try user bookmarks first
+        let from_user = user_bookmarks
+            .as_ref()
+            .and_then(|map| map.get(&alias).cloned());
+
+        // If not in user bookmarks, try global
+        if from_user.is_none() {
             let bookmark_map = state.alias_to_bookmark_map.read().await;
             bookmark_map.get(&alias).cloned()
+        } else {
+            from_user
         }
     } else {
         let bookmark_map = state.alias_to_bookmark_map.read().await;
