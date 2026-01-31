@@ -9,8 +9,57 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
+use crate::{auth::middleware::CurrentUser, db, domain::Command, error::{AppError, DbResultExt}, validation};
 use super::common::{SuccessTemplate, SuccessWithLinkTemplate};
+
+// Helper function to convert Template AST back to string for editing
+fn render_template_to_string(template: &crate::domain::template::Template) -> String {
+    use crate::domain::template::{TemplatePart, PipelineOp};
+
+    let mut result = String::new();
+
+    for part in &template.parts {
+        match part {
+            TemplatePart::Literal(s) => {
+                // Escape braces in literals
+                result.push_str(&s.replace("{", "{{").replace("}", "}}"));
+            }
+            TemplatePart::Variable(var) => {
+                result.push('{');
+                result.push_str(&var.name);
+
+                if var.is_optional {
+                    result.push('?');
+                } else if let Some(ref default) = var.default {
+                    result.push('=');
+                    result.push_str(default);
+                }
+
+                // Add pipelines
+                for pipeline in &var.pipelines {
+                    result.push('|');
+                    match pipeline {
+                        PipelineOp::Encode => result.push_str("encode"),
+                        PipelineOp::NoEncode => result.push_str("!encode"),
+                        PipelineOp::Trim => result.push_str("trim"),
+                        PipelineOp::Options { values, strict } => {
+                            result.push_str("options[");
+                            result.push_str(&values.join(","));
+                            result.push(']');
+                            if *strict {
+                                result.push_str("[strict]");
+                            }
+                        }
+                    }
+                }
+
+                result.push('}');
+            }
+        }
+    }
+
+    result
+}
 
 // Template structs
 #[derive(Template)]
@@ -40,6 +89,8 @@ struct BookmarkDisplay {
 struct GlobalBookmarkDisplay {
     alias: String,
     description: String,
+    url: String,
+    template: String,
     is_overridden: bool,
     is_disabled: bool,
 }
@@ -173,9 +224,24 @@ pub async fn manage_page(
             conflicts.push(alias.clone());
         }
 
+        // Extract URL and template from Command
+        let (url, template) = match command {
+            Command::Variable { base_url, template, .. } => {
+                // Render template back to string for editing
+                let template_str = render_template_to_string(template);
+                (base_url.clone(), template_str)
+            }
+            Command::Nested { .. } => {
+                // Nested bookmarks don't have a simple template
+                (String::new(), String::new())
+            }
+        };
+
         global_bookmarks.push(GlobalBookmarkDisplay {
             alias: alias.clone(),
             description: command.description().to_string(),
+            url,
+            template,
             is_overridden,
             is_disabled,
         });

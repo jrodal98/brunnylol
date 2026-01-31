@@ -270,6 +270,24 @@ function showEditForm(id, alias, url, description, template) {
 function hideEditForm() {
     document.getElementById('edit-modal').style.display = 'none';
     document.getElementById('edit-result').innerHTML = '';
+    // Reset readonly state
+    document.getElementById('edit-alias').readOnly = false;
+}
+
+function showEditFormGlobal(alias, url, template, description) {
+    // Reuse edit form but for global bookmarks
+    document.getElementById('edit-id').value = ''; // No ID for global
+    document.getElementById('edit-alias').value = alias;
+    document.getElementById('edit-alias').readOnly = true; // Can't change alias
+    document.getElementById('edit-url').value = url;
+    document.getElementById('edit-description').value = description;
+    document.getElementById('edit-template').value = template || '';
+
+    // Set form action for global bookmark
+    document.getElementById('edit-form').setAttribute('hx-put', `/admin/bookmark/${alias}`);
+    htmx.process(document.getElementById('edit-form'));
+
+    document.getElementById('edit-modal').style.display = 'block';
 }
 
 function toggleImportFields() {
@@ -537,6 +555,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.dataset.url,
                 this.dataset.description,
                 this.dataset.template
+            );
+        });
+    });
+
+    // Wire up global edit buttons for admins
+    document.querySelectorAll('.btn-edit-global').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            showEditFormGlobal(
+                this.dataset.alias,
+                this.dataset.url,
+                this.dataset.template,
+                this.dataset.description
             );
         });
     });

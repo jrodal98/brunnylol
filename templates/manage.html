@@ -313,6 +313,15 @@
                     </td>
                     <td>
                         <div style="display: flex; gap: 0.5em; align-items: center;">
+                            {% if user.is_admin %}
+                            <button class="btn-secondary btn-edit-global"
+                                    data-alias="{{ bookmark.alias }}"
+                                    data-url="{{ bookmark.url }}"
+                                    data-template="{{ bookmark.template }}"
+                                    data-description="{{ bookmark.description }}">
+                                Edit
+                            </button>
+                            {% endif %}
                             <form hx-post="/manage/override"
                                   hx-target="#global-{{ bookmark.alias }}"
                                   hx-swap="outerHTML"

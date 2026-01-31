@@ -2,7 +2,7 @@
 
 use askama::Template;
 use axum::{
-    extract::{Form, State},
+    extract::{Form, Path, State},
     response::{Html, IntoResponse},
 };
 use serde::Deserialize;
@@ -155,4 +155,58 @@ pub async fn reload_global_bookmarks(
         message: "Global bookmarks reloaded successfully",
     };
     Ok(Html(template.render()?))
+}
+
+// PUT /admin/bookmark/:alias - Update a global bookmark
+pub async fn update_global_bookmark(
+    _admin_user: AdminUser,
+    State(state): State<Arc<crate::AppState>>,
+    Path(alias): Path<String>,
+    Form(form): Form<UpdateGlobalBookmarkForm>,
+) -> Result<impl IntoResponse, AppError> {
+    // Validate URL scheme
+    crate::validation::validate_url_scheme(&form.url)?;
+
+    // Validate template if provided
+    if !form.template.is_empty() {
+        crate::validation::validate_variable_template(&form.template)?;
+    }
+
+    // Update the global bookmark in database
+    db::update_bookmark(
+        &state.db_pool,
+        db::get_global_bookmark_id_by_alias(&state.db_pool, &alias)
+            .await
+            .map_err(|_| AppError::NotFound(format!("Global bookmark '{}' not found", alias)))?,
+        db::BookmarkScope::Global,
+        &alias,
+        &form.url,
+        &form.description,
+        Some(&form.template),
+        true, // encode_query (default)
+    )
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to update global bookmark: {}", e)))?;
+
+    // Reload global bookmarks
+    let new_map = state.bookmark_service
+        .load_global_bookmarks()
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
+
+    let mut write_lock = state.alias_to_bookmark_map.write().await;
+    *write_lock = new_map;
+    drop(write_lock);
+
+    let message = format!("Global bookmark '{}' updated and reloaded", alias);
+    let template = SuccessTemplate { message: &message };
+    Ok(Html(template.render()?))
+}
+
+#[derive(Deserialize)]
+pub struct UpdateGlobalBookmarkForm {
+    alias: String,
+    url: String,
+    description: String,
+    template: String,
 }

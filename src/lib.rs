@@ -15,7 +15,7 @@ use axum::{
     extract::{DefaultBodyLimit, Query, State},
     middleware,
     response::{Html, IntoResponse, Redirect},
-    routing::{delete, get, post},
+    routing::{delete, get, post, put},
     Router,
 };
 use tower_http::services::ServeDir;
@@ -598,6 +598,7 @@ pub async fn create_router() -> Router {
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
         .route("/admin/create-user", post(handlers::admin::create_user))
         .route("/admin/reload-global", post(handlers::admin::reload_global_bookmarks))
+        .route("/admin/bookmark/{alias}", put(handlers::admin::update_global_bookmark))
 
         // Serve static files (JavaScript, CSS, etc.)
         .nest_service("/static", ServeDir::new("static"))

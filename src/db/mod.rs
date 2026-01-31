@@ -399,6 +399,18 @@ pub async fn get_bookmark_by_id(
     Ok(bookmark)
 }
 
+// Get global bookmark ID by alias
+pub async fn get_global_bookmark_id_by_alias(pool: &SqlitePool, alias: &str) -> Result<i64> {
+    let id = sqlx::query_scalar::<_, i64>(
+        "SELECT id FROM bookmarks WHERE scope = 'global' AND alias = ?"
+    )
+    .bind(alias)
+    .fetch_one(pool)
+    .await?;
+
+    Ok(id)
+}
+
 // Update a bookmark
 pub async fn update_bookmark(
     pool: &SqlitePool,
