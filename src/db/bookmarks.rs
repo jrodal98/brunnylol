@@ -16,7 +16,7 @@ fn create_variable_command(
 ) -> Result<Command> {
     let parsed_template = crate::domain::template::TemplateParser::parse(template_str)?;
 
-    let metadata = if let Some(ref json) = variable_metadata {
+    let metadata = if let Some(json) = variable_metadata {
         serde_json::from_str(json).ok()
     } else {
         Some(crate::domain::template::TemplateMetadata::from_template(&parsed_template))

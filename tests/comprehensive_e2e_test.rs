@@ -101,11 +101,6 @@ async fn test_e2e_positional_args_multiple_vars() {
 // Test 5: Named mode parsing with quoted values
 #[tokio::test]
 async fn test_e2e_named_mode_parsing() {
-    // Test parse_named_variables directly
-    let query = r#"$user="jrodal98"; $repo="my repo"; rest of query"#;
-
-    // This would be tested in the actual handler, but let's verify the parsing logic
-    // by creating a bookmark and using the template resolver
     let template = TemplateParser::parse("https://github.com/{user}/{repo}").unwrap();
     let resolver = TemplateResolver::new();
 

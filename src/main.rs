@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let port = matches
         .get_one::<String>("port")
         .map(|s| s.as_str())
-        .or_else(|| env_port.as_deref())
+        .or(env_port.as_deref())
         .unwrap_or("8000");
 
     let addr = format!("0.0.0.0:{}", port);

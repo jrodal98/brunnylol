@@ -138,6 +138,7 @@ fn parse_named_variables(query: &str) -> (HashMap<String, String>, Option<String
                 let mut bytes_consumed = 0;
                 let mut found_close = false;
 
+                #[allow(clippy::while_let_on_iterator)]
                 while let Some(ch) = chars.next() {
                     bytes_consumed += ch.len_utf8();
                     if escaped {
@@ -241,7 +242,7 @@ async fn help(
                 bookmarks
                     .iter()
                     .map(|(alias, cmd)| {
-                        let parts = split_command_description(&cmd.description());
+                        let parts = split_command_description(cmd.description());
                         (alias.clone(), parts)
                     })
                     .collect::<Vec<_>>()
@@ -261,7 +262,7 @@ async fn help(
     let alias_to_description: Vec<(String, Vec<String>, bool)> = bookmark_map
         .iter()
         .map(|(alias, cmd)| {
-            let parts = split_command_description(&cmd.description());
+            let parts = split_command_description(cmd.description());
             let is_disabled = disabled_set.contains(alias);
             (alias.clone(), parts, is_disabled)
         })
@@ -500,7 +501,7 @@ pub async fn create_router() -> Router {
     let db_path = matches
         .get_one::<String>("database")
         .map(|s| s.as_str())
-        .or_else(|| env_db.as_deref())
+        .or(env_db.as_deref())
         .unwrap_or("brunnylol.db");
 
     eprintln!("Using database: {}", db_path);

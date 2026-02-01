@@ -330,6 +330,7 @@ pub async fn update_user_default_alias(pool: &SqlitePool, user_id: i64, default_
 // ============================================================================
 
 // Create a bookmark in the unified schema
+#[allow(clippy::too_many_arguments)]
 pub async fn create_bookmark(
     pool: &SqlitePool,
     scope: BookmarkScope,
@@ -567,7 +568,7 @@ pub async fn get_bookmarks_with_nested(
     let mut nested_map: HashMap<i64, Vec<NestedBookmark>> = HashMap::new();
     for nested in all_nested {
         nested_map.entry(nested.parent_bookmark_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(nested);
     }
 
