@@ -81,7 +81,6 @@ struct BookmarkDisplay {
     url: String,
     description: String,
     command_template: String,
-    encode_query: bool,
     nested_count: usize,
 }
 
@@ -113,12 +112,9 @@ struct GlobalBookmarkRowTemplate<'a> {
 #[derive(Deserialize, Debug)]
 pub struct NestedCommandData {
     alias: String,
-    #[serde(rename = "type")]
-    cmd_type: String,
     url: String,
     description: String,
-    template: Option<String>,
-    encode: bool,
+    command_template: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -128,7 +124,6 @@ pub struct CreateBookmarkForm {
     url: String,
     description: String,
     command_template: Option<String>,
-    encode_query: Option<String>, // checkbox value
     // Nested commands as JSON string
     nested_commands_json: Option<String>,
 }
@@ -139,7 +134,6 @@ pub struct UpdateBookmarkForm {
     url: String,
     description: String,
     command_template: Option<String>,
-    encode_query: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -155,7 +149,6 @@ pub struct CreateNestedForm {
     url: String,
     description: String,
     command_template: Option<String>,
-    encode_query: Option<String>,
 }
 
 // GET /manage - Main bookmark management page
@@ -188,7 +181,6 @@ pub async fn manage_page(
             url: bookmark.url.clone(),
             description: bookmark.description.clone(),
             command_template: bookmark.command_template.clone().unwrap_or_default(),
-            encode_query: bookmark.encode_query,
             nested_count,
         });
     }
@@ -288,8 +280,6 @@ pub async fn create_bookmark(
         }
     }
 
-    let encode_query = form.encode_query.unwrap_or("true".to_string()) == "true";
-
     // Create parent bookmark in database
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
@@ -299,7 +289,6 @@ pub async fn create_bookmark(
         &form.url,
         &form.description,
         form.command_template.as_deref(),
-        encode_query,
         Some(current_user.0.id),
     )
     .await
@@ -321,19 +310,11 @@ pub async fn create_bookmark(
                 // Validate nested URL scheme
                 validation::validate_url_scheme(&nested_cmd.url)?;
 
-                let nested_template = if nested_cmd.cmd_type == "templated" {
-                    nested_cmd.template.as_deref()
-                } else {
-                    None
-                };
-
-                // Validate nested templated bookmarks have a valid template with {}
-                if nested_cmd.cmd_type == "templated" {
-                    let template = nested_template.unwrap_or(&nested_cmd.url);
-                    validation::validate_template(template)
-                        .map_err(|_| AppError::BadRequest(
-                            format!("Nested bookmark '{}' is templated but template doesn't contain {{}} placeholder", nested_cmd.alias)
-                        ))?;
+                // Validate nested templated bookmarks have a valid template
+                if let Some(ref template) = nested_cmd.command_template {
+                    if !template.is_empty() {
+                        validation::validate_variable_template(template)?;
+                    }
                 }
 
                 db::create_nested_bookmark(
@@ -342,8 +323,7 @@ pub async fn create_bookmark(
                     &nested_cmd.alias,
                     &nested_cmd.url,
                     &nested_cmd.description,
-                    nested_template,
-                    nested_cmd.encode,
+                    nested_cmd.command_template.as_deref(),
                     i as i32,
                 )
                 .await
@@ -386,8 +366,6 @@ pub async fn update_bookmark(
     // Validate URL scheme
     validation::validate_url_scheme(&form.url)?;
 
-    let encode_query = form.encode_query.unwrap_or("true".to_string()) == "true";
-
     // Validate command template if provided
     if let Some(ref template) = form.command_template {
         if !template.is_empty() {
@@ -403,7 +381,6 @@ pub async fn update_bookmark(
         &form.url,
         &form.description,
         form.command_template.as_deref(),
-        encode_query,
     )
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update bookmark: {}", e)))?;
@@ -432,8 +409,6 @@ pub async fn create_nested_bookmark(
     // Validate URL scheme
     validation::validate_url_scheme(&form.url)?;
 
-    let encode_query = form.encode_query.is_some();
-
     // Validate templated nested bookmarks have a valid template with {}
     if let Some(ref template) = form.command_template {
         validation::validate_template(template)?;
@@ -453,7 +428,6 @@ pub async fn create_nested_bookmark(
         &form.url,
         &form.description,
         form.command_template.as_deref(),
-        encode_query,
         display_order,
     )
     .await
@@ -858,7 +832,6 @@ pub async fn fork_global_bookmark(
         &global_bookmark.url,
         &global_bookmark.description,
         global_bookmark.command_template.as_deref(),
-        global_bookmark.encode_query,
         Some(current_user.0.id), // Track who forked this
     )
     .await
@@ -884,7 +857,6 @@ pub async fn fork_global_bookmark(
                 &nested.url,
                 &nested.description,
                 nested.command_template.as_deref(),
-                nested.encode_query,
                 i as i32,
             )
             .await

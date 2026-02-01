@@ -201,7 +201,6 @@ impl BookmarkService {
             &setting.url,
             &setting.description,
             setting.command.as_deref(),
-            setting.encode.unwrap_or(true),
             Some(user_id),
         ).await?;
 
@@ -215,7 +214,6 @@ impl BookmarkService {
                     &nested_setting.url,
                     &nested_setting.description,
                     nested_setting.command.as_deref(),
-                    nested_setting.encode.unwrap_or(true),
                     i as i32,
                 ).await?;
             }
@@ -235,7 +233,6 @@ impl BookmarkService {
             &setting.url,
             &setting.description,
             setting.command.as_deref(),
-            setting.encode.unwrap_or(true),
             created_by,
         ).await?;
 
@@ -249,7 +246,6 @@ impl BookmarkService {
                     &nested_setting.url,
                     &nested_setting.description,
                     nested_setting.command.as_deref(),
-                    nested_setting.encode.unwrap_or(true),
                     i as i32,
                 ).await?;
             }
@@ -287,7 +283,7 @@ impl BookmarkService {
                             description: n.description,
                             url: n.url,
                             command: n.command_template,
-                            encode: Some(n.encode_query),
+                            encode: None,  // encode_query removed - encoding is now per-variable via pipelines
                             nested: None,
                         })
                         .collect()
@@ -301,7 +297,7 @@ impl BookmarkService {
                 description: bookmark.description,
                 url: bookmark.url,
                 command: bookmark.command_template,
-                encode: Some(bookmark.encode_query),
+                encode: None,  // encode_query removed - encoding is now per-variable via pipelines
                 nested,
             });
         }

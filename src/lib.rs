@@ -468,7 +468,18 @@ async fn redirect(
         }
     };
 
-    Redirect::to(&redirect_url).into_response()
+    // Check if redirect_url is an external URL (starts with http:// or https://)
+    // For external URLs, we need to create a raw HTTP response since Axum's Redirect
+    // treats them as relative paths
+    if redirect_url.starts_with("http://") || redirect_url.starts_with("https://") {
+        use axum::http::{StatusCode, header};
+        use axum::response::IntoResponse;
+
+        (StatusCode::SEE_OTHER, [(header::LOCATION, redirect_url)]).into_response()
+    } else {
+        // Internal path - use normal redirect
+        Redirect::to(&redirect_url).into_response()
+    }
 }
 
 // Public function to create the router

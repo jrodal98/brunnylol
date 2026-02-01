@@ -21,7 +21,6 @@ async fn test_e2e_create_bookmark_with_options() {
         "https://proton.me",
         "Proton services",
         Some("https://{product|options[mail,drive,calendar,vpn]}.proton.me"),
-        true,
         None,
     )
     .await;
@@ -83,7 +82,6 @@ async fn test_e2e_positional_args_multiple_vars() {
         "https://github.com",
         "GitHub user/repo",
         Some("https://github.com/{user}/{repo}"),
-        true,
         None,
     )
     .await

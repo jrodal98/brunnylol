@@ -44,10 +44,13 @@ impl TemplateResolver {
                             }
 
                             // Apply default encoding ONLY if no encoding-related pipeline exists
+                            // EXCEPT for built-in variables like {url} which should never be encoded by default
                             let has_encoding_pipeline = var_expr.pipelines.iter()
                                 .any(|p| matches!(p, PipelineOp::Encode | PipelineOp::NoEncode));
 
-                            if !has_encoding_pipeline {
+                            let is_builtin_noenc = var_expr.name == "url"; // {url} built-in should not be encoded
+
+                            if !has_encoding_pipeline && !is_builtin_noenc {
                                 val = urlencoding::encode(&val).to_string();
                             }
 

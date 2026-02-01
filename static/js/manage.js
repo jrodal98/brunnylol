@@ -74,11 +74,9 @@ function addNestedRow() {
 
         <div class="form-group">
             <label>Template (optional):</label>
-            <input type="text" name="nested_template[]" placeholder="{url}/search?q={query}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-            <small>Leave empty for simple redirect. Use {var} syntax for variables.</small>
+            <input type="text" name="nested_command_template[]" placeholder="{url}/search?q={query}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <small>Leave empty for simple redirect. Use {var}, {var?}, {var=default} for variables. Add |!encode to disable URL encoding.</small>
         </div>
-
-        <input type="hidden" name="nested_type[]" value="templated">
     `;
 
     container.appendChild(row);
@@ -87,11 +85,6 @@ function addNestedRow() {
     const removeBtn = row.querySelector('.remove-nested-row');
     removeBtn.addEventListener('click', function() {
         removeNestedRow(this.dataset.rowId);
-    });
-
-    const typeSelect = row.querySelector('.nested-type-select');
-    typeSelect.addEventListener('change', function() {
-        toggleNestedTemplate(this);
     });
 
     console.log('Row appended to container, total children:', container.children.length);
@@ -135,19 +128,15 @@ function prepareNestedCommands() {
 
     rows.forEach((row, index) => {
         const aliasInput = row.querySelector('input[name="nested_alias[]"]');
-        const typeSelect = row.querySelector('select[name="nested_type[]"]');
         const urlInput = row.querySelector('input[name="nested_url[]"]');
         const descInput = row.querySelector('input[name="nested_description[]"]');
-        const templateInput = row.querySelector('input[name="nested_template[]"]');
-        const encodeCheckbox = row.querySelector('input[name="nested_encode[]"]');
+        const templateInput = row.querySelector('input[name="nested_command_template[]"]');
 
         nestedCommands.push({
             alias: aliasInput ? aliasInput.value : '',
-            type: typeSelect ? typeSelect.value : 'simple',
             url: urlInput ? urlInput.value : '',
             description: descInput ? descInput.value : '',
-            template: templateInput ? templateInput.value : null,
-            encode: encodeCheckbox ? encodeCheckbox.checked : true
+            command_template: templateInput && templateInput.value ? templateInput.value : null
         });
     });
 
@@ -199,8 +188,6 @@ function showNestedManager(bookmarkId, alias) {
                 <input type="text" name="command_template" placeholder="{url}/search?q={query}">
                 <small>Leave empty for simple redirect. Use {var}, {var?}, {var=default} for variables. Add |!encode to disable URL encoding.</small>
             </div>
-
-            <input type="hidden" name="nested_type" value="templated">
 
             <button type="submit" class="btn-primary">Add Sub-command</button>
         </form>

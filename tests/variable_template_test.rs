@@ -19,7 +19,6 @@ async fn test_create_variable_template_bookmark() {
         "https://example.com",
         "Test variable template",
         Some("https://example.com/{page}/{repo?}"),
-        true,
         None,
     )
     .await;
@@ -41,7 +40,6 @@ async fn test_load_variable_template_as_command() {
         "https://github.com",
         "GitHub with variables",
         Some("https://github.com/{org}/{repo}"),
-        true,
         None,
     )
     .await
@@ -168,7 +166,6 @@ async fn test_backward_compatibility_with_query() {
         "https://example.com",
         "Simple search",
         Some("https://example.com/search?q={query}"),
-        true,
         None,
     )
     .await

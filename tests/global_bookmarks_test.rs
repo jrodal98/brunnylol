@@ -198,7 +198,6 @@ async fn test_export_personal_bookmarks_yaml() {
         "https://export1.com",
         "Export test 1",
         None,
-        true,
         Some(user_id),
     ).await.unwrap();
 
@@ -230,7 +229,6 @@ async fn test_export_global_bookmarks_json() {
         "https://gtest.com",
         "Global test",
         Some("https://gtest.com/search?q={}"),
-        true,
         Some(admin_id),
     ).await.unwrap();
 
@@ -261,7 +259,6 @@ async fn test_export_global_nested_bookmarks() {
         "https://gnest.com",
         "Global nested test",
         None,
-        true,
         Some(admin_id),
     ).await.unwrap();
 
@@ -272,7 +269,6 @@ async fn test_export_global_nested_bookmarks() {
         "https://gnest.com/sub",
         "Sub command",
         Some("https://gnest.com/sub?q={}"),
-        true,
         0,
     ).await.unwrap();
 
@@ -343,7 +339,6 @@ async fn test_personal_overrides_global() {
         "https://global.com",
         "Global version",
         None,
-        true,
         None,
     ).await.unwrap();
 
@@ -356,7 +351,6 @@ async fn test_personal_overrides_global() {
         "https://personal.com",
         "Personal version",
         None,
-        true,
         Some(user_id),
     ).await.unwrap();
 
@@ -387,7 +381,6 @@ async fn test_disabled_global_bookmarks() {
         "https://disabled.com",
         "Should be disabled",
         None,
-        true,
         None,
     ).await.unwrap();
 
@@ -516,7 +509,6 @@ async fn test_load_global_bookmarks_as_commands() {
         "https://loadtest.com",
         "Load test",
         Some("https://loadtest.com/search?q={}"),
-        true,
         Some(admin_id),
     ).await.unwrap();
 
@@ -546,7 +538,6 @@ async fn test_merge_global_and_personal_bookmarks() {
         "https://global-merge.com",
         "Global merge test",
         None,
-        true,
         None,
     ).await.unwrap();
 
@@ -559,7 +550,6 @@ async fn test_merge_global_and_personal_bookmarks() {
         "https://personal-merge.com",
         "Personal merge test",
         None,
-        true,
         Some(user_id),
     ).await.unwrap();
 

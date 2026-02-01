@@ -183,7 +183,6 @@ pub async fn update_global_bookmark(
         &form.url,
         &form.description,
         Some(&form.template),
-        true, // encode_query (default)
     )
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update global bookmark: {}", e)))?;
