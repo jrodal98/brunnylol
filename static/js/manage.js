@@ -228,7 +228,7 @@ function showEditFormGlobal(alias, url, template, description) {
     // Reuse edit form but for global bookmarks
     document.getElementById('edit-id').value = ''; // No ID for global
     document.getElementById('edit-alias').value = alias;
-    document.getElementById('edit-alias').readOnly = true; // Can't change alias
+    document.getElementById('edit-alias').readOnly = false; // Allow changing alias
     document.getElementById('edit-url').value = url;
     document.getElementById('edit-description').value = description;
     document.getElementById('edit-template').value = template || '';

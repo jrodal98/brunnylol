@@ -179,7 +179,7 @@ pub async fn update_global_bookmark(
             .await
             .map_err(|_| AppError::NotFound(format!("Global bookmark '{}' not found", alias)))?,
         db::BookmarkScope::Global,
-        &alias,
+        &form.alias,
         &form.url,
         &form.description,
         Some(&form.template),
@@ -197,13 +197,18 @@ pub async fn update_global_bookmark(
     *write_lock = new_map;
     drop(write_lock);
 
-    let message = format!("Global bookmark '{}' updated and reloaded", alias);
+    let message = if &form.alias != &alias {
+        format!("Global bookmark '{}' renamed to '{}' and reloaded", alias, form.alias)
+    } else {
+        format!("Global bookmark '{}' updated and reloaded", alias)
+    };
     let template = SuccessTemplate { message: &message };
     Ok(Html(template.render()?))
 }
 
 #[derive(Deserialize)]
 pub struct UpdateGlobalBookmarkForm {
+    alias: String,
     url: String,
     description: String,
     template: String,
