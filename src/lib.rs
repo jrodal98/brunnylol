@@ -29,15 +29,6 @@ use clap::Arg;
 
 const DEFAULT_ALIAS: &str = "g";
 
-// Helper: Build URL query string from variables
-fn build_query_string(vars: &HashMap<String, String>) -> String {
-    vars.iter()
-        .filter(|(k, _)| *k != "url")
-        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-        .collect::<Vec<_>>()
-        .join("&")
-}
-
 // Helper: Load disabled global bookmark aliases for a user
 async fn load_disabled_globals(pool: &SqlitePool, user_id: i64) -> std::collections::HashSet<String> {
     db::get_user_overrides(pool, user_id)
@@ -76,122 +67,11 @@ struct SearchParams {
 }
 
 // Usage mode for bookmark aliases
-enum UsageMode {
-    Direct,   // alias value
-    Form,     // alias?
-    Named,    // alias$
-    Chained,  // alias?$
-}
 
 // Parse alias and detect usage mode from suffix
-fn parse_alias_and_mode(input: &str) -> (&str, UsageMode) {
-    // Single-char aliases can end in special characters
-    if input.len() == 1 {
-        return (input, UsageMode::Direct);
-    }
-
-    // Check for ?$ or $? suffix (chained mode - both orders)
-    if input.ends_with("?$") || input.ends_with("$?") {
-        return (&input[..input.len() - 2], UsageMode::Chained);
-    }
-
-    // Check for ? or $ suffix
-    if let Some(ch) = input.chars().last() {
-        match ch {
-            '?' => (&input[..input.len() - 1], UsageMode::Form),
-            '$' => (&input[..input.len() - 1], UsageMode::Named),
-            _ => (input, UsageMode::Direct),
-        }
-    } else {
-        (input, UsageMode::Direct)
-    }
-}
 
 // Parse named variables from query string
 // Example: "$page=home; $repo=rust; rest of query" -> ({page: "home", repo: "rust"}, Some("rest of query"))
-fn parse_named_variables(query: &str) -> (HashMap<String, String>, Option<String>) {
-    let mut variables = HashMap::new();
-    let mut remaining = query;
-
-    loop {
-        remaining = remaining.trim_start();
-
-        // Check if starts with $
-        if !remaining.starts_with('$') {
-            break;
-        }
-
-        // Find the variable name (between $ and =)
-        if let Some(eq_pos) = remaining.find('=') {
-            let var_name = remaining[1..eq_pos].trim().to_string();
-            remaining = &remaining[eq_pos + 1..];
-
-            // Parse the value (quoted or until semicolon/end)
-            let (value, rest) = if remaining.trim_start().starts_with('"') {
-                // Quoted value with escape support
-                remaining = remaining.trim_start();
-                remaining = &remaining[1..]; // Skip opening quote
-
-                let mut value = String::new();
-                let mut chars = remaining.chars();
-                let mut escaped = false;
-                let mut bytes_consumed = 0;
-                let mut found_close = false;
-
-                #[allow(clippy::while_let_on_iterator)]
-                while let Some(ch) = chars.next() {
-                    bytes_consumed += ch.len_utf8();
-                    if escaped {
-                        value.push(ch);
-                        escaped = false;
-                    } else if ch == '\\' {
-                        escaped = true;
-                    } else if ch == '"' {
-                        // Found closing quote
-                        found_close = true;
-                        break;
-                    } else {
-                        value.push(ch);
-                    }
-                }
-
-                if found_close {
-                    (value, &remaining[bytes_consumed..])
-                } else {
-                    // No closing quote found
-                    (value, "")
-                }
-            } else {
-                // Unquoted value until semicolon
-                if let Some(semi) = remaining.find(';') {
-                    let val = remaining[..semi].trim().to_string();
-                    (val, &remaining[semi + 1..])
-                } else {
-                    (remaining.trim().to_string(), "")
-                }
-            };
-
-            variables.insert(var_name, value);
-            remaining = rest;
-
-            // Skip semicolon if present
-            remaining = remaining.trim_start();
-            if remaining.starts_with(';') {
-                remaining = &remaining[1..];
-            }
-        } else {
-            break;
-        }
-    }
-
-    let remaining_query = if remaining.is_empty() {
-        None
-    } else {
-        Some(remaining.trim().to_string())
-    };
-
-    (variables, remaining_query)
-}
 
 // Application state
 pub struct AppState {
@@ -199,6 +79,7 @@ pub struct AppState {
     pub default_alias: String,
     pub db_pool: SqlitePool,
     pub bookmark_service: std::sync::Arc<services::bookmark_service::BookmarkService>,
+    pub redirect_service: std::sync::Arc<services::redirect_service::RedirectService>,
 }
 
 // Route handlers
@@ -282,184 +163,18 @@ async fn redirect(
     Query(params): Query<SearchParams>,
     State(state): State<Arc<AppState>>,
 ) -> axum::response::Response {
-    let mut splitted = params.q.splitn(2, ' ');
-    let bookmark_alias_raw = splitted.next().unwrap_or("");
-    let query = splitted.next().unwrap_or_default();
-
-    // Parse alias and detect usage mode from suffix
-    let (bookmark_alias, usage_mode) = parse_alias_and_mode(bookmark_alias_raw);
-
-    // Handle Form and Chained modes - redirect to /f/{alias}
-    if matches!(usage_mode, UsageMode::Form | UsageMode::Chained) {
-        let mut form_url = format!("/f/{}", bookmark_alias);
-
-        // For chained mode, parse named variables and add as query params
-        if matches!(usage_mode, UsageMode::Chained) {
-            let (vars, _) = parse_named_variables(query);
-            if !vars.is_empty() {
-                form_url = format!("{}?{}", form_url, build_query_string(&vars));
-            }
-        }
-
-        return Redirect::to(&form_url).into_response();
-    }
-
-    // Load user bookmarks and disabled global bookmarks if logged in
-    let (user_bookmarks, disabled_globals) = if let Some(user) = &optional_user.0 {
-        let bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
-            .await
-            .ok();
-
-        let disabled = load_disabled_globals(&state.db_pool, user.id).await;
-
-        (bookmarks, disabled)
-    } else {
-        (None, std::collections::HashSet::new())
-    };
-
-    // Try user bookmarks first (if logged in), then global bookmarks (if not disabled)
     let bookmark_map = state.alias_to_bookmark_map.read().await;
-    let command = user_bookmarks
-        .as_ref()
-        .and_then(|user_map| user_map.get(bookmark_alias))
-        .or_else(|| {
-            // Check if global bookmark is disabled
-            if disabled_globals.contains(bookmark_alias) {
-                None
-            } else {
-                bookmark_map.get(bookmark_alias)
-            }
-        }).cloned();
 
-    let redirect_url = match command {
-        Some(Command::Variable { ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
-            // Handle named mode
-            let (mut vars, remaining) = parse_named_variables(query);
+    let result = state.redirect_service.resolve_redirect(
+        &params.q,
+        optional_user.0.as_ref(),
+        &bookmark_map,
+        params.default.as_deref().or(Some(&state.default_alias)),
+    ).await;
 
-            // Add remaining query to "query" variable if it exists
-            if let Some(rem) = remaining {
-                if !rem.is_empty() {
-                    vars.insert("query".to_string(), rem);
-                }
-            }
-
-            // Check if all required variables are provided
-            let resolver = domain::template::TemplateResolver::new();
-            let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
-
-            if !missing.is_empty() {
-                return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
-            }
-
-            // Try to resolve - if validation fails (e.g., strict options), redirect to form
-            match resolver.resolve(template, &vars) {
-                Ok(url) => url,
-                Err(_) => {
-                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
-                }
-            }
-        }
-        Some(Command::Variable { ref template, ref base_url, .. }) => {
-            // Direct mode with Variable command - validate before resolving
-
-            // If query is empty, just return base URL
-            if query.trim().is_empty() {
-                return Redirect::to(base_url).into_response();
-            }
-
-            // Build variable map
-            let mut vars = HashMap::new();
-            let template_vars = template.variables();
-            let has_query_var = template_vars.iter().any(|v| v.name == "query");
-
-            // Add {url} as built-in variable
-            vars.insert("url".to_string(), base_url.clone());
-
-            // Filter out built-in variables for positional mapping
-            let user_vars: Vec<_> = template_vars.iter()
-                .filter(|v| v.name != "url")
-                .collect();
-
-            if has_query_var && user_vars.len() == 1 && user_vars[0].name == "query" {
-                vars.insert("query".to_string(), query.to_string());
-            } else if !user_vars.is_empty() {
-                let query_parts: Vec<&str> = query.split_whitespace().collect();
-                for (i, var) in user_vars.iter().enumerate() {
-                    if i < query_parts.len() {
-                        vars.insert(var.name.clone(), query_parts[i].to_string());
-                    }
-                }
-                if query_parts.len() > user_vars.len() && has_query_var {
-                    let remaining = query_parts[user_vars.len()..].join(" ");
-                    vars.insert("query".to_string(), remaining);
-                }
-            }
-
-            // Validate variables
-            let resolver = domain::template::TemplateResolver::new();
-            let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
-
-            if !missing.is_empty() {
-                // Missing required variables - redirect to form
-                return Redirect::to(&format!("/f/{}", bookmark_alias)).into_response();
-            }
-
-            // Try to resolve - if validation fails (strict options), redirect to form
-            match resolver.resolve(template, &vars) {
-                Ok(url) => url,
-                Err(_) => {
-                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
-                }
-            }
-        }
-        Some(bookmark) => bookmark.get_redirect_url(query),
-        None => {
-            // Check if user has a custom default alias preference
-            let user_default = optional_user.0.as_ref().and_then(|u| u.default_alias.as_deref());
-
-            let default_alias = params
-                .default
-                .as_deref()
-                .or(user_default)
-                .unwrap_or(""); // Empty string means no default (will return 404)
-
-            // If no default alias is set, return 404
-            if default_alias.is_empty() {
-                return AppError::NotFound(format!("Unknown alias: '{}'", bookmark_alias)).into_response();
-            }
-
-            // Try user bookmarks first for default alias too
-            let default_command = user_bookmarks
-                .as_ref()
-                .and_then(|user_map| user_map.get(default_alias))
-                .or_else(|| {
-                    if disabled_globals.contains(default_alias) {
-                        None
-                    } else {
-                        bookmark_map.get(default_alias)
-                    }
-                }).cloned();
-
-            default_command
-                .map(|cmd| cmd.get_redirect_url(&params.q))
-                .unwrap_or_else(|| {
-                    // Default alias not found either - return 404
-                    format!("/404?alias={}", urlencoding::encode(bookmark_alias))
-                })
-        }
-    };
-
-    // Check if redirect_url is an external URL (starts with http:// or https://)
-    // For external URLs, we need to create a raw HTTP response since Axum's Redirect
-    // treats them as relative paths
-    if redirect_url.starts_with("http://") || redirect_url.starts_with("https://") {
-        use axum::http::{StatusCode, header};
-        use axum::response::IntoResponse;
-
-        (StatusCode::SEE_OTHER, [(header::LOCATION, redirect_url)]).into_response()
-    } else {
-        // Internal path - use normal redirect
-        Redirect::to(&redirect_url).into_response()
+    match result {
+        Ok(redirect_result) => redirect_result.into_response(),
+        Err(err) => err.into_response(),
     }
 }
 
@@ -541,7 +256,8 @@ pub async fn create_router() -> Router {
         alias_to_bookmark_map: Arc::new(tokio::sync::RwLock::new(alias_to_bookmark_map)),
         default_alias,
         db_pool: db_pool.clone(),
-        bookmark_service,
+        bookmark_service: bookmark_service.clone(),
+        redirect_service: Arc::new(services::redirect_service::RedirectService::new(db_pool.clone())),
     });
 
     Router::new()
