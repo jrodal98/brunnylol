@@ -44,35 +44,6 @@ pub async fn create_admin_user(pool: &SqlitePool) -> (i64, String) {
     (user.id, session_id)
 }
 
-/// Create a regular (non-admin) user for testing
-/// Returns (user_id, session_token)
-#[allow(dead_code)]
-pub async fn create_regular_user(pool: &SqlitePool, username: &str) -> (i64, String) {
-    let password_hash = bcrypt::hash("password123", bcrypt::DEFAULT_COST).unwrap();
-
-    let user_id = sqlx::query_scalar::<_, i64>(
-        "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0) RETURNING id"
-    )
-    .bind(username)
-    .bind(&password_hash)
-    .fetch_one(pool)
-    .await
-    .expect("Failed to create regular user");
-
-    // Create session
-    let session_token = uuid::Uuid::new_v4().to_string();
-    sqlx::query(
-        "INSERT INTO sessions (user_id, session_token, expires_at) VALUES (?, ?, datetime('now', '+7 days'))"
-    )
-    .bind(user_id)
-    .bind(&session_token)
-    .fetch_optional(pool)
-    .await
-    .expect("Failed to create session");
-
-    (user_id, session_token)
-}
-
 /// Create a test Axum router for integration tests
 #[allow(dead_code)]
 pub async fn create_test_app() -> axum::Router {

@@ -9,7 +9,7 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, domain::Command, error::{AppError, DbResultExt}, validation};
+use crate::{auth::middleware::CurrentUser, db, domain::Command, error::{AppError, DbResultExt}, validation, helpers};
 use super::common::{SuccessTemplate, SuccessWithLinkTemplate};
 
 // Helper function to convert Template AST back to string for editing
@@ -156,34 +156,27 @@ pub async fn manage_page(
     current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
-    // Get user's personal bookmarks
-    let user_bookmarks = db::get_bookmarks(&state.db_pool, db::BookmarkScope::Personal { user_id: current_user.0.id })
-        .await
-        .db_err()?;
+    // Get user's personal bookmarks with nested counts (optimized to avoid N+1)
+    let bookmarks_with_nested = db::get_bookmarks_with_nested(
+        &state.db_pool,
+        db::BookmarkScope::Personal { user_id: current_user.0.id }
+    ).await.db_err()?;
 
     // Convert to display format
-    let mut personal_bookmarks = Vec::new();
-    for bookmark in user_bookmarks {
-        // Count nested bookmarks if applicable
-        let nested_count = if bookmark.bookmark_type == "nested" {
-            db::get_nested_bookmarks(&state.db_pool, bookmark.id)
-                .await
-                .map(|n| n.len())
-                .unwrap_or(0)
-        } else {
-            0
-        };
-
-        personal_bookmarks.push(BookmarkDisplay {
-            id: bookmark.id,
-            alias: bookmark.alias.clone(),
-            bookmark_type: bookmark.bookmark_type.clone(),
-            url: bookmark.url.clone(),
-            description: bookmark.description.clone(),
-            command_template: bookmark.command_template.clone().unwrap_or_default(),
-            nested_count,
-        });
-    }
+    let personal_bookmarks: Vec<BookmarkDisplay> = bookmarks_with_nested
+        .into_iter()
+        .map(|(bookmark, nested)| {
+            BookmarkDisplay {
+                id: bookmark.id,
+                alias: bookmark.alias,
+                bookmark_type: bookmark.bookmark_type,
+                url: bookmark.url,
+                description: bookmark.description,
+                command_template: bookmark.command_template.unwrap_or_default(),
+                nested_count: nested.len(),
+            }
+        })
+        .collect();
 
     // Get global alias list and user overrides for conflict/disable detection
     let user_aliases: std::collections::HashSet<String> = personal_bookmarks
@@ -272,12 +265,8 @@ pub async fn create_bookmark(
     validation::validate_url_scheme(&form.url)?;
 
     // Validate templated bookmarks have a valid template (if provided)
-    if form.bookmark_type == "templated" && form.command_template.is_some() {
-        if let Some(ref template) = form.command_template {
-            if !template.is_empty() {
-                validation::validate_variable_template(template)?;
-            }
-        }
+    if form.bookmark_type == "templated" {
+        helpers::validate_optional_template(&form.command_template)?;
     }
 
     // Create parent bookmark in database
@@ -310,12 +299,7 @@ pub async fn create_bookmark(
                 // Validate nested URL scheme
                 validation::validate_url_scheme(&nested_cmd.url)?;
 
-                // Validate nested templated bookmarks have a valid template
-                if let Some(ref template) = nested_cmd.command_template {
-                    if !template.is_empty() {
-                        validation::validate_variable_template(template)?;
-                    }
-                }
+                helpers::validate_optional_template(&nested_cmd.command_template)?;
 
                 db::create_nested_bookmark(
                     &state.db_pool,
@@ -366,12 +350,7 @@ pub async fn update_bookmark(
     // Validate URL scheme
     validation::validate_url_scheme(&form.url)?;
 
-    // Validate command template if provided
-    if let Some(ref template) = form.command_template {
-        if !template.is_empty() {
-            validation::validate_variable_template(template)?;
-        }
-    }
+    helpers::validate_optional_template(&form.command_template)?;
 
     db::update_bookmark(
         &state.db_pool,
@@ -409,10 +388,7 @@ pub async fn create_nested_bookmark(
     // Validate URL scheme
     validation::validate_url_scheme(&form.url)?;
 
-    // Validate templated nested bookmarks have a valid template with {}
-    if let Some(ref template) = form.command_template {
-        validation::validate_template(template)?;
-    }
+    helpers::validate_optional_template(&form.command_template)?;
 
     // Get the next display order
     let existing_nested = db::get_nested_bookmarks(&state.db_pool, form.parent_id)
@@ -562,7 +538,6 @@ pub async fn import_bookmarks(
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<ImportForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    use crate::services::bookmark_service::BookmarkScope;
     use crate::services::serializers::{YamlSerializer, JsonSerializer};
 
     // Determine scope - only admins can import global
@@ -570,9 +545,9 @@ pub async fn import_bookmarks(
         if !current_user.0.is_admin {
             return Err(AppError::Forbidden("Only admins can import global bookmarks".to_string()));
         }
-        BookmarkScope::Global
+        db::BookmarkScope::Global
     } else {
-        BookmarkScope::Personal
+        db::BookmarkScope::Personal { user_id: current_user.0.id }
     };
 
     // Get content based on source
@@ -697,7 +672,6 @@ pub async fn export_bookmarks(
     State(state): State<Arc<crate::AppState>>,
     axum::extract::Query(params): axum::extract::Query<ExportParams>,
 ) -> Result<Response, AppError> {
-    use crate::services::bookmark_service::BookmarkScope;
     use crate::services::serializers::{YamlSerializer, JsonSerializer};
 
     // Check permissions for global export
@@ -706,9 +680,9 @@ pub async fn export_bookmarks(
     }
 
     let scope = if params.scope == "global" {
-        BookmarkScope::Global
+        db::BookmarkScope::Global
     } else {
-        BookmarkScope::Personal
+        db::BookmarkScope::Personal { user_id: current_user.0.id }
     };
 
     let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match params.format.as_str() {
@@ -718,14 +692,14 @@ pub async fn export_bookmarks(
 
     let content = state.bookmark_service.export_bookmarks(
         scope,
-        Some(current_user.0.id),
         serializer.as_ref(),
     ).await
     .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?;
 
+    let is_global = matches!(scope, db::BookmarkScope::Global);
     let filename = format!(
         "bookmarks_{}.{}",
-        if scope == BookmarkScope::Global { "global" } else { "personal" },
+        if is_global { "global" } else { "personal" },
         serializer.file_extension()
     );
 

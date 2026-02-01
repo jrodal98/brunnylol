@@ -3,16 +3,15 @@
 use askama::Template;
 use axum::{
     extract::{Path, Query, State},
-    response::{Html, IntoResponse, Redirect, Response},
-    Form,
+    response::{Html, IntoResponse, Response},
 };
-use serde::Deserialize;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     auth::middleware::OptionalUser,
     domain::{template::form_builder, Command},
     error::AppError,
+    helpers,
 };
 
 #[derive(Template)]
@@ -44,29 +43,8 @@ pub async fn show_variable_form(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Response, AppError> {
     // Load bookmark (try user bookmarks first, then global)
-    let command = if let Some(ref user) = optional_user.0 {
-        let user_bookmarks = crate::db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
-            .await
-            .ok();
-
-        // Try user bookmarks first
-        let from_user = user_bookmarks
-            .as_ref()
-            .and_then(|map| map.get(&alias).cloned());
-
-        // If not in user bookmarks, try global
-        if from_user.is_none() {
-            let bookmark_map = state.alias_to_bookmark_map.read().await;
-            bookmark_map.get(&alias).cloned()
-        } else {
-            from_user
-        }
-    } else {
-        let bookmark_map = state.alias_to_bookmark_map.read().await;
-        bookmark_map.get(&alias).cloned()
-    };
-
-    let command = command.ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", alias)))?;
+    let command = helpers::load_bookmark_for_alias(&alias, optional_user.0.as_ref(), &state).await
+        .ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", alias)))?;
 
     // Only Variable commands have forms
     match command {
@@ -136,27 +114,7 @@ pub async fn submit_variable_form(
     }
 
     // Load bookmark
-    let command = if let Some(ref user) = optional_user.0 {
-        let user_bookmarks = crate::db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
-            .await
-            .ok();
-
-        // Try user bookmarks first
-        let from_user = user_bookmarks
-            .as_ref()
-            .and_then(|map| map.get(&alias).cloned());
-
-        // If not in user bookmarks, try global
-        if from_user.is_none() {
-            let bookmark_map = state.alias_to_bookmark_map.read().await;
-            bookmark_map.get(&alias).cloned()
-        } else {
-            from_user
-        }
-    } else {
-        let bookmark_map = state.alias_to_bookmark_map.read().await;
-        bookmark_map.get(&alias).cloned()
-    };
+    let command = helpers::load_bookmark_for_alias(&alias, optional_user.0.as_ref(), &state).await;
 
     match command {
         Some(Command::Variable { base_url, template, .. }) => {

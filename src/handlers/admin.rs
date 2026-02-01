@@ -204,7 +204,6 @@ pub async fn update_global_bookmark(
 
 #[derive(Deserialize)]
 pub struct UpdateGlobalBookmarkForm {
-    alias: String,
     url: String,
     description: String,
     template: String,

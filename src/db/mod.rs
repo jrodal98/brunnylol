@@ -174,7 +174,7 @@ pub async fn cleanup_expired_sessions(pool: &SqlitePool) -> Result<u64> {
 // Bookmark models
 
 // Unified bookmark scope - represents whether a bookmark is personal or global
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BookmarkScope {
     Personal { user_id: i64 },
     Global,

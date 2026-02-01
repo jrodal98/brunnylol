@@ -15,12 +15,6 @@ pub struct BookmarkService {
     pool: SqlitePool,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum BookmarkScope {
-    Personal,
-    Global,
-}
-
 #[derive(Debug)]
 pub struct ImportResult {
     pub imported: usize,
@@ -90,8 +84,8 @@ impl BookmarkService {
         &self,
         content: &str,
         serializer: &dyn BookmarkSerializer,
-        scope: BookmarkScope,
-        created_by: Option<i64>, // None for system imports, Some(user_id) for user imports
+        scope: db::BookmarkScope,
+        created_by: Option<i64>,
     ) -> Result<ImportResult> {
         let settings: Vec<YmlSettings> = serializer.deserialize(content)
             .context("Failed to parse bookmark data")?;
@@ -101,12 +95,11 @@ impl BookmarkService {
         let mut errors = Vec::new();
 
         for setting in settings {
-            let result = match scope {
-                BookmarkScope::Personal => {
-                    let user_id = created_by.context("user_id required for personal bookmark import")?;
-                    self.import_personal_bookmark(&setting, user_id).await
+            let result = match &scope {
+                db::BookmarkScope::Personal { user_id } => {
+                    self.import_personal_bookmark(&setting, *user_id).await
                 }
-                BookmarkScope::Global => {
+                db::BookmarkScope::Global => {
                     self.import_global_bookmark(&setting, created_by).await
                 }
             };
@@ -133,16 +126,14 @@ impl BookmarkService {
     /// Export bookmarks to serialized format
     pub async fn export_bookmarks(
         &self,
-        scope: BookmarkScope,
-        user_id: Option<i64>,
+        scope: db::BookmarkScope,
         serializer: &dyn BookmarkSerializer,
     ) -> Result<String> {
         let bookmarks = match scope {
-            BookmarkScope::Personal => {
-                let user_id = user_id.context("user_id required for personal export")?;
+            db::BookmarkScope::Personal { user_id } => {
                 self.export_personal_bookmarks(user_id).await?
             }
-            BookmarkScope::Global => {
+            db::BookmarkScope::Global => {
                 self.export_global_bookmarks().await?
             }
         };
@@ -164,8 +155,8 @@ impl BookmarkService {
         let result = self.import_bookmarks(
             yaml_content,
             &serializer,
-            BookmarkScope::Global,
-            None, // System import (no user ID)
+            db::BookmarkScope::Global,
+            None,
         ).await?;
 
         if !result.errors.is_empty() {
@@ -190,44 +181,17 @@ impl BookmarkService {
         }
     }
 
-    async fn import_personal_bookmark(&self, setting: &YmlSettings, user_id: i64) -> Result<i64> {
+    async fn import_bookmark(
+        &self,
+        setting: &YmlSettings,
+        scope: db::BookmarkScope,
+        created_by: Option<i64>,
+    ) -> Result<i64> {
         let bookmark_type = Self::determine_bookmark_type(setting);
 
         let bookmark_id = db::create_bookmark(
             &self.pool,
-            db::BookmarkScope::Personal { user_id },
-            &setting.alias,
-            bookmark_type,
-            &setting.url,
-            &setting.description,
-            setting.command.as_deref(),
-            Some(user_id),
-        ).await?;
-
-        // Import nested commands if present
-        if let Some(nested) = &setting.nested {
-            for (i, nested_setting) in nested.iter().enumerate() {
-                db::create_nested_bookmark(
-                    &self.pool,
-                    bookmark_id,
-                    &nested_setting.alias,
-                    &nested_setting.url,
-                    &nested_setting.description,
-                    nested_setting.command.as_deref(),
-                    i as i32,
-                ).await?;
-            }
-        }
-
-        Ok(bookmark_id)
-    }
-
-    async fn import_global_bookmark(&self, setting: &YmlSettings, created_by: Option<i64>) -> Result<i64> {
-        let bookmark_type = Self::determine_bookmark_type(setting);
-
-        let bookmark_id = db::create_bookmark(
-            &self.pool,
-            db::BookmarkScope::Global,
+            scope,
             &setting.alias,
             bookmark_type,
             &setting.url,
@@ -254,17 +218,21 @@ impl BookmarkService {
         Ok(bookmark_id)
     }
 
+    async fn import_personal_bookmark(&self, setting: &YmlSettings, user_id: i64) -> Result<i64> {
+        self.import_bookmark(setting, db::BookmarkScope::Personal { user_id }, Some(user_id)).await
+    }
+
+    async fn import_global_bookmark(&self, setting: &YmlSettings, created_by: Option<i64>) -> Result<i64> {
+        self.import_bookmark(setting, db::BookmarkScope::Global, created_by).await
+    }
+
     async fn export_personal_bookmarks(&self, user_id: i64) -> Result<Vec<YmlSettings>> {
         let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Personal { user_id }).await?;
-        self.bookmarks_to_yml_settings(bookmarks).await
+        self.bookmarks_to_yml(bookmarks).await
     }
 
     async fn export_global_bookmarks(&self) -> Result<Vec<YmlSettings>> {
         let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Global).await?;
-        self.bookmarks_to_yml(bookmarks).await
-    }
-
-    async fn bookmarks_to_yml_settings(&self, bookmarks: Vec<db::Bookmark>) -> Result<Vec<YmlSettings>> {
         self.bookmarks_to_yml(bookmarks).await
     }
 

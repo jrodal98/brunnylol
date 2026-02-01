@@ -30,7 +30,7 @@ pub fn build_form_data(
         }
 
         // Find metadata for this variable if it exists
-        let var_metadata = metadata.and_then(|m| {
+        let _var_metadata = metadata.and_then(|m| {
             m.variables.iter().find(|v| v.name == var_expr.name)
         });
 

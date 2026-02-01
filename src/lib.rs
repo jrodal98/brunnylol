@@ -9,6 +9,7 @@ mod handlers;
 pub mod services;
 pub mod validation;
 mod security;
+mod helpers;
 
 use askama::Template;
 use axum::{
@@ -27,6 +28,27 @@ use std::{collections::HashMap, sync::Arc};
 use clap::Arg;
 
 const DEFAULT_ALIAS: &str = "g";
+
+// Helper: Build URL query string from variables
+fn build_query_string(vars: &HashMap<String, String>) -> String {
+    vars.iter()
+        .filter(|(k, _)| *k != "url")
+        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
+        .collect::<Vec<_>>()
+        .join("&")
+}
+
+// Helper: Load disabled global bookmark aliases for a user
+async fn load_disabled_globals(pool: &SqlitePool, user_id: i64) -> std::collections::HashSet<String> {
+    db::get_user_overrides(pool, user_id)
+        .await
+        .ok()
+        .unwrap_or_default()
+        .iter()
+        .filter(|(_, is_disabled, _, _)| *is_disabled)
+        .map(|(alias, _, _, _)| alias.clone())
+        .collect()
+}
 
 // Template structs
 #[derive(Template)]
@@ -227,16 +249,7 @@ async fn help(
             .unwrap_or_default();
 
         // Get disabled global aliases
-        let overrides = db::get_user_overrides(&state.db_pool, user.id)
-            .await
-            .ok()
-            .unwrap_or_default();
-
-        let disabled: std::collections::HashSet<String> = overrides
-            .iter()
-            .filter(|(_, is_disabled, _, _)| *is_disabled)
-            .map(|(alias, _, _, _)| alias.clone())
-            .collect();
+        let disabled = load_disabled_globals(&state.db_pool, user.id).await;
 
         (aliases, disabled, true, user.is_admin)
     } else {
@@ -283,12 +296,7 @@ async fn redirect(
         if matches!(usage_mode, UsageMode::Chained) {
             let (vars, _) = parse_named_variables(query);
             if !vars.is_empty() {
-                let query_string: String = vars
-                    .iter()
-                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-                    .collect::<Vec<_>>()
-                    .join("&");
-                form_url = format!("{}?{}", form_url, query_string);
+                form_url = format!("{}?{}", form_url, build_query_string(&vars));
             }
         }
 
@@ -301,16 +309,7 @@ async fn redirect(
             .await
             .ok();
 
-        let overrides = db::get_user_overrides(&state.db_pool, user.id)
-            .await
-            .ok()
-            .unwrap_or_default();
-
-        let disabled: std::collections::HashSet<String> = overrides
-            .iter()
-            .filter(|(_, is_disabled, _, _)| *is_disabled)
-            .map(|(alias, _, _, _)| alias.clone())
-            .collect();
+        let disabled = load_disabled_globals(&state.db_pool, user.id).await;
 
         (bookmarks, disabled)
     } else {
@@ -332,7 +331,7 @@ async fn redirect(
         }).cloned();
 
     let redirect_url = match command {
-        Some(Command::Variable { ref base_url, ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
+        Some(Command::Variable { ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
             // Handle named mode
             let (mut vars, remaining) = parse_named_variables(query);
 
@@ -348,26 +347,14 @@ async fn redirect(
             let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
 
             if !missing.is_empty() {
-                // Redirect to form page with prefilled values
-                let query_string: String = vars
-                    .iter()
-                    .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-                    .collect::<Vec<_>>()
-                    .join("&");
-                return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+                return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
             }
 
             // Try to resolve - if validation fails (e.g., strict options), redirect to form
             match resolver.resolve(template, &vars) {
                 Ok(url) => url,
                 Err(_) => {
-                    // Validation error - redirect to form page
-                    let query_string: String = vars
-                        .iter()
-                        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-                        .collect::<Vec<_>>()
-                        .join("&");
-                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
                 }
             }
         }
@@ -420,14 +407,7 @@ async fn redirect(
             match resolver.resolve(template, &vars) {
                 Ok(url) => url,
                 Err(_) => {
-                    // Validation failed - redirect to form with current values
-                    let query_string: String = vars
-                        .iter()
-                        .filter(|(k, _)| *k != "url") // Don't include url in query params
-                        .map(|(k, v)| format!("{}={}", urlencoding::encode(k), urlencoding::encode(v)))
-                        .collect::<Vec<_>>()
-                        .join("&");
-                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, query_string)).into_response();
+                    return Redirect::to(&format!("/f/{}?{}", bookmark_alias, build_query_string(&vars))).into_response();
                 }
             }
         }

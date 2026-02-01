@@ -55,7 +55,7 @@ async fn test_import_personal_bookmarks_yaml() {
     let result = service.import_bookmarks(
         yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -96,7 +96,7 @@ async fn test_import_personal_bookmarks_json() {
     let result = service.import_bookmarks(
         json,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -121,7 +121,7 @@ async fn test_import_global_bookmarks_admin_only() {
     let result = service.import_bookmarks(
         yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Global,
+        brunnylol::db::BookmarkScope::Global,
         Some(admin_id),
     ).await.unwrap();
 
@@ -161,7 +161,7 @@ async fn test_import_nested_bookmarks() {
     let result = service.import_bookmarks(
         yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -205,8 +205,7 @@ async fn test_export_personal_bookmarks_yaml() {
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
     let yaml = service.export_bookmarks(
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
-        Some(user_id),
+        brunnylol::db::BookmarkScope::Personal { user_id },
         &serializer,
     ).await.unwrap();
 
@@ -236,8 +235,7 @@ async fn test_export_global_bookmarks_json() {
     let serializer = brunnylol::services::serializers::JsonSerializer;
 
     let json = service.export_bookmarks(
-        brunnylol::services::bookmark_service::BookmarkScope::Global,
-        Some(admin_id),
+        brunnylol::db::BookmarkScope::Global,
         &serializer,
     ).await.unwrap();
 
@@ -276,8 +274,7 @@ async fn test_export_global_nested_bookmarks() {
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
     let yaml = service.export_bookmarks(
-        brunnylol::services::bookmark_service::BookmarkScope::Global,
-        Some(admin_id),
+        brunnylol::db::BookmarkScope::Global,
         &serializer,
     ).await.unwrap();
 
@@ -305,7 +302,7 @@ async fn test_duplicate_detection() {
     let result1 = service.import_bookmarks(
         yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -316,7 +313,7 @@ async fn test_duplicate_detection() {
     let result2 = service.import_bookmarks(
         yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -428,7 +425,7 @@ async fn test_round_trip_export_import() {
     let import_result = service.import_bookmarks(
         yaml_import,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -436,8 +433,7 @@ async fn test_round_trip_export_import() {
 
     // Export
     let exported = service.export_bookmarks(
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
-        Some(user_id),
+        brunnylol::db::BookmarkScope::Personal { user_id },
         &serializer,
     ).await.unwrap();
 
@@ -450,7 +446,7 @@ async fn test_round_trip_export_import() {
     let reimport_result = service.import_bookmarks(
         &exported,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await.unwrap();
 
@@ -582,7 +578,7 @@ async fn test_import_with_errors() {
     let result = service.import_bookmarks(
         invalid_yaml,
         &serializer,
-        brunnylol::services::bookmark_service::BookmarkScope::Personal,
+        brunnylol::db::BookmarkScope::Personal { user_id },
         Some(user_id),
     ).await;
 
