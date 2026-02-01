@@ -51,7 +51,7 @@ impl TemplateParser {
                 }
             } else {
                 // Regular character
-                literal_buf.push(self.consume_char());
+                literal_buf.push(self.consume_char()?);
             }
         }
 
@@ -82,10 +82,10 @@ impl TemplateParser {
 
         if self.peek_char() == Some('?') {
             is_optional = true;
-            self.consume_char();
+            self.consume_char()?;
             self.skip_whitespace();
         } else if self.peek_char() == Some('=') {
-            self.consume_char();
+            self.consume_char()?;
             self.skip_whitespace();
             default = Some(self.parse_default_value()?);
             self.skip_whitespace();
@@ -113,7 +113,7 @@ impl TemplateParser {
 
         while let Some(ch) = self.peek_char() {
             if ch.is_alphanumeric() || ch == '_' {
-                name.push(self.consume_char());
+                name.push(self.consume_char()?);
             } else if ch == '?' || ch == '=' || ch == '|' || ch == '}' || ch.is_whitespace() {
                 break;
             } else {
@@ -140,7 +140,7 @@ impl TemplateParser {
             if ch == '}' || ch == '|' {
                 break;
             }
-            value.push(self.consume_char());
+            value.push(self.consume_char()?);
         }
 
         Ok(value.trim().to_string())
@@ -150,7 +150,7 @@ impl TemplateParser {
         let mut pipelines = Vec::new();
 
         while self.peek_char() == Some('|') {
-            self.consume_char(); // consume |
+            self.consume_char()?; // consume |
             self.skip_whitespace();
 
             let op = self.parse_pipeline_op()?;
@@ -164,7 +164,7 @@ impl TemplateParser {
     fn parse_pipeline_op(&mut self) -> Result<PipelineOp> {
         // Check for negation
         let negated = if self.peek_char() == Some('!') {
-            self.consume_char();
+            self.consume_char()?;
             true
         } else {
             false
@@ -184,7 +184,7 @@ impl TemplateParser {
                 if self.peek_char() != Some('[') {
                     bail!("Expected '[' after 'options' at position {}", self.pos);
                 }
-                self.consume_char(); // consume [
+                self.consume_char()?; // consume [
 
                 // Parse comma-separated values
                 let mut values = Vec::new();
@@ -198,7 +198,7 @@ impl TemplateParser {
                                 values.push(current_value.trim().to_string());
                                 current_value.clear();
                             }
-                            self.consume_char(); // consume ]
+                            self.consume_char()?; // consume ]
                             break;
                         }
                         Some(',') => {
@@ -206,11 +206,11 @@ impl TemplateParser {
                                 values.push(current_value.trim().to_string());
                                 current_value.clear();
                             }
-                            self.consume_char(); // consume ,
+                            self.consume_char()?; // consume ,
                         }
                         Some(ch) => {
                             current_value.push(ch);
-                            self.consume_char();
+                            self.consume_char()?;
                         }
                         None => bail!("Unexpected end of input in options list"),
                     }
@@ -219,7 +219,7 @@ impl TemplateParser {
                 // Check for [strict] modifier
                 self.skip_whitespace();
                 let strict = if self.peek_char() == Some('[') {
-                    self.consume_char(); // consume [
+                    self.consume_char()?; // consume [
                     let modifier = self.parse_identifier()?;
                     self.skip_whitespace();
                     self.expect_char(']')?;
@@ -240,7 +240,7 @@ impl TemplateParser {
 
         while let Some(ch) = self.peek_char() {
             if ch.is_alphanumeric() || ch == '_' {
-                ident.push(self.consume_char());
+                ident.push(self.consume_char()?);
             } else {
                 break;
             }
@@ -271,16 +271,17 @@ impl TemplateParser {
         self.input[self.pos..].chars().nth(offset)
     }
 
-    fn consume_char(&mut self) -> char {
-        let ch = self.peek_char().expect("Unexpected end of input");
+    fn consume_char(&mut self) -> Result<char> {
+        let ch = self.peek_char()
+            .ok_or_else(|| anyhow::anyhow!("Unexpected end of input at position {}", self.pos))?;
         self.pos += ch.len_utf8();
-        ch
+        Ok(ch)
     }
 
     fn expect_char(&mut self, expected: char) -> Result<()> {
         match self.peek_char() {
             Some(ch) if ch == expected => {
-                self.consume_char();
+                self.consume_char()?;
                 Ok(())
             }
             Some(ch) => bail!(

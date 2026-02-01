@@ -36,20 +36,22 @@ pub async fn admin_page(
         .await
         .db_err()?;
 
-    // Get bookmark counts for each user
-    let mut users_display = Vec::new();
-    for user in all_users {
-        let bookmarks = db::get_bookmarks(&state.db_pool, db::BookmarkScope::Personal { user_id: user.id })
-            .await
-            .db_err()?;
+    // Get bookmark counts for all users in single query (avoids N+1)
+    let bookmark_counts = db::get_user_bookmark_counts(&state.db_pool)
+        .await
+        .db_err()?;
 
-        users_display.push(UserDisplay {
-            id: user.id,
-            username: user.username.clone(),
-            is_admin: user.is_admin,
-            bookmark_count: bookmarks.len(),
-        });
-    }
+    let users_display: Vec<UserDisplay> = all_users
+        .into_iter()
+        .map(|user| {
+            UserDisplay {
+                id: user.id,
+                username: user.username,
+                is_admin: user.is_admin,
+                bookmark_count: bookmark_counts.get(&user.id).copied().unwrap_or(0),
+            }
+        })
+        .collect();
 
     let template = AdminTemplate {
         users: users_display,
@@ -147,9 +149,7 @@ pub async fn reload_global_bookmarks(
         .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
 
     // Atomic swap with write lock
-    let mut write_lock = state.alias_to_bookmark_map.write().await;
-    *write_lock = new_map;
-    drop(write_lock);
+    *state.alias_to_bookmark_map.write().await = new_map;
 
     let template = SuccessTemplate {
         message: "Global bookmarks reloaded successfully",
@@ -193,11 +193,9 @@ pub async fn update_global_bookmark(
         .await
         .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
 
-    let mut write_lock = state.alias_to_bookmark_map.write().await;
-    *write_lock = new_map;
-    drop(write_lock);
+    *state.alias_to_bookmark_map.write().await = new_map;
 
-    let message = if &form.alias != &alias {
+    let message = if form.alias != alias {
         format!("Global bookmark '{}' renamed to '{}' and reloaded", alias, form.alias)
     } else {
         format!("Global bookmark '{}' updated and reloaded", alias)

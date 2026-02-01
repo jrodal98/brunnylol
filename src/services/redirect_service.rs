@@ -185,7 +185,7 @@ impl RedirectService {
                 .await
                 .ok();
 
-            let disabled = self.load_disabled_globals(user.id).await;
+            let disabled = db::get_disabled_global_aliases(&self.pool, user.id).await;
 
             (bookmarks, disabled)
         } else {
@@ -313,17 +313,6 @@ impl RedirectService {
         } else {
             Ok(RedirectResult::InternalPath(redirect_url))
         }
-    }
-
-    async fn load_disabled_globals(&self, user_id: i64) -> std::collections::HashSet<String> {
-        db::get_user_overrides(&self.pool, user_id)
-            .await
-            .ok()
-            .unwrap_or_default()
-            .iter()
-            .filter(|(_, is_disabled, _, _)| *is_disabled)
-            .map(|(alias, _, _, _)| alias.clone())
-            .collect()
     }
 }
 

@@ -112,6 +112,27 @@ pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
     Ok(users)
 }
 
+// Get bookmark counts for all users (optimized, avoids N+1)
+pub async fn get_user_bookmark_counts(pool: &SqlitePool) -> Result<HashMap<i64, usize>> {
+    let rows = sqlx::query(
+        "SELECT user_id, COUNT(*) as count
+         FROM bookmarks
+         WHERE scope = 'personal' AND user_id IS NOT NULL
+         GROUP BY user_id"
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let mut counts = HashMap::new();
+    for row in rows {
+        let user_id: i64 = row.get("user_id");
+        let count: i64 = row.get("count");
+        counts.insert(user_id, count as usize);
+    }
+
+    Ok(counts)
+}
+
 // Session management
 pub async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<String> {
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -307,6 +328,18 @@ pub async fn delete_override(pool: &SqlitePool, user_id: i64, builtin_alias: &st
     .await?;
 
     Ok(())
+}
+
+// Get set of disabled global bookmark aliases for a user
+pub async fn get_disabled_global_aliases(pool: &SqlitePool, user_id: i64) -> std::collections::HashSet<String> {
+    get_user_overrides(pool, user_id)
+        .await
+        .ok()
+        .unwrap_or_default()
+        .iter()
+        .filter(|(_, is_disabled, _, _)| *is_disabled)
+        .map(|(alias, _, _, _)| alias.clone())
+        .collect()
 }
 
 // Update user's default alias preference

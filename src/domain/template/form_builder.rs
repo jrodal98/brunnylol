@@ -18,7 +18,7 @@ pub struct FormVariable {
 /// Build form data from template and metadata
 pub fn build_form_data(
     template: &Template,
-    metadata: Option<&TemplateMetadata>,
+    _metadata: Option<&TemplateMetadata>,
     prefilled: &HashMap<String, String>,
 ) -> Vec<FormVariable> {
     let mut form_vars = Vec::new();
@@ -28,11 +28,6 @@ pub fn build_form_data(
         if var_expr.name == "url" {
             continue;
         }
-
-        // Find metadata for this variable if it exists
-        let _var_metadata = metadata.and_then(|m| {
-            m.variables.iter().find(|v| v.name == var_expr.name)
-        });
 
         // Extract options and strict from pipelines
         let (options, strict) = var_expr.pipelines.iter()

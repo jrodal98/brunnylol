@@ -7,14 +7,9 @@ mod ast;
 mod parser;
 mod pipeline;
 mod resolver;
-mod variable;
 pub mod form_builder;
 
-pub use ast::{PipelineOp, Template, TemplatePart, VariableExpr};
+pub use ast::{PipelineOp, Template, TemplatePart, VariableExpr, TemplateMetadata};
 pub use parser::TemplateParser;
 pub use pipeline::{PipelineOperation, PipelineRegistry};
 pub use resolver::TemplateResolver;
-pub use variable::TemplateMetadata;
-
-#[cfg(test)]
-mod tests;

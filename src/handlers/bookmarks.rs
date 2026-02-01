@@ -295,6 +295,11 @@ pub async fn create_bookmark(
             let nested_commands: Vec<NestedCommandData> = serde_json::from_str(json_str)
                 .map_err(|e| AppError::Internal(format!("Failed to parse nested commands: {}", e)))?;
 
+            // Prevent DoS: Limit number of nested bookmarks per parent
+            if nested_commands.len() > 100 {
+                return Err(AppError::BadRequest("Too many nested commands (maximum 100 allowed)".to_string()));
+            }
+
             for (i, nested_cmd) in nested_commands.iter().enumerate() {
                 // Validate nested URL scheme
                 validation::validate_url_scheme(&nested_cmd.url)?;
