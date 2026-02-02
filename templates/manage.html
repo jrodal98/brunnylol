@@ -55,7 +55,6 @@
               hx-target="#create-result"
               hx-swap="innerHTML"
               id="create-bookmark-form"
-              hx-on::before-request="prepareNestedCommands()"
               hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }">
             <div class="form-group">
                 <label for="alias">Alias *</label>
@@ -186,20 +185,9 @@
         <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
         {% else %}
 
-        <!-- Bulk Actions for Personal Bookmarks -->
-        <div class="bulk-actions">
-            <button class="btn-danger" id="delete-selected-btn" disabled>
-                Delete Selected
-            </button>
-            <span id="personal-selected-count" class="selection-count"></span>
-        </div>
-
         <table>
             <thead>
                 <tr>
-                    <th class="col-checkbox">
-                        <input type="checkbox" id="select-all-personal">
-                    </th>
                     <th>Alias</th>
                     <th>Type</th>
                     <th>URL/Template</th>
@@ -210,9 +198,6 @@
             <tbody>
                 {% for bookmark in personal_bookmarks %}
                 <tr id="bookmark-{{ bookmark.id }}">
-                    <td>
-                        <input type="checkbox" class="personal-checkbox" value="{{ bookmark.id }}">
-                    </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.bookmark_type }}</td>
                     <td>
@@ -269,23 +254,9 @@
         <h2>Built-in Bookmarks</h2>
         <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
 
-        <!-- Bulk Actions for Global Bookmarks -->
-        <div class="bulk-actions">
-            <button class="btn-secondary" id="disable-selected-btn" disabled>
-                Disable Selected
-            </button>
-            <button class="btn-primary" id="enable-selected-btn" disabled>
-                Enable Selected
-            </button>
-            <span id="global-selected-count" class="selection-count"></span>
-        </div>
-
         <table>
             <thead>
                 <tr>
-                    <th class="col-checkbox">
-                        <input type="checkbox" id="select-all-global">
-                    </th>
                     <th>Alias</th>
                     <th>Description</th>
                     <th>Status</th>
@@ -295,9 +266,6 @@
             <tbody>
                 {% for bookmark in global_bookmarks %}
                 <tr id="global-{{ bookmark.alias }}">
-                    <td>
-                        <input type="checkbox" class="global-checkbox" value="{{ bookmark.alias }}">
-                    </td>
                     <td><strong>{{ bookmark.alias }}</strong></td>
                     <td>{{ bookmark.description }}</td>
                     <td id="status-{{ bookmark.alias }}">
@@ -331,7 +299,7 @@
                                 <button type="submit" class="btn-primary">Enable</button>
                                 {% else %}
                                 <input type="hidden" name="is_disabled" value="true">
-                                <button type="submit" class="btn-secondary">Disable</button>
+                                <button type="submit" class="btn-secondary btn-disable-global">Disable</button>
                                 {% endif %}
                             </form>
                             <form hx-post="/manage/fork-global"

@@ -27,6 +27,13 @@ impl Command {
         }
     }
 
+    pub fn base_url(&self) -> &str {
+        match self {
+            Command::Variable { base_url, .. } => base_url,
+            Command::Nested { .. } => "",
+        }
+    }
+
     pub fn get_redirect_url(&self, query: &str) -> String {
         match self {
             Command::Variable { base_url, template, .. } => {

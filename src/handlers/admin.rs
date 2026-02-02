@@ -168,8 +168,8 @@ pub async fn update_global_bookmark(
     crate::validation::validate_url_scheme(&form.url)?;
 
     // Validate template if provided
-    if !form.template.is_empty() {
-        crate::validation::validate_variable_template(&form.template)?;
+    if !form.command_template.is_empty() {
+        crate::validation::validate_variable_template(&form.command_template)?;
     }
 
     // Update the global bookmark in database
@@ -182,7 +182,7 @@ pub async fn update_global_bookmark(
         &form.alias,
         &form.url,
         &form.description,
-        Some(&form.template),
+        Some(&form.command_template),
     )
     .await
     .map_err(|e| AppError::Internal(format!("Failed to update global bookmark: {}", e)))?;
@@ -209,5 +209,5 @@ pub struct UpdateGlobalBookmarkForm {
     alias: String,
     url: String,
     description: String,
-    template: String,
+    command_template: String,
 }

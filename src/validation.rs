@@ -79,9 +79,6 @@ pub fn validate_variable_template(template: &str) -> Result<(), AppError> {
     let parsed = crate::domain::template::TemplateParser::parse(template)
         .map_err(|e| AppError::BadRequest(format!("Invalid template syntax: {}", e)))?;
 
-    // Validate URL scheme
-    validate_url_scheme(template)?;
-
     // Disallow multiple {} or {query} placeholders
     let query_vars = parsed
         .variables()

@@ -105,7 +105,10 @@ struct NestedListTemplate {
 struct GlobalBookmarkRowTemplate<'a> {
     alias: &'a str,
     description: &'a str,
+    url: &'a str,
+    template: &'a str,
     is_disabled: bool,
+    is_admin: bool,
 }
 
 // Form structs
@@ -261,8 +264,10 @@ pub async fn create_bookmark(
         return Err(AppError::BadRequest("Invalid alias length".to_string()));
     }
 
-    // Validate URL scheme for all bookmark types
-    validation::validate_url_scheme(&form.url)?;
+    // Validate URL scheme (skip for nested bookmarks since parent URL is not used)
+    if form.bookmark_type != "nested" {
+        validation::validate_url_scheme(&form.url)?;
+    }
 
     // Validate templated bookmarks have a valid template (if provided)
     if form.bookmark_type == "templated" {
@@ -301,9 +306,7 @@ pub async fn create_bookmark(
             }
 
             for (i, nested_cmd) in nested_commands.iter().enumerate() {
-                // Validate nested URL scheme
                 validation::validate_url_scheme(&nested_cmd.url)?;
-
                 helpers::validate_optional_template(&nested_cmd.command_template)?;
 
                 db::create_nested_bookmark(
@@ -316,7 +319,7 @@ pub async fn create_bookmark(
                     i as i32,
                 )
                 .await
-                .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark: {}", e)))?;
+                .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark '{}': {}", nested_cmd.alias, e)))?;
             }
         }
     }
@@ -492,15 +495,27 @@ pub async fn toggle_global_bookmark(
 
     // Get description from command map
     let bookmark_map = state.alias_to_bookmark_map.read().await;
-    let description = bookmark_map
-        .get(&form.builtin_alias)
+    let bookmark = bookmark_map.get(&form.builtin_alias);
+    let description = bookmark
         .map(|cmd| cmd.description())
         .unwrap_or("Built-in bookmark");
+    let url = bookmark
+        .map(|cmd| cmd.base_url())
+        .unwrap_or("");
+    let template_str = bookmark
+        .map(|cmd| match cmd {
+            Command::Variable { template, .. } => render_template_to_string(template),
+            Command::Nested { .. } => String::new(),
+        })
+        .unwrap_or_default();
 
     let template = GlobalBookmarkRowTemplate {
         alias: &form.builtin_alias,
         description,
+        url,
+        template: &template_str,
         is_disabled,
+        is_admin: current_user.0.is_admin,
     };
     Ok(Html(template.render()?))
 }

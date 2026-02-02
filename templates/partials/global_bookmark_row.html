@@ -1,7 +1,4 @@
 <tr id="global-{{ alias }}">
-    <td>
-        <input type="checkbox" class="global-checkbox" value="{{ alias }}">
-    </td>
     <td><strong>{{ alias }}</strong></td>
     <td>{{ description }}</td>
     <td id="status-{{ alias }}">
@@ -13,6 +10,15 @@
     </td>
     <td>
         <div style="display: flex; gap: 0.5em; align-items: center;">
+            {% if is_admin %}
+            <button class="btn-secondary btn-edit-global"
+                    data-alias="{{ alias }}"
+                    data-url="{{ url }}"
+                    data-template="{{ template }}"
+                    data-description="{{ description }}">
+                Edit
+            </button>
+            {% endif %}
             {% if is_disabled %}
             <form hx-post="/manage/override" hx-target="#global-{{ alias }}" hx-swap="outerHTML" style="margin: 0;">
                 <input type="hidden" name="builtin_alias" value="{{ alias }}">
@@ -22,7 +28,7 @@
             <form hx-post="/manage/override" hx-target="#global-{{ alias }}" hx-swap="outerHTML" style="margin: 0;">
                 <input type="hidden" name="builtin_alias" value="{{ alias }}">
                 <input type="hidden" name="is_disabled" value="true">
-                <button type="submit" class="btn-secondary">Disable</button>
+                <button type="submit" class="btn-secondary btn-disable-global">Disable</button>
             </form>
             {% endif %}
             <form hx-post="/manage/fork-global"

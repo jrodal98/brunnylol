@@ -108,45 +108,6 @@ function toggleNestedTemplate(selectElement) {
     }
 }
 
-function prepareNestedCommands() {
-    console.log('prepareNestedCommands called');
-    const bookmarkType = document.getElementById('bookmark_type').value;
-    console.log('Bookmark type:', bookmarkType);
-
-    if (bookmarkType !== 'nested') {
-        // Not a nested bookmark, clear the JSON field
-        document.getElementById('nested_commands_json').value = '';
-        console.log('Not nested, cleared JSON');
-        return;
-    }
-
-    // Collect all nested command data
-    const nestedCommands = [];
-    const container = document.getElementById('nested-commands-list');
-    const rows = container.querySelectorAll('div[id^="nested-row-"]');
-    console.log('Found rows:', rows.length);
-
-    rows.forEach((row, index) => {
-        const aliasInput = row.querySelector('input[name="nested_alias[]"]');
-        const urlInput = row.querySelector('input[name="nested_url[]"]');
-        const descInput = row.querySelector('input[name="nested_description[]"]');
-        const templateInput = row.querySelector('input[name="nested_command_template[]"]');
-
-        nestedCommands.push({
-            alias: aliasInput ? aliasInput.value : '',
-            url: urlInput ? urlInput.value : '',
-            description: descInput ? descInput.value : '',
-            command_template: templateInput && templateInput.value ? templateInput.value : null
-        });
-    });
-
-    // Serialize to JSON and set in hidden field
-    const jsonValue = JSON.stringify(nestedCommands);
-    document.getElementById('nested_commands_json').value = jsonValue;
-    console.log('Prepared nested commands:', nestedCommands);
-    console.log('JSON value:', jsonValue);
-}
-
 function showNestedManager(bookmarkId, alias) {
     document.getElementById('nested-manager-title').textContent = `Manage Nested Commands for '${alias}'`;
 
@@ -254,133 +215,6 @@ function toggleImportFields() {
     }
 }
 
-// Multi-select functions for personal bookmarks
-function toggleAllPersonal(checkbox) {
-    const checkboxes = document.querySelectorAll('.personal-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-    updatePersonalSelection();
-}
-
-function updatePersonalSelection() {
-    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
-    const count = checkboxes.length;
-    const deleteBtn = document.getElementById('delete-selected-btn');
-    const countSpan = document.getElementById('personal-selected-count');
-
-    deleteBtn.disabled = count === 0;
-    countSpan.textContent = count > 0 ? `${count} selected` : '';
-}
-
-function deleteSelectedPersonal() {
-    const checkboxes = document.querySelectorAll('.personal-checkbox:checked');
-    const ids = Array.from(checkboxes).map(cb => cb.value);
-
-    if (ids.length === 0) return;
-
-    if (!confirm(`Delete ${ids.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual delete buttons via HTMX (reuse existing working functionality)
-    ids.forEach(id => {
-        const row = document.getElementById(`bookmark-${id}`);
-        if (row) {
-            const deleteButton = row.querySelector('button[hx-delete]');
-            if (deleteButton) {
-                // Programmatically trigger the HTMX delete button
-                htmx.trigger(deleteButton, 'click');
-            }
-        }
-    });
-
-    // Uncheck select all after a short delay
-    setTimeout(() => {
-        document.getElementById('select-all-personal').checked = false;
-        updatePersonalSelection();
-    }, 300);
-}
-
-// Multi-select functions for global bookmarks
-function toggleAllGlobal(checkbox) {
-    const checkboxes = document.querySelectorAll('.global-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
-    updateGlobalSelection();
-}
-
-function updateGlobalSelection() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const count = checkboxes.length;
-    const disableBtn = document.getElementById('disable-selected-btn');
-    const enableBtn = document.getElementById('enable-selected-btn');
-    const countSpan = document.getElementById('global-selected-count');
-
-    disableBtn.disabled = count === 0;
-    enableBtn.disabled = count === 0;
-    countSpan.textContent = count > 0 ? `${count} selected` : '';
-}
-
-function disableSelectedGlobal() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const aliases = Array.from(checkboxes).map(cb => cb.value);
-
-    if (aliases.length === 0) return;
-
-    if (!confirm(`Disable ${aliases.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual disable buttons via HTMX (reuse existing functionality)
-    aliases.forEach(alias => {
-        const row = document.getElementById(`global-${alias}`);
-        if (row) {
-            const statusCell = row.querySelector(`#status-${alias}`);
-            // Only disable if currently active
-            if (statusCell && statusCell.textContent.includes('✓ Active')) {
-                const disableButton = row.querySelector('button.btn-secondary');
-                if (disableButton && disableButton.textContent.includes('Disable')) {
-                    // Programmatically click the disable button (HTMX will handle update)
-                    disableButton.click();
-                }
-            }
-        }
-    });
-
-    // Uncheck all after HTMX finishes (give it time to process)
-    setTimeout(() => {
-        document.getElementById('select-all-global').checked = false;
-        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
-        updateGlobalSelection();
-    }, 500);
-}
-
-function enableSelectedGlobal() {
-    const checkboxes = document.querySelectorAll('.global-checkbox:checked');
-    const aliases = Array.from(checkboxes).map(cb => cb.value);
-
-    if (aliases.length === 0) return;
-
-    if (!confirm(`Enable ${aliases.length} selected bookmark(s)?`)) return;
-
-    // Trigger individual enable buttons via HTMX (reuse existing functionality)
-    aliases.forEach(alias => {
-        const row = document.getElementById(`global-${alias}`);
-        if (row) {
-            const statusCell = row.querySelector(`#status-${alias}`);
-            // Only enable if currently disabled
-            if (statusCell && statusCell.textContent.includes('✗ Disabled')) {
-                const enableButton = row.querySelector('button.btn-primary');
-                if (enableButton && enableButton.textContent.includes('Enable')) {
-                    // Programmatically click the enable button (HTMX will handle update)
-                    enableButton.click();
-                }
-            }
-        }
-    });
-
-    // Uncheck all after HTMX finishes
-    setTimeout(() => {
-        document.getElementById('select-all-global').checked = false;
-        document.querySelectorAll('.global-checkbox').forEach(cb => cb.checked = false);
-        updateGlobalSelection();
-    }, 500);
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded fired');
@@ -421,51 +255,6 @@ document.addEventListener('DOMContentLoaded', function() {
         importSourceSelect.addEventListener('change', toggleImportFields);
     }
 
-    // Wire up personal bookmark bulk actions
-    const deleteSelectedBtn = document.getElementById('delete-selected-btn');
-    if (deleteSelectedBtn) {
-        deleteSelectedBtn.addEventListener('click', deleteSelectedPersonal);
-    }
-
-    const selectAllPersonal = document.getElementById('select-all-personal');
-    if (selectAllPersonal) {
-        selectAllPersonal.addEventListener('change', function() {
-            toggleAllPersonal(this);
-        });
-    }
-
-    // Wire up personal checkboxes (use event delegation for dynamically created elements)
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('personal-checkbox')) {
-            updatePersonalSelection();
-        }
-    });
-
-    // Wire up global bookmark bulk actions
-    const disableSelectedBtn = document.getElementById('disable-selected-btn');
-    if (disableSelectedBtn) {
-        disableSelectedBtn.addEventListener('click', disableSelectedGlobal);
-    }
-
-    const enableSelectedBtn = document.getElementById('enable-selected-btn');
-    if (enableSelectedBtn) {
-        enableSelectedBtn.addEventListener('click', enableSelectedGlobal);
-    }
-
-    const selectAllGlobal = document.getElementById('select-all-global');
-    if (selectAllGlobal) {
-        selectAllGlobal.addEventListener('change', function() {
-            toggleAllGlobal(this);
-        });
-    }
-
-    // Wire up global checkboxes (use event delegation for dynamically created elements)
-    document.addEventListener('change', function(e) {
-        if (e.target.classList.contains('global-checkbox')) {
-            updateGlobalSelection();
-        }
-    });
-
     // Wire up export buttons
     document.querySelectorAll('.export-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -485,15 +274,47 @@ document.addEventListener('DOMContentLoaded', function() {
         cancelEditBtn.addEventListener('click', hideEditForm);
     }
 
-    // Add HTMX event listener to prepare nested commands before submission
+    // Add submit event listener to prepare nested commands BEFORE HTMX processes
     const createForm = document.getElementById('create-bookmark-form');
     console.log('Create form found:', createForm !== null);
     if (createForm) {
-        createForm.addEventListener('htmx:configRequest', function(event) {
-            console.log('htmx:configRequest event fired');
-            prepareNestedCommands();
-        });
-        console.log('HTMX event listener added');
+        // Use CAPTURE PHASE (third parameter = true) to run before HTMX's listeners
+        createForm.addEventListener('submit', function(event) {
+            console.log('submit event fired (CAPTURE PHASE)');
+            const bookmarkType = document.getElementById('bookmark_type').value;
+
+            if (bookmarkType === 'nested') {
+                // Collect nested commands data
+                const nestedCommands = [];
+                const container = document.getElementById('nested-commands-list');
+                const rows = container.querySelectorAll('div[id^="nested-row-"]');
+                console.log('Found rows:', rows.length);
+
+                rows.forEach((row, index) => {
+                    const aliasInput = row.querySelector('input[name="nested_alias[]"]');
+                    const urlInput = row.querySelector('input[name="nested_url[]"]');
+                    const descInput = row.querySelector('input[name="nested_description[]"]');
+                    const templateInput = row.querySelector('input[name="nested_command_template[]"]');
+
+                    nestedCommands.push({
+                        alias: aliasInput ? aliasInput.value : '',
+                        url: urlInput ? urlInput.value : '',
+                        description: descInput ? descInput.value : '',
+                        command_template: templateInput && templateInput.value ? templateInput.value : null
+                    });
+                });
+
+                const jsonValue = JSON.stringify(nestedCommands);
+                console.log('Prepared nested commands:', nestedCommands);
+                console.log('JSON value:', jsonValue);
+
+                // Set the hidden field SYNCHRONOUSLY before HTMX reads the form
+                const hiddenField = document.getElementById('nested_commands_json');
+                hiddenField.value = jsonValue;
+                console.log('Set hidden field value to:', hiddenField.value);
+            }
+        }, true); // USE CAPTURE PHASE - this is the key!
+        console.log('Submit event listener added (capture phase)');
     }
 
     // Wire up edit buttons using data attributes (XSS-safe)
@@ -525,6 +346,24 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.btn-nested-manager').forEach(function(btn) {
         btn.addEventListener('click', function() {
             showNestedManager(this.dataset.id, this.dataset.alias);
+        });
+    });
+
+    // Re-attach event listeners after HTMX swaps content
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Re-wire global edit buttons after row swap
+        document.querySelectorAll('.btn-edit-global').forEach(function(btn) {
+            if (!btn.hasAttribute('data-listener-attached')) {
+                btn.setAttribute('data-listener-attached', 'true');
+                btn.addEventListener('click', function() {
+                    showEditFormGlobal(
+                        this.dataset.alias,
+                        this.dataset.url,
+                        this.dataset.template,
+                        this.dataset.description
+                    );
+                });
+            }
         });
     });
 });

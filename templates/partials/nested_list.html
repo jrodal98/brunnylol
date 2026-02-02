@@ -6,10 +6,15 @@
 <thead><tr><th>Alias</th><th>URL/Template</th><th>Description</th><th>Actions</th></tr></thead>
 <tbody>
 {% for n in nested %}
-{% let url_display = n.command_template.as_ref().unwrap_or(&n.url) %}
 <tr id="nested-{{ n.id }}">
     <td><strong>{{ n.alias }}</strong></td>
-    <td>{{ url_display }}</td>
+    <td>
+        {% if let Some(template) = n.command_template %}
+        {{ template }}
+        {% else %}
+        {{ n.url }}
+        {% endif %}
+    </td>
     <td>{{ n.description }}</td>
     <td>
         <button class="btn-danger"
