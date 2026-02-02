@@ -73,7 +73,7 @@ impl RedirectService {
                 break;
             }
 
-            remaining = &remaining[1..]; // Skip $
+            remaining = &remaining[1..];
 
             // Find = sign
             if let Some(eq_pos) = remaining.find('=') {
@@ -104,7 +104,7 @@ impl RedirectService {
     }
 
     fn parse_quoted_value(input: &str) -> (String, &str) {
-        let remaining = &input[1..]; // Skip opening quote
+        let remaining = &input[1..];
         let mut value = String::new();
         let mut chars = remaining.chars();
         let mut escaped = false;
@@ -150,6 +150,80 @@ impl RedirectService {
             .join("&")
     }
 
+    /// Parse nested path from query, detecting suffix at any level
+    /// Examples:
+    ///   "nested? sub1" -> (["nested", "sub1"], Form, None)
+    ///   "nested sub1?" -> (["nested", "sub1"], Form, None)
+    ///   "nested sub1 sub2?" -> (["nested", "sub1", "sub2"], Form, None)
+    ///   "nested$ sub1 $var=val" -> (["nested", "sub1"], Named, Some("$var=val"))
+    fn parse_nested_path(query: &str) -> (Vec<String>, UsageMode, Option<String>) {
+        let parts: Vec<&str> = query.split_whitespace().collect();
+        if parts.is_empty() {
+            return (vec![], UsageMode::Direct, None);
+        }
+
+        // Find first part with suffix
+        let mut suffix_index = None;
+        let mut usage_mode = UsageMode::Direct;
+
+        for (i, part) in parts.iter().enumerate() {
+            let (_, mode) = Self::parse_alias_and_mode(part);
+            if !matches!(mode, UsageMode::Direct) {
+                suffix_index = Some(i);
+                usage_mode = mode;
+                break;
+            }
+        }
+
+        match suffix_index {
+            Some(idx) => {
+                // Build path up to and including the suffix position
+                let mut path: Vec<String> = parts[..idx]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect();
+
+                // Strip suffix from the element at suffix position
+                let (clean, _) = Self::parse_alias_and_mode(parts[idx]);
+                path.push(clean.to_string());
+
+                // Remaining parts after suffix become query
+                let remaining = (idx + 1 < parts.len())
+                    .then(|| parts[idx + 1..].join(" "));
+
+                (path, usage_mode, remaining)
+            }
+            None => {
+                // No suffix found - single alias in Direct mode
+                let remaining = (parts.len() > 1)
+                    .then(|| parts[1..].join(" "));
+                (vec![parts[0].to_string()], UsageMode::Direct, remaining)
+            }
+        }
+    }
+
+    /// Recursively resolve nested command path
+    fn resolve_nested_command<'a>(
+        command: &'a Command,
+        path: &[String],
+        start_index: usize,
+    ) -> Option<&'a Command> {
+        if start_index >= path.len() {
+            return Some(command);
+        }
+
+        match command {
+            Command::Nested { children, .. } => {
+                if let Some(child) = children.get(&path[start_index]) {
+                    Self::resolve_nested_command(child, path, start_index + 1)
+                } else {
+                    None
+                }
+            }
+            Command::Variable { .. } => None,
+        }
+    }
+
     /// Resolve a search query to a redirect result
     pub async fn resolve_redirect(
         &self,
@@ -158,26 +232,29 @@ impl RedirectService {
         global_bookmarks: &HashMap<String, Command>,
         default_alias: Option<&str>,
     ) -> Result<RedirectResult, AppError> {
-        let mut splitted = query.splitn(2, ' ');
-        let bookmark_alias_raw = splitted.next().unwrap_or("");
-        let query_part = splitted.next().unwrap_or_default();
+        // Parse query to detect nested paths with suffixes
+        let (path, usage_mode, remaining_query) = Self::parse_nested_path(query);
 
-        // Parse alias and detect usage mode
-        let (bookmark_alias, usage_mode) = Self::parse_alias_and_mode(bookmark_alias_raw);
-
-        // Handle Form and Chained modes - redirect to /f/{alias}
-        if matches!(usage_mode, UsageMode::Form | UsageMode::Chained) {
-            let mut form_url = format!("/f/{}", bookmark_alias);
-
-            if matches!(usage_mode, UsageMode::Chained) {
-                let (vars, _) = Self::parse_named_variables(query_part);
-                if !vars.is_empty() {
-                    form_url = format!("{}?{}", form_url, Self::build_query_string(&vars));
-                }
-            }
-
-            return Ok(RedirectResult::InternalPath(form_url));
+        // Handle empty query
+        if path.is_empty() {
+            return Err(AppError::NotFound("Empty query".to_string()));
         }
+
+        // Handle nested paths (multi-segment paths or single segment with specific modes)
+        if path.len() > 1 || !matches!(usage_mode, UsageMode::Direct) {
+            return self.resolve_nested_redirect(
+                &path,
+                usage_mode,
+                remaining_query.as_deref(),
+                user,
+                global_bookmarks,
+            ).await;
+        }
+
+        // Fall back to original single-alias logic for backward compatibility
+        let bookmark_alias = &path[0];
+        let query_part = remaining_query.as_deref().unwrap_or("");
+
 
         // Load user bookmarks and disabled globals
         let (user_bookmarks, disabled_globals) = if let Some(user) = user {
@@ -312,6 +389,138 @@ impl RedirectService {
             Ok(RedirectResult::ExternalUrl(redirect_url))
         } else {
             Ok(RedirectResult::InternalPath(redirect_url))
+        }
+    }
+
+    /// Resolve nested command with suffix support
+    async fn resolve_nested_redirect(
+        &self,
+        path: &[String],
+        usage_mode: UsageMode,
+        remaining_query: Option<&str>,
+        user: Option<&db::User>,
+        global_bookmarks: &HashMap<String, Command>,
+    ) -> Result<RedirectResult, AppError> {
+        if path.is_empty() {
+            return Err(AppError::NotFound("Empty path".to_string()));
+        }
+
+        // Load user bookmarks and disabled globals
+        let (user_bookmarks, disabled_globals) = if let Some(user) = user {
+            let bookmarks = db::bookmarks::load_user_bookmarks(&self.pool, user.id)
+                .await
+                .ok();
+            let disabled = db::get_disabled_global_aliases(&self.pool, user.id).await;
+            (bookmarks, disabled)
+        } else {
+            (None, std::collections::HashSet::new())
+        };
+
+        // Find root command
+        let root_alias = &path[0];
+        let root_command = user_bookmarks
+            .as_ref()
+            .and_then(|user_map| user_map.get(root_alias))
+            .or_else(|| {
+                if disabled_globals.contains(root_alias.as_str()) {
+                    None
+                } else {
+                    global_bookmarks.get(root_alias)
+                }
+            })
+            .ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", root_alias)))?;
+
+        // Resolve nested path
+        let final_command = if path.len() > 1 {
+            Self::resolve_nested_command(root_command, path, 1)
+                .ok_or_else(|| {
+                    AppError::NotFound(format!(
+                        "Unknown nested path: '{}'",
+                        path[1..].join("/")
+                    ))
+                })?
+        } else {
+            root_command
+        };
+
+        // Handle based on usage mode and command type
+        match (final_command, usage_mode) {
+            // Form or Chained mode - redirect to /f/path/to/command
+            (_, UsageMode::Form | UsageMode::Chained) => {
+                let mut form_url = format!("/f/{}", path.join("/"));
+
+                if matches!(usage_mode, UsageMode::Chained) {
+                    if let Some(query) = remaining_query {
+                        let (vars, _) = Self::parse_named_variables(query);
+                        if !vars.is_empty() {
+                            form_url = format!("{}?{}", form_url, Self::build_query_string(&vars));
+                        }
+                    }
+                }
+
+                Ok(RedirectResult::InternalPath(form_url))
+            }
+            // Named mode with Variable command
+            (Command::Variable { template, base_url, .. }, UsageMode::Named) => {
+                let query = remaining_query.unwrap_or("");
+                let (mut vars, remaining) = Self::parse_named_variables(query);
+
+                if let Some(rem) = remaining {
+                    if !rem.is_empty() {
+                        vars.insert("query".to_string(), rem);
+                    }
+                }
+
+                vars.insert("url".to_string(), base_url.clone());
+
+                let resolver = TemplateResolver::new();
+                let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+
+                if !missing.is_empty() {
+                    return Ok(RedirectResult::InternalPath(format!(
+                        "/f/{}?{}",
+                        path.join("/"),
+                        Self::build_query_string(&vars)
+                    )));
+                }
+
+                match resolver.resolve(template, &vars) {
+                    Ok(url) => {
+                        if url.starts_with("http://") || url.starts_with("https://") {
+                            Ok(RedirectResult::ExternalUrl(url))
+                        } else {
+                            Ok(RedirectResult::InternalPath(url))
+                        }
+                    }
+                    Err(_) => Ok(RedirectResult::InternalPath(format!(
+                        "/f/{}?{}",
+                        path.join("/"),
+                        Self::build_query_string(&vars)
+                    ))),
+                }
+            }
+            // Direct mode - resolve with remaining query
+            (command, UsageMode::Direct) => {
+                let query = remaining_query.unwrap_or("");
+                let redirect_url = command.get_redirect_url(query);
+
+                if redirect_url.is_empty() {
+                    return Err(AppError::NotFound(format!(
+                        "Failed to resolve nested command: '{}'",
+                        path.join("/")
+                    )));
+                }
+
+                if redirect_url.starts_with("http://") || redirect_url.starts_with("https://") {
+                    Ok(RedirectResult::ExternalUrl(redirect_url))
+                } else {
+                    Ok(RedirectResult::InternalPath(redirect_url))
+                }
+            }
+            // Named mode with Nested command - not supported
+            (Command::Nested { .. }, UsageMode::Named) => Err(AppError::BadRequest(
+                "Named mode ($) not supported for nested commands without variables".to_string(),
+            )),
         }
     }
 }

@@ -66,13 +66,6 @@ struct SearchParams {
     default: Option<String>,
 }
 
-// Usage mode for bookmark aliases
-
-// Parse alias and detect usage mode from suffix
-
-// Parse named variables from query string
-// Example: "$page=home; $repo=rust; rest of query" -> ({page: "home", repo: "rust"}, Some("rest of query"))
-
 // Application state
 pub struct AppState {
     pub alias_to_bookmark_map: Arc<tokio::sync::RwLock<HashMap<String, Command>>>,
@@ -165,11 +158,15 @@ async fn redirect(
 ) -> axum::response::Response {
     let bookmark_map = state.alias_to_bookmark_map.read().await;
 
+    // Get default alias: query param takes precedence, then user preference, then None
+    let default_alias = params.default.as_deref()
+        .or_else(|| optional_user.0.as_ref().and_then(|u| u.default_alias.as_deref()));
+
     let result = state.redirect_service.resolve_redirect(
         &params.q,
         optional_user.0.as_ref(),
         &bookmark_map,
-        params.default.as_deref().or(Some(&state.default_alias)),
+        default_alias,
     ).await;
 
     match result {
@@ -298,7 +295,7 @@ pub async fn create_router() -> Router {
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
 
         // Variable form routes (GET shows form, POST submits)
-        .route("/f/{alias}", get(handlers::variable_form::show_variable_form)
+        .route("/f/{*path}", get(handlers::variable_form::show_variable_form)
                              .post(handlers::variable_form::submit_variable_form))
 
         // Admin routes (require admin authentication)

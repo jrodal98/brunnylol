@@ -14,6 +14,41 @@ use crate::{
     helpers,
 };
 
+/// Resolve hierarchical path to final command
+async fn resolve_nested_path(
+    path: &str,
+    user: Option<&crate::db::User>,
+    state: &Arc<crate::AppState>,
+) -> Result<(Command, Vec<String>), AppError> {
+    let path_segments: Vec<&str> = path.trim_start_matches('/').split('/').filter(|s| !s.is_empty()).collect();
+
+    if path_segments.is_empty() {
+        return Err(AppError::NotFound("Empty path".to_string()));
+    }
+
+    // Load root bookmark
+    let root_alias = path_segments[0];
+    let mut command = helpers::load_bookmark_for_alias(root_alias, user, state).await
+        .ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", root_alias)))?;
+
+    // Navigate through nested path
+    for segment in &path_segments[1..] {
+        match command {
+            Command::Nested { children, .. } => {
+                command = children.get(*segment)
+                    .ok_or_else(|| AppError::NotFound(format!("Unknown child: '{}'", segment)))?
+                    .clone();
+            }
+            _ => return Err(AppError::BadRequest(format!(
+                "Cannot navigate into non-nested command at '{}'", segment
+            ))),
+        }
+    }
+
+    Ok((command, path_segments.iter().map(|s| s.to_string()).collect()))
+}
+
+
 #[derive(Template)]
 #[template(path = "variable_form.html")]
 struct VariableFormTemplate {
@@ -23,6 +58,23 @@ struct VariableFormTemplate {
     has_user: bool,
     is_admin: bool,
 }
+
+#[derive(Template)]
+#[template(path = "nested_selection.html")]
+struct NestedSelectionTemplate {
+    parent_path: String,
+    description: String,
+    children: Vec<NestedChildDisplay>,
+    has_user: bool,
+    is_admin: bool,
+}
+
+#[derive(Clone)]
+struct NestedChildDisplay {
+    alias: String,
+    description: String,
+}
+
 
 #[derive(Clone)]
 struct FormVariableDisplay {
@@ -38,20 +90,30 @@ struct FormVariableDisplay {
 // GET /f/:alias - Show variable form or submit and redirect
 pub async fn show_variable_form(
     optional_user: OptionalUser,
-    Path(alias): Path<String>,
+    Path(path): Path<String>,
     Query(params): Query<HashMap<String, String>>,
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Response, AppError> {
-    // Load bookmark (try user bookmarks first, then global)
-    let command = helpers::load_bookmark_for_alias(&alias, optional_user.0.as_ref(), &state).await
-        .ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", alias)))?;
+    // Resolve hierarchical path to final command
+    let (command, path_segments) = resolve_nested_path(&path, optional_user.0.as_ref(), &state).await?;
 
-    // Only Variable commands have forms
+    let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
+        (true, user.is_admin)
+    } else {
+        (false, false)
+    };
+
+    // Handle different command types
     match command {
-        Command::Variable { template, metadata, description, .. } => {
-            // ALWAYS show the form - even if variables are prefilled
-            // The form will be rendered with current_value set from query params
+        Command::Variable { template, metadata, description, base_url } => {
+            // Show variable form
             let form_data = form_builder::build_form_data(&template, metadata.as_ref(), &params);
+
+            // If there are no variables to fill out, auto-redirect to base URL
+            if form_data.is_empty() {
+                use axum::response::Redirect;
+                return Ok(Redirect::to(&base_url).into_response());
+            }
 
             let variables = form_data
                 .into_iter()
@@ -72,14 +134,8 @@ pub async fn show_variable_form(
                 })
                 .collect();
 
-            let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
-                (true, user.is_admin)
-            } else {
-                (false, false)
-            };
-
             let tmpl = VariableFormTemplate {
-                alias,
+                alias: path_segments.join("/"),
                 description,
                 variables,
                 has_user,
@@ -88,17 +144,34 @@ pub async fn show_variable_form(
 
             Ok(Html(tmpl.render()?).into_response())
         }
-        _ => Err(AppError::BadRequest(format!(
-            "Bookmark '{}' does not support variable forms",
-            alias
-        ))),
+        Command::Nested { children, description } => {
+            // Show nested command selection UI
+            let mut child_list: Vec<NestedChildDisplay> = children
+                .into_iter()
+                .map(|(alias, cmd)| NestedChildDisplay {
+                    alias,
+                    description: cmd.description().to_string(),
+                })
+                .collect();
+            child_list.sort_by(|a, b| a.alias.cmp(&b.alias));
+
+            let tmpl = NestedSelectionTemplate {
+                parent_path: path_segments.join("/"),
+                description,
+                children: child_list,
+                has_user,
+                is_admin,
+            };
+
+            Ok(Html(tmpl.render()?).into_response())
+        }
     }
 }
 
 // POST /f/:alias - Submit variable form and redirect
 pub async fn submit_variable_form(
     optional_user: OptionalUser,
-    Path(alias): Path<String>,
+    Path(path): Path<String>,
     State(state): State<Arc<crate::AppState>>,
     body: String,
 ) -> Response {
@@ -113,11 +186,11 @@ pub async fn submit_variable_form(
         }
     }
 
-    // Load bookmark
-    let command = helpers::load_bookmark_for_alias(&alias, optional_user.0.as_ref(), &state).await;
+    // Resolve hierarchical path to final command
+    let result = resolve_nested_path(&path, optional_user.0.as_ref(), &state).await;
 
-    match command {
-        Some(Command::Variable { base_url, template, .. }) => {
+    match result {
+        Ok((Command::Variable { base_url, template, .. }, _)) => {
             let resolver = crate::domain::template::TemplateResolver::new();
             let url = resolver.resolve(&template, &form_data).unwrap_or(base_url);
             // Return URL as plain text for JavaScript to navigate
@@ -127,7 +200,7 @@ pub async fn submit_variable_form(
                 .unwrap()
                 .into_response()
         }
-        _ => crate::error::AppError::NotFound(format!("Unknown alias: '{}'", alias)).into_response(),
+        _ => crate::error::AppError::NotFound(format!("Unknown alias: '{}'", path)).into_response(),
     }
 }
 
