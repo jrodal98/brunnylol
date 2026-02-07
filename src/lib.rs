@@ -10,6 +10,7 @@ pub mod services;
 pub mod validation;
 mod security;
 mod helpers;
+mod rate_limiting;
 
 use askama::Template;
 use axum::{
@@ -20,6 +21,11 @@ use axum::{
     Router,
 };
 use tower_http::services::ServeDir;
+use tower_governor::{
+    governor::GovernorConfigBuilder,
+    key_extractor::SmartIpKeyExtractor,
+    GovernorLayer,
+};
 use domain::Command;
 use error::AppError;
 use serde::Deserialize;
@@ -257,15 +263,51 @@ pub async fn create_router() -> Router {
         redirect_service: Arc::new(services::redirect_service::RedirectService::new(db_pool.clone())),
     });
 
+    // Configure rate limiting: 5 attempts per 15 minutes
+    // per_second(180) = replenish 1 token every 180 seconds
+    let governor_conf = GovernorConfigBuilder::default()
+        .per_second(180)
+        .burst_size(5)
+        .key_extractor(SmartIpKeyExtractor)
+        .finish()
+        .unwrap();
+
+    let governor_limiter = governor_conf.limiter().clone();
+
+    // Background task to clean up expired rate limit entries every 5 minutes
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+        loop {
+            interval.tick().await;
+
+            // Catch panics to prevent silent task death
+            if let Err(e) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                governor_limiter.retain_recent();
+            })) {
+                eprintln!("Rate limiter cleanup panicked: {:?}", e);
+            }
+        }
+    });
+
+    // Create shared rate limit layer to avoid duplication
+    let rate_limit_layer = GovernorLayer::new(governor_conf)
+        .error_handler(rate_limiting::rate_limit_error_handler);
+
     Router::new()
         // Public routes
         .route("/", get(index))
         .route("/help", get(help))
         .route("/search", get(redirect))
 
-        // Auth routes
-        .route("/login", get(handlers::auth::login_page).post(handlers::auth::login_submit))
-        .route("/register", get(handlers::auth::register_page).post(handlers::auth::register_submit))
+        // Auth routes (rate limited)
+        .route("/login",
+            get(handlers::auth::login_page)
+                .post(handlers::auth::login_submit)
+                .layer(rate_limit_layer.clone()))
+        .route("/register",
+            get(handlers::auth::register_page)
+                .post(handlers::auth::register_submit)
+                .layer(rate_limit_layer))
         .route("/logout", post(handlers::auth::logout))
 
         // Bookmark management routes (require authentication)

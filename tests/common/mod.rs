@@ -51,3 +51,14 @@ pub async fn create_test_app() -> axum::Router {
     std::env::set_var("BRUNNYLOL_DB", ":memory:");
     brunnylol::create_router().await
 }
+
+/// Helper to add SocketAddr extension to test requests for rate limiting
+#[allow(dead_code)]
+pub fn add_test_socket_addr<B>(mut req: axum::http::Request<B>) -> axum::http::Request<B> {
+    use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+    req.extensions_mut().insert(SocketAddr::new(
+        IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
+        8000
+    ));
+    req
+}

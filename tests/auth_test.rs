@@ -15,7 +15,9 @@ async fn test_register_page_blocked_after_first_user() {
     // First registration should succeed (no users exist yet)
     let first_response = app
         .clone()
-        .oneshot(Request::builder().uri("/register").body(Body::empty()).unwrap())
+        .oneshot(common::add_test_socket_addr(
+            Request::builder().uri("/register").body(Body::empty()).unwrap()
+        ))
         .await
         .unwrap();
 
@@ -26,14 +28,14 @@ async fn test_register_page_blocked_after_first_user() {
     let register_form = "username=testadmin&password=testpass123&confirm_password=testpass123";
     let create_user_response = app
         .clone()
-        .oneshot(
+        .oneshot(common::add_test_socket_addr(
             Request::builder()
                 .uri("/register")
                 .method("POST")
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .body(Body::from(register_form))
                 .unwrap()
-        )
+        ))
         .await
         .unwrap();
 
@@ -42,7 +44,9 @@ async fn test_register_page_blocked_after_first_user() {
 
     // Second attempt to access registration page should be blocked
     let blocked_response = app
-        .oneshot(Request::builder().uri("/register").body(Body::empty()).unwrap())
+        .oneshot(common::add_test_socket_addr(
+            Request::builder().uri("/register").body(Body::empty()).unwrap()
+        ))
         .await
         .unwrap();
 
@@ -62,7 +66,9 @@ async fn test_login_page_loads() {
     let app = common::create_test_app().await;
 
     let response = app
-        .oneshot(Request::builder().uri("/login").body(Body::empty()).unwrap())
+        .oneshot(common::add_test_socket_addr(
+            Request::builder().uri("/login").body(Body::empty()).unwrap()
+        ))
         .await
         .unwrap();
 
