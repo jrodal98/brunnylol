@@ -251,7 +251,6 @@ impl BookmarkService {
                             description: n.description,
                             url: n.url,
                             command: n.command_template,
-                            encode: None,  // encode_query removed - encoding is now per-variable via pipelines
                             nested: None,
                         })
                         .collect()
@@ -265,7 +264,6 @@ impl BookmarkService {
                 description: bookmark.description,
                 url: bookmark.url,
                 command: bookmark.command_template,
-                encode: None,  // encode_query removed - encoding is now per-variable via pipelines
                 nested,
             });
         }

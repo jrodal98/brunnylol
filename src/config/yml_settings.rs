@@ -8,8 +8,6 @@ pub struct YmlSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub encode: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub nested: Option<Vec<YmlSettings>>,
 }
 
@@ -24,7 +22,6 @@ mod tests {
             description: "test".to_string(),
             url: "hi".to_string(),
             command: None,
-            encode: None,
             nested: None,
         };
 
@@ -40,7 +37,6 @@ mod tests {
             description: "Google Search".to_string(),
             url: "https://google.com".to_string(),
             command: None,
-            encode: None,
             nested: None,
         };
 
@@ -48,7 +44,6 @@ mod tests {
 
         // Verify that None fields are not serialized
         assert!(!yml.contains("command:"));
-        assert!(!yml.contains("encode:"));
         assert!(!yml.contains("nested:"));
 
         // Verify that required fields are present
@@ -64,7 +59,6 @@ mod tests {
             description: "Google Search".to_string(),
             url: "https://google.com".to_string(),
             command: None,
-            encode: None,
             nested: None,
         };
 
@@ -72,7 +66,6 @@ mod tests {
 
         // Verify that None fields are not serialized
         assert!(!json.contains("\"command\""));
-        assert!(!json.contains("\"encode\""));
         assert!(!json.contains("\"nested\""));
 
         // Verify that required fields are present
@@ -88,7 +81,6 @@ mod tests {
             description: "GitHub".to_string(),
             url: "https://github.com".to_string(),
             command: Some("{user}/{repo}".to_string()),
-            encode: Some(true),
             nested: None,
         };
 
@@ -96,7 +88,6 @@ mod tests {
 
         // Verify that Some fields are included
         assert!(json.contains("\"command\""));
-        assert!(json.contains("\"encode\""));
 
         // Verify that None field is not included
         assert!(!json.contains("\"nested\""));

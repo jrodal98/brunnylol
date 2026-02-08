@@ -465,7 +465,6 @@ async fn test_serializer_yaml_json_equivalence() {
             url: "https://test.com".to_string(),
             description: "Test".to_string(),
             command: Some("https://test.com/search?q={}".to_string()),
-            encode: Some(true),
             nested: None,
         }
     ];
