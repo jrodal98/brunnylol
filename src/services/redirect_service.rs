@@ -150,56 +150,39 @@ impl RedirectService {
             .join("&")
     }
 
-    /// Parse nested path from query, detecting suffix at any level
+    /// Parse nested path from query, detecting suffix only on the first part (alias)
+    /// Subcommand suffixes are handled during nested command resolution
     /// Examples:
-    ///   "nested? sub1" -> (["nested", "sub1"], Form, None)
-    ///   "nested sub1?" -> (["nested", "sub1"], Form, None)
-    ///   "nested sub1 sub2?" -> (["nested", "sub1", "sub2"], Form, None)
-    ///   "nested$ sub1 $var=val" -> (["nested", "sub1"], Named, Some("$var=val"))
+    ///   "alias?" -> (["alias"], Form, None)
+    ///   "alias what is 1+1?" -> (["alias"], Direct, Some("what is 1+1?"))
+    ///   "alias sub?" -> (["alias"], Direct, Some("sub?"))
+    ///   "alias$ $var=val" -> (["alias"], Named, Some("$var=val"))
     fn parse_nested_path(query: &str) -> (Vec<String>, UsageMode, Option<String>) {
         let parts: Vec<&str> = query.split_whitespace().collect();
         if parts.is_empty() {
             return (vec![], UsageMode::Direct, None);
         }
 
-        // Find first part with suffix
-        let mut suffix_index = None;
-        let mut usage_mode = UsageMode::Direct;
+        // Only check the first part (alias) for suffix
+        let (alias, mode) = Self::parse_alias_and_mode(parts[0]);
 
-        for (i, part) in parts.iter().enumerate() {
-            let (_, mode) = Self::parse_alias_and_mode(part);
-            if !matches!(mode, UsageMode::Direct) {
-                suffix_index = Some(i);
-                usage_mode = mode;
-                break;
-            }
+        if !matches!(mode, UsageMode::Direct) {
+            // Suffix found on alias - return cleaned alias and remaining parts as query
+            let remaining = if parts.len() > 1 {
+                Some(parts[1..].join(" "))
+            } else {
+                None
+            };
+            return (vec![alias.to_string()], mode, remaining);
         }
 
-        match suffix_index {
-            Some(idx) => {
-                // Build path up to and including the suffix position
-                let mut path: Vec<String> = parts[..idx]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect();
-
-                // Strip suffix from the element at suffix position
-                let (clean, _) = Self::parse_alias_and_mode(parts[idx]);
-                path.push(clean.to_string());
-
-                // Remaining parts after suffix become query
-                let remaining = (idx + 1 < parts.len())
-                    .then(|| parts[idx + 1..].join(" "));
-
-                (path, usage_mode, remaining)
-            }
-            None => {
-                // No suffix found - single alias in Direct mode
-                let remaining = (parts.len() > 1)
-                    .then(|| parts[1..].join(" "));
-                (vec![parts[0].to_string()], UsageMode::Direct, remaining)
-            }
-        }
+        // No suffix on alias - treat first part as alias, rest as query
+        let remaining = if parts.len() > 1 {
+            Some(parts[1..].join(" "))
+        } else {
+            None
+        };
+        (vec![alias.to_string()], UsageMode::Direct, remaining)
     }
 
     /// Recursively resolve nested command path
@@ -232,12 +215,59 @@ impl RedirectService {
         global_bookmarks: &HashMap<String, Command>,
         default_alias: Option<&str>,
     ) -> Result<RedirectResult, AppError> {
-        // Parse query to detect nested paths with suffixes
-        let (path, usage_mode, remaining_query) = Self::parse_nested_path(query);
+        // Parse query to detect alias with suffix
+        let (mut path, mut usage_mode, mut remaining_query) = Self::parse_nested_path(query);
 
         // Handle empty query
         if path.is_empty() {
             return Err(AppError::NotFound("Empty query".to_string()));
+        }
+
+        // Load user bookmarks and disabled globals
+        let (user_bookmarks, disabled_globals) = if let Some(user) = user {
+            let bookmarks = db::bookmarks::load_user_bookmarks(&self.pool, user.id)
+                .await
+                .ok();
+            let disabled = db::get_disabled_global_aliases(&self.pool, user.id).await;
+            (bookmarks, disabled)
+        } else {
+            (None, std::collections::HashSet::new())
+        };
+
+        // Find the root command
+        let root_alias = &path[0];
+        let root_command = user_bookmarks
+            .as_ref()
+            .and_then(|user_map| user_map.get(root_alias))
+            .or_else(|| {
+                if disabled_globals.contains(root_alias.as_str()) {
+                    None
+                } else {
+                    global_bookmarks.get(root_alias)
+                }
+            });
+
+        // If root command is Nested and we have remaining query, check for subcommand suffix
+        if let Some(Command::Nested { .. }) = root_command {
+            if let Some(query) = &remaining_query {
+                if matches!(usage_mode, UsageMode::Direct) {
+                    // Parse the first part of remaining query for suffix
+                    let parts: Vec<&str> = query.split_whitespace().collect();
+                    if !parts.is_empty() {
+                        let (subcommand, sub_mode) = Self::parse_alias_and_mode(parts[0]);
+                        if !matches!(sub_mode, UsageMode::Direct) {
+                            // Found suffix on subcommand
+                            path.push(subcommand.to_string());
+                            usage_mode = sub_mode;
+                            remaining_query = if parts.len() > 1 {
+                                Some(parts[1..].join(" "))
+                            } else {
+                                None
+                            };
+                        }
+                    }
+                }
+            }
         }
 
         // Handle nested paths (multi-segment paths or single segment with specific modes)
@@ -256,31 +286,7 @@ impl RedirectService {
         let query_part = remaining_query.as_deref().unwrap_or("");
 
 
-        // Load user bookmarks and disabled globals
-        let (user_bookmarks, disabled_globals) = if let Some(user) = user {
-            let bookmarks = db::bookmarks::load_user_bookmarks(&self.pool, user.id)
-                .await
-                .ok();
-
-            let disabled = db::get_disabled_global_aliases(&self.pool, user.id).await;
-
-            (bookmarks, disabled)
-        } else {
-            (None, std::collections::HashSet::new())
-        };
-
-        // Find the command
-        let command = user_bookmarks
-            .as_ref()
-            .and_then(|user_map| user_map.get(bookmark_alias))
-            .or_else(|| {
-                if disabled_globals.contains(bookmark_alias) {
-                    None
-                } else {
-                    global_bookmarks.get(bookmark_alias)
-                }
-            })
-            .cloned();
+        let command = root_command.cloned();
 
         let redirect_url = match command {
             Some(Command::Variable { ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
