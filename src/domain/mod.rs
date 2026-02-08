@@ -51,8 +51,13 @@ impl Command {
                 // Check if template has a "query" variable
                 let has_query_var = template_vars.iter().any(|v| v.name == "query");
 
-                if has_query_var && template_vars.len() == 1 {
-                    // Single query variable - map entire query
+                // Filter out built-in variables like {url} for user variables
+                let user_vars: Vec<_> = template_vars.iter()
+                    .filter(|v| v.name != "url")
+                    .collect();
+
+                if has_query_var && user_vars.len() == 1 && user_vars[0].name == "query" {
+                    // Only user variable is {query} - map entire query to it
                     vars.insert("query".to_string(), query.to_string());
                 } else if template_vars.is_empty() {
                     // No variables in template, just return base URL
@@ -60,11 +65,6 @@ impl Command {
                 } else {
                     // Multiple variables - split query by whitespace and map positionally
                     let query_parts: Vec<&str> = query.split_whitespace().collect();
-
-                    // Filter out built-in variables like {url} for positional mapping
-                    let user_vars: Vec<_> = template_vars.iter()
-                        .filter(|v| v.name != "url")
-                        .collect();
 
                     for (i, var) in user_vars.iter().enumerate() {
                         if i < query_parts.len() {

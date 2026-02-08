@@ -171,3 +171,110 @@ async fn test_query_with_question_mark_works() {
     let location = response.headers().get("location").unwrap().to_str().unwrap();
     assert!(location.contains("google.com"), "Should redirect to Google, got: {}", location);
 }
+
+#[tokio::test]
+async fn test_default_alias_includes_unknown_alias_in_query() {
+    // Test the full redirect service flow with default alias fallback
+    use brunnylol::services::redirect_service::RedirectService;
+    use brunnylol::domain::Command;
+    use brunnylol::domain::template::TemplateParser;
+    use std::collections::HashMap;
+
+    let pool = common::setup_test_db().await;
+    let (user_id, _) = common::create_admin_user(&pool).await;
+
+    // Set user's default alias to 'g'
+    db::update_user_default_alias(&pool, user_id, Some("g"))
+        .await
+        .unwrap();
+
+    // Load user from database to get the default alias
+    let user = db::get_user_by_id(&pool, user_id).await.unwrap().unwrap();
+
+    // Create global bookmarks with Google
+    let mut global_bookmarks = HashMap::new();
+    let google_template = TemplateParser::parse("{url}/search?q={query}").unwrap();
+    global_bookmarks.insert(
+        "g".to_string(),
+        Command::Variable {
+            base_url: "https://www.google.com".to_string(),
+            template: google_template,
+            description: "Google Search".to_string(),
+            metadata: None,
+        },
+    );
+
+    // Create redirect service
+    let service = RedirectService::new(pool);
+
+    // Test: "unknown_alias foo bar" should search for the entire string
+    let result = service
+        .resolve_redirect(
+            "unknown_alias foo bar",
+            Some(&user),
+            &global_bookmarks,
+            None,
+        )
+        .await
+        .unwrap();
+
+    // Extract the redirect URL
+    match result {
+        brunnylol::services::redirect_service::RedirectResult::ExternalUrl(url) => {
+            eprintln!("Redirect URL: {}", url);
+
+            // Verify all parts are in the query
+            assert!(
+                url.contains("unknown_alias") && url.contains("foo") && url.contains("bar"),
+                "Should search for 'unknown_alias foo bar', got: {}",
+                url
+            );
+
+            // Verify it's a Google search URL
+            assert!(
+                url.contains("google.com"),
+                "Should redirect to Google, got: {}",
+                url
+            );
+        }
+        other => panic!("Expected ExternalUrl, got: {:?}", other),
+    }
+}
+
+#[tokio::test]
+async fn test_default_alias_unit_test() {
+    // Unit test for the get_redirect_url logic (kept for regression testing)
+    use brunnylol::domain::Command;
+    use brunnylol::domain::template::TemplateParser;
+
+    let template = TemplateParser::parse("{url}/search?q={query}").unwrap();
+    let google_command = Command::Variable {
+        base_url: "https://www.google.com".to_string(),
+        template,
+        description: "Google Search".to_string(),
+        metadata: None,
+    };
+
+    // Test 1: Normal usage with "foo bar" should search for "foo bar"
+    let url1 = google_command.get_redirect_url("foo bar");
+    assert!(
+        url1.contains("foo") && url1.contains("bar"),
+        "Normal query should search for 'foo bar', got: {}",
+        url1
+    );
+
+    // Test 2: Full query with "unknown_alias foo bar" should search for entire string
+    let url2 = google_command.get_redirect_url("unknown_alias foo bar");
+    assert!(
+        url2.contains("unknown_alias") && url2.contains("foo") && url2.contains("bar"),
+        "Full query should search for 'unknown_alias foo bar', got: {}",
+        url2
+    );
+
+    // Test 3: Verify the query parameter value
+    assert!(
+        url2.contains("q=unknown_alias") || url2.contains("q=unknown%20alias"),
+        "Query parameter should start with 'unknown_alias', got: {}",
+        url2
+    );
+}
