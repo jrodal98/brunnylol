@@ -35,6 +35,16 @@
 
 <input type="text" id="search" placeholder="Search for aliases..">
 
+<div style="margin: 24px 0; padding: 16px; background: var(--color-bg-secondary); border-radius: 8px;">
+    <h3 style="margin-top: 0;">Usage</h3>
+    <ul style="margin-bottom: 0; line-height: 1.8;">
+        <li><strong>Basic:</strong> <code>alias query</code> - Type alias and search terms (e.g., <code>g hello world</code>)</li>
+        <li><strong>Form mode:</strong> <code>alias?</code> - Show interactive form for entering variables</li>
+        <li><strong>Named mode:</strong> <code>alias$ $key=value</code> - Provide variables explicitly</li>
+        <li><strong>Nested:</strong> <code>parent child query</code> - Use sub-commands (e.g., <code>dev frontend alice myproject</code>)</li>
+    </ul>
+</div>
+
 {% if !personal_aliases.is_empty() %}
 <h2>Your Personal Bookmarks</h2>
 <table id="personal-aliases">

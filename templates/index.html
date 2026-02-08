@@ -35,33 +35,45 @@
     </form>
 
     <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
-        <li style="margin-bottom: var(--space-3);">Brunnylol is a bookmark/search tool that allows you to navigate to your bookmarks and switch between search engines from your browser's search bar. For example, typing <code>yt</code> will take you to Youtube and typing <code>yt minecraft videos</code> will use youtube's built in search engine to search for minecraft videos.</li>
-        <li style="margin-bottom: var(--space-3);">Brunnylol is inspired by Facebook's bunnylol, which is inspired by <a href="http://www.bunny1.org/">bunny1</a>.</li>
-        <li style="margin-bottom: var(--space-3);">A complete list of bookmarks can be found <a href="help">here</a>. You can also type <code>help</code> if you have already installed brunnylol.</li>
-        <li style="margin-bottom: var(--space-3);">The source code for brunnylol, which is written in rust, is hosted in the following github repository: <a href="https://github.com/jrodal98/brunnylol">https://github.com/jrodal98/brunnylol</a>. You can also type <code>gh jrodal98/brunnylol</code> if you have already installed brunnylol.</li>
+        <li style="margin-bottom: var(--space-3);">Brunnylol is a multi-user bookmarking tool that lets you navigate to websites using shortcuts from your browser's search bar. Type <code>yt</code> for YouTube or <code>yt coding videos</code> to search YouTube.</li>
+        <li style="margin-bottom: var(--space-3);">Create personal bookmarks, customize global ones, and set your default search behavior. {% if has_user %}Manage at <a href="/manage">My Bookmarks</a>.{% else %}<a href="/register">Register</a> to get started!{% endif %}</li>
+        <li style="margin-bottom: var(--space-3);">View all bookmarks at the <a href="help">help page</a> or type <code>help</code> after installing.</li>
+        <li style="margin-bottom: var(--space-3);">Inspired by Facebook's bunnylol and <a href="https://github.com/ccheever/bunny1">bunny1</a>.</li>
+        <li style="margin-bottom: var(--space-3);">Source: <a href="https://github.com/jrodal98/brunnylol">github.com/jrodal98/brunnylol</a></li>
     </ul>
 
     <h2 class="mt-8">How to install brunnylol</h2>
 
-    <p style="margin-bottom: var(--space-4);">To install brunnylol, you need to add it as your default search engine. Google "how to change default search engine" for whatever browser you use. In chromium browsers, you go to settings and scroll down until you find search engines. Set the name to whatever you want (I suggest brunnylol) and set the keyword to whatever you want (I suggest bl).</p>
+    <p style="margin-bottom: var(--space-4);">To install brunnylol, add it as your default search engine in your browser settings. Set the URL to: <code>https://brunnylol.jrodal.com/search?q=%s</code></p>
 
-    <p style="margin-bottom: var(--space-4);">Then, put the following as your search engine: <code>https://brunnylol.jrodal.com/search?q=%s</code>. You might need to change the %s to something else, depending on your browser (e.g. I think qutebrowser might use {}).</p>
-
-    <p style="margin-bottom: var(--space-4);">By default, brunnylol will search google if you forget to provide an alias. If you wish to change this, pass the <code>default=ALIAS_HERE</code> parameter when specifying your search engine. For example, here is a search engine that will default to duckduckgo instead of google: <code>https://brunnylol.jrodal.com/search?q=%s&default=d</code></p>
+    <p style="margin-bottom: var(--space-4);">{% if has_user %}Customize your default search in <a href="/settings">Settings</a>.{% else %}After registering, customize your default search behavior in Settings.{% endif %}</p>
 
     <h2 class="mt-8">How to use brunnylol once it's installed</h2>
 
-    <p style="margin-bottom: var(--space-4);"><strong>tldr;</strong> type <code>ALIAS QUERY</code> (eg <code>yt minecraft videos</code>, where "yt" is the alias and "minecraft videos" is the query.)</p>
+    <div style="margin: 24px 0;">
+        <ul style="line-height: 1.8;">
+            <li><strong>Basic:</strong> <code>alias query</code> - Type alias and search terms (e.g., <code>g hello world</code>)</li>
+            <li><strong>Form mode:</strong> <code>alias?</code> - Show interactive form for entering variables</li>
+            <li><strong>Named mode:</strong> <code>alias$ $key=value</code> - Provide variables explicitly</li>
+            <li><strong>Nested:</strong> <code>parent child query</code> - Use sub-commands (e.g., <code>dev frontend alice myproject</code>)</li>
+        </ul>
+    </div>
 
     <p style="margin-bottom: var(--space-4);">
-    Brunnylol has a few concepts to understand: bookmarks, aliases, and queries. A bookmark is the site and/or search engine you wish to use. For example, youtube.com is a bookmark. An alias is the shortname for a bookmark. For example, yt is an alias for the youtube.com bookmark. A query is the input you provide after the alias. For example, searching <code>yt minecraft videos</code> searches the youtube.com bookmark using the yt alias with "minecraft videos" as the query.
+    View all aliases at the <a href="/help">Help page</a>. {% if has_user %}Create your own at <a href="/manage">My Bookmarks</a>.{% else %}<a href="/register">Register</a> to create custom bookmarks!{% endif %}
     </p>
 
-    <p style="margin-bottom: var(--space-4);">Some bookmarks don't support queries. For example, typing just <code>sis</code> will take you to the University of Virginia's student information service. Bookmarks that also support queries don't require a query either - for example, you can search just <code>yt</code> to go to the youtube homepage if you wish.</p>
+    {% if has_user %}
+    <h2 class="mt-8">Your Account</h2>
 
-    <p style="margin-bottom: var(--space-4);">
-    You can see a list of aliases by searching <code>help</code>.
-    </p>
+    <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
+        <li style="margin-bottom: var(--space-3);"><a href="/manage">My Bookmarks</a> - Create and manage your bookmarks</li>
+        <li style="margin-bottom: var(--space-3);"><a href="/settings">Settings</a> - Set default search, change password</li>
+        {% if is_admin %}
+        <li style="margin-bottom: var(--space-3);"><a href="/admin">Admin Panel</a> - Manage users and global bookmarks</li>
+        {% endif %}
+    </ul>
+    {% endif %}
 </div>
 
 <script src="/static/js/search.js"></script>
