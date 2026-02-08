@@ -31,8 +31,10 @@ impl TemplateResolver {
                 TemplatePart::Literal(s) => result.push_str(s),
                 TemplatePart::Variable(var_expr) => {
                     // Get value from variables map, default, or skip if optional
+                    // Treat empty strings as missing for optional variables
                     let value = variables
                         .get(&var_expr.name)
+                        .filter(|v| !v.is_empty())
                         .cloned()
                         .or_else(|| var_expr.default.clone());
 
@@ -154,6 +156,19 @@ mod tests {
         let vars = HashMap::new();
         let result = resolver.resolve(&template, &vars).unwrap();
         // TODO: Implement smart segment omission to get "/path/file" instead of "/path//file"
+        assert_eq!(result, "/path//file");
+    }
+
+    #[test]
+    fn test_resolve_optional_variable_empty_string() {
+        // Test that empty strings for optional variables are treated as missing
+        let template = TemplateParser::parse("/path/{repo?}/file").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("repo".to_string(), "".to_string());
+        let result = resolver.resolve(&template, &vars).unwrap();
+        // Empty string should be treated as missing, same as above test
         assert_eq!(result, "/path//file");
     }
 

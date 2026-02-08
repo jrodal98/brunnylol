@@ -192,6 +192,8 @@ pub async fn submit_variable_form(
     match result {
         Ok((Command::Variable { base_url, template, .. }, _)) => {
             let resolver = crate::domain::template::TemplateResolver::new();
+            // Populate the {url} built-in variable with base_url (matches redirect_service.rs behavior)
+            form_data.insert("url".to_string(), base_url.clone());
             let url = resolver.resolve(&template, &form_data).unwrap_or(base_url);
             // Return URL as plain text for JavaScript to navigate
             axum::http::Response::builder()
