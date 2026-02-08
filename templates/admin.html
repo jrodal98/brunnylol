@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        <a href="/manage">My Bookmarks</a>
+        <a href="/admin">Admin</a>
+    </div>
+    <div class="flex-center flex-gap-4">
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" class="m-0">
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/admin.css">
+<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+
+<div class="container" style="margin-top: var(--space-8);">
+    <div class="header">
+        <h1>Admin Panel</h1>
+    </div>
+
+    <h2>User Management</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Bookmarks</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user_item in users %}
+            <tr>
+                <td>{{ user_item.id }}</td>
+                <td><strong>{{ user_item.username }}</strong></td>
+                <td>
+                    {% if user_item.is_admin %}
+                    <span class="admin-badge">ADMIN</span>
+                    {% else %}
+                    User
+                    {% endif %}
+                </td>
+                <td>{{ user_item.bookmark_count }} bookmark(s)</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 40px;">
+        <h2>Create New User</h2>
+        <div id="create-user-result"></div>
+        <form hx-post="/admin/create-user"
+              hx-target="#create-user-result"
+              hx-swap="innerHTML"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }"
+              style="max-width: 500px;">
+            <div class="form-group">
+                <label for="new_username">Username *</label>
+                <input type="text" id="new_username" name="username" required
+                       minlength="3" maxlength="30" pattern="[a-zA-Z0-9_-]+"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>3-30 characters, letters, numbers, underscore, or hyphen</small>
+            </div>
+            <div class="form-group">
+                <label for="new_password">Password *</label>
+                <input type="password" id="new_password" name="password" required minlength="8"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>At least 8 characters</small>
+            </div>
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password *</label>
+                <input type="password" id="confirm_password" name="confirm_password" required
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="is_admin" value="true">
+                    Make this user an administrator
+                </label>
+            </div>
+            <button type="submit" class="btn-primary">Create User</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 40px;">
+        <h2>System Maintenance</h2>
+        <div id="cleanup-result"></div>
+        <button hx-post="/admin/cleanup-sessions"
+                hx-target="#cleanup-result"
+                class="btn-primary">
+            Clean Up Expired Sessions
+        </button>
+    </div>
+</div>
+
+{% endblock %}

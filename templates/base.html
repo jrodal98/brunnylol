@@ -1,0 +1,25 @@
+<!doctype html>
+<html data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <title>Brunnylol</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+  </head>
+  <body>
+    {% block nav %}
+    <nav>
+      <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+      </div>
+      <div>
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+      </div>
+    </nav>
+    {% endblock %} {% block content %}{% endblock %}
+  </body>
+  <div class="footer">
+    <p>Jacob Rodal © 2020</p>
+  </div>
+</html>

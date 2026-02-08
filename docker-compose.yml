@@ -1,0 +1,27 @@
+services:
+  brunnylol:
+    # Use master branch build, or specify a version tag like v1.0.0
+    image: ghcr.io/jrodal98/brunnylol:master
+    container_name: brunnylol
+    ports:
+      # Publish port to host - change left side to customize (e.g., "3000:8000")
+      - "8000:8000"
+    # Alternatively, use expose instead of ports for internal-only access:
+    # expose:
+    #   - "8000"
+    environment:
+      # Database file path inside the container
+      - BRUNNYLOL_DB=/data/brunnylol.db
+    volumes:
+      # Persist database to local directory
+      # Change './brunnylol-data' to customize the host directory
+      - ./brunnylol-data:/data
+    restart: unless-stopped
+
+# To run:
+#   docker compose up -d
+#
+# To customize the port, edit the ports mapping above (e.g., "3000:8000")
+#
+# Access at: http://localhost:8000
+# Database stored in: ./brunnylol-data/brunnylol.db

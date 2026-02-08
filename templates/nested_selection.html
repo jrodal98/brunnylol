@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% else %}
+        <a href="/login">Login</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: var(--space-8); max-width: 800px;">
+    <div style="margin-bottom: var(--space-6);">
+        <a href="/help" style="color: var(--text-secondary); text-decoration: none; font-size: 0.9rem;">
+            ← Back to all commands
+        </a>
+    </div>
+
+    <h1 style="margin-bottom: var(--space-2);">{{ parent_path }}</h1>
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-8); font-size: 1.1rem;">{{ description }}</p>
+
+    <h2 style="margin-bottom: var(--space-6); font-size: 1.3rem; font-weight: 600;">Select a sub-command</h2>
+
+    <div style="display: grid; gap: var(--space-3); grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+        {% for child in children %}
+        <a href="/f/{{ parent_path }}/{{ child.alias }}" class="child-card">
+            <div class="child-badge">
+                {{ child.alias }}
+            </div>
+            <p class="child-description">
+                {{ child.description }}
+            </p>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.child-card {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-5);
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.child-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
+    transform: translateY(-2px);
+}
+
+.child-card:active {
+    transform: translateY(0);
+}
+
+.child-badge {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: var(--space-2) var(--space-3);
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: var(--space-3);
+    width: fit-content;
+}
+
+.child-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+</style>
+{% endblock %}

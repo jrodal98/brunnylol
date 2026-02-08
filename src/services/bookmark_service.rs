@@ -1,0 +1,275 @@
+// Bookmark service - business logic for bookmark management
+
+use anyhow::{Context, Result};
+use sqlx::SqlitePool;
+use std::collections::HashMap;
+
+use crate::{
+    config::yml_settings::YmlSettings,
+    db,
+    domain::Command,
+    services::serializers::BookmarkSerializer,
+};
+
+pub struct BookmarkService {
+    pool: SqlitePool,
+}
+
+#[derive(Debug)]
+pub struct ImportResult {
+    pub imported: usize,
+    pub skipped: usize,
+    pub errors: Vec<String>,
+}
+
+impl BookmarkService {
+    pub fn new(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
+
+    /// Load all bookmarks for a user (global + personal, with overrides)
+    pub async fn load_user_bookmarks(&self, user_id: i64) -> Result<HashMap<String, Command>> {
+        // 1. Load global bookmarks
+        let global = self.load_global_bookmarks().await?;
+
+        // 2. Load user bookmarks
+        let personal = db::bookmarks::load_user_bookmarks(&self.pool, user_id).await?;
+
+        // 3. Load user overrides (disabled globals)
+        let overrides = db::get_user_overrides(&self.pool, user_id).await?;
+        let disabled: std::collections::HashSet<String> = overrides
+            .iter()
+            .filter(|(_, is_disabled, _, _)| *is_disabled)
+            .map(|(alias, _, _, _)| alias.clone())
+            .collect();
+
+        // 4. Merge: Personal overrides global, disabled globals excluded
+        let mut merged = HashMap::new();
+
+        for (alias, command) in global {
+            if !disabled.contains(&alias) && !personal.contains_key(&alias) {
+                merged.insert(alias, command);
+            }
+        }
+
+        for (alias, command) in personal {
+            merged.insert(alias, command);
+        }
+
+        Ok(merged)
+    }
+
+    /// Load all global bookmarks as Command objects
+    pub async fn load_global_bookmarks(&self) -> Result<HashMap<String, Command>> {
+        // Use optimized function that fetches bookmarks + nested in single query (fixes N+1)
+        let bookmarks_with_nested = db::get_bookmarks_with_nested(&self.pool, db::BookmarkScope::Global).await?;
+        let mut commands = HashMap::new();
+
+        for (bookmark, nested) in bookmarks_with_nested {
+            match db::bookmarks::bookmark_to_command(&bookmark, nested) {
+                Ok(command) => {
+                    commands.insert(bookmark.alias.clone(), command);
+                }
+                Err(e) => {
+                    eprintln!("Warning: Failed to load global bookmark '{}': {}", bookmark.alias, e);
+                }
+            }
+        }
+
+        Ok(commands)
+    }
+
+    /// Import bookmarks from serialized content
+    pub async fn import_bookmarks(
+        &self,
+        content: &str,
+        serializer: &dyn BookmarkSerializer,
+        scope: db::BookmarkScope,
+        created_by: Option<i64>,
+    ) -> Result<ImportResult> {
+        let settings: Vec<YmlSettings> = serializer.deserialize(content)
+            .context("Failed to parse bookmark data")?;
+
+        let mut imported = 0;
+        let mut skipped = 0;
+        let mut errors = Vec::new();
+
+        for setting in settings {
+            let result = match &scope {
+                db::BookmarkScope::Personal { user_id } => {
+                    self.import_personal_bookmark(&setting, *user_id).await
+                }
+                db::BookmarkScope::Global => {
+                    self.import_global_bookmark(&setting, created_by).await
+                }
+            };
+
+            match result {
+                Ok(_) => imported += 1,
+                Err(e) => {
+                    if e.to_string().contains("UNIQUE constraint") {
+                        skipped += 1;
+                    } else {
+                        errors.push(format!("'{}': {}", setting.alias, e));
+                    }
+                }
+            }
+        }
+
+        Ok(ImportResult {
+            imported,
+            skipped,
+            errors,
+        })
+    }
+
+    /// Export bookmarks to serialized format
+    pub async fn export_bookmarks(
+        &self,
+        scope: db::BookmarkScope,
+        serializer: &dyn BookmarkSerializer,
+    ) -> Result<String> {
+        let bookmarks = match scope {
+            db::BookmarkScope::Personal { user_id } => {
+                self.export_personal_bookmarks(user_id).await?
+            }
+            db::BookmarkScope::Global => {
+                self.export_global_bookmarks().await?
+            }
+        };
+
+        serializer.serialize(&bookmarks)
+    }
+
+    /// Seed global bookmarks from embedded commands.yml if DB is empty
+    pub async fn seed_global_bookmarks(&self) -> Result<usize> {
+        let is_empty = db::is_bookmarks_empty(&self.pool, db::BookmarkScope::Global).await?;
+
+        if !is_empty {
+            return Ok(0); // Already seeded
+        }
+
+        let yaml_content = include_str!("../../commands.yml");
+        let serializer = crate::services::serializers::YamlSerializer;
+
+        let result = self.import_bookmarks(
+            yaml_content,
+            &serializer,
+            db::BookmarkScope::Global,
+            None,
+        ).await?;
+
+        if !result.errors.is_empty() {
+            eprintln!("Errors during global bookmark seeding:");
+            for error in &result.errors {
+                eprintln!("  - {}", error);
+            }
+        }
+
+        Ok(result.imported)
+    }
+
+    // --- Private helper methods ---
+
+    fn determine_bookmark_type(setting: &YmlSettings) -> &'static str {
+        if setting.nested.is_some() {
+            "nested"
+        } else if setting.command.is_some() {
+            "templated"
+        } else {
+            "simple"
+        }
+    }
+
+    async fn import_bookmark(
+        &self,
+        setting: &YmlSettings,
+        scope: db::BookmarkScope,
+        created_by: Option<i64>,
+    ) -> Result<i64> {
+        let bookmark_type = Self::determine_bookmark_type(setting);
+
+        let bookmark_id = db::create_bookmark(
+            &self.pool,
+            scope,
+            &setting.alias,
+            bookmark_type,
+            &setting.url,
+            &setting.description,
+            setting.command.as_deref(),
+            created_by,
+        ).await?;
+
+        // Import nested commands if present
+        if let Some(nested) = &setting.nested {
+            for (i, nested_setting) in nested.iter().enumerate() {
+                db::create_nested_bookmark(
+                    &self.pool,
+                    bookmark_id,
+                    &nested_setting.alias,
+                    &nested_setting.url,
+                    &nested_setting.description,
+                    nested_setting.command.as_deref(),
+                    i as i32,
+                ).await?;
+            }
+        }
+
+        Ok(bookmark_id)
+    }
+
+    async fn import_personal_bookmark(&self, setting: &YmlSettings, user_id: i64) -> Result<i64> {
+        self.import_bookmark(setting, db::BookmarkScope::Personal { user_id }, Some(user_id)).await
+    }
+
+    async fn import_global_bookmark(&self, setting: &YmlSettings, created_by: Option<i64>) -> Result<i64> {
+        self.import_bookmark(setting, db::BookmarkScope::Global, created_by).await
+    }
+
+    async fn export_personal_bookmarks(&self, user_id: i64) -> Result<Vec<YmlSettings>> {
+        let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Personal { user_id }).await?;
+        self.bookmarks_to_yml(bookmarks).await
+    }
+
+    async fn export_global_bookmarks(&self) -> Result<Vec<YmlSettings>> {
+        let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Global).await?;
+        self.bookmarks_to_yml(bookmarks).await
+    }
+
+    async fn bookmarks_to_yml(&self, bookmarks: Vec<db::Bookmark>) -> Result<Vec<YmlSettings>> {
+        let mut settings = Vec::new();
+
+        for bookmark in bookmarks {
+            let nested = if bookmark.bookmark_type == "nested" {
+                // Use unified nested bookmarks API
+                let nested_bookmarks = db::get_nested_bookmarks(&self.pool, bookmark.id).await?;
+                Some(
+                    nested_bookmarks
+                        .into_iter()
+                        .map(|n| YmlSettings {
+                            alias: n.alias,
+                            description: n.description,
+                            url: n.url,
+                            command: n.command_template,
+                            encode: None,  // encode_query removed - encoding is now per-variable via pipelines
+                            nested: None,
+                        })
+                        .collect()
+                )
+            } else {
+                None
+            };
+
+            settings.push(YmlSettings {
+                alias: bookmark.alias,
+                description: bookmark.description,
+                url: bookmark.url,
+                command: bookmark.command_template,
+                encode: None,  // encode_query removed - encoding is now per-variable via pipelines
+                nested,
+            });
+        }
+
+        Ok(settings)
+    }
+}

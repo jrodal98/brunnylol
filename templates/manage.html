@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        <a href="/manage">My Bookmarks</a>
+        {% if user.is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+    </div>
+    <div class="flex-center flex-gap-4">
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" class="m-0">
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/manage.css">
+<script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+
+<div class="container" style="margin-top: var(--space-8);">
+    <div class="header">
+        <h1>Bookmark Management</h1>
+    </div>
+
+    {% if has_conflicts %}
+    <div id="conflict-warning" class="conflict-warning">
+        <strong>⚠️ Alias Conflicts Detected:</strong>
+        Your personal bookmarks are overriding these built-in aliases: {{ conflicts_text }}
+    </div>
+    {% else %}
+    <div id="conflict-warning" style="display: none;"></div>
+    {% endif %}
+
+    <div class="tabs">
+        <button class="tab active" data-tab="create">Create Bookmark</button>
+        <button class="tab" data-tab="personal">My Bookmarks</button>
+        <button class="tab" data-tab="global">Built-in Bookmarks</button>
+        {% if user.is_admin %}
+        <button class="tab" data-tab="admin">Admin Panel</button>
+        {% endif %}
+    </div>
+
+    <!-- Tab 1: Create Bookmark -->
+    <div id="create" class="tab-content active">
+        <h2>Create New Bookmark</h2>
+        <div id="create-result"></div>
+
+        <form hx-post="/manage/bookmark"
+              hx-target="#create-result"
+              hx-swap="innerHTML"
+              id="create-bookmark-form"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }">
+            <div class="form-group">
+                <label for="alias">Alias *</label>
+                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
+                <small>Shortcut you'll type to use this bookmark</small>
+            </div>
+
+            <div class="form-group">
+                <label for="bookmark_type">Bookmark Type *</label>
+                <select id="bookmark_type" name="bookmark_type" required>
+                    <option value="templated">Standard Bookmark</option>
+                    <option value="nested">Nested Commands (with sub-aliases)</option>
+                </select>
+                <small>Standard: Simple redirect or search template. Nested: Parent with multiple sub-commands.</small>
+            </div>
+
+            <div class="form-group">
+                <label for="url">Base URL *</label>
+                <input type="url" id="url" name="url" required placeholder="https://example.com">
+                <small>The URL to redirect to (or base URL for templates)</small>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description *</label>
+                <input type="text" id="description" name="description" required placeholder="What this bookmark does">
+            </div>
+
+            <!-- Template field (shown by default for standard bookmarks) -->
+            <div id="templated-fields" class="dynamic-field">
+                <div class="form-group">
+                    <label for="command_template">Template (optional)</label>
+                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}">
+                    <small>Leave empty for simple redirect. Add variables for search templates.</small>
+                </div>
+
+                <div class="form-group">
+                    <p style="color: var(--text-secondary); font-size: 0.9em; margin: 0;">
+                        <strong>Variable syntax:</strong> <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default), <code>{url}</code> (base URL)<br>
+                        <strong>Pipelines:</strong> <code>{var|!encode}</code> (no encoding), <code>{var|trim}</code> (trim whitespace)<br>
+                        <strong>Options:</strong> <code>{product|options[mail,drive,sheets]}</code> or <code>{product|options[mail,drive][strict]}</code> (enforce validation)<br>
+                        <strong>Examples:</strong> <code>{url}/search?q={query}</code>, <code>https://github.com/{org}/{repo}</code>, <code>https://{product|options[mail,drive,sheets]}.proton.me</code>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Info for nested bookmarks -->
+            <div id="nested-info" class="dynamic-field">
+                <h3>Sub-commands</h3>
+                <p><em>Add sub-commands that will be accessible as: alias sub-alias query</em></p>
+
+                <div id="nested-commands-list">
+                    <!-- Dynamic nested command rows will be added here -->
+                </div>
+
+                <button type="button" id="add-nested-btn" class="btn-secondary" style="margin-top: var(--space-3);">
+                    + Add Sub-command
+                </button>
+
+                <!-- Hidden field for JSON data -->
+                <input type="hidden" id="nested_commands_json" name="nested_commands_json">
+            </div>
+
+            <button type="submit" class="btn-primary" style="margin-top: var(--space-6);">Create Bookmark</button>
+        </form>
+
+        <!-- Import/Export Section -->
+        <hr class="section-divider">
+
+        <h2 style="margin-top: var(--space-8);">Import Bookmarks</h2>
+        <div id="import-result"></div>
+
+        <form hx-post="/manage/import"
+              hx-target="#import-result"
+              hx-swap="innerHTML"
+              id="import-form"
+              hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1500); }">
+
+            <div class="form-group">
+                <label for="import-source">Import From *</label>
+                <select id="import-source" name="source" required>
+                    <option value="paste">Paste YAML/JSON Content</option>
+                    <option value="url">Fetch from URL</option>
+                </select>
+            </div>
+
+            <div id="import-paste" class="form-group">
+                <label for="import-content">YAML/JSON Content *</label>
+                <textarea id="import-content" name="content" rows="10"
+                          placeholder="Paste your YAML or JSON bookmark configuration here..."></textarea>
+                <small>Paste the bookmark data in YAML or JSON format</small>
+            </div>
+
+            <div id="import-url" class="form-group" style="display: none;">
+                <label for="import-url-field">URL to Bookmark File *</label>
+                <input type="url" id="import-url-field" name="url"
+                       placeholder="https://example.com/bookmarks.yml">
+                <small>URL to a YAML or JSON file containing bookmarks</small>
+            </div>
+
+            <div class="form-group">
+                <label for="import-format">Format *</label>
+                <select id="import-format" name="format" required>
+                    <option value="yaml">YAML</option>
+                    <option value="json">JSON</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="import-scope">Scope *</label>
+                <select id="import-scope" name="scope" required>
+                    <option value="personal">Personal Bookmarks</option>
+                    {% if user.is_admin %}
+                    <option value="global">Global Bookmarks (Admin Only)</option>
+                    {% endif %}
+                </select>
+                <small>Global bookmarks are shared with all users (admin only)</small>
+            </div>
+
+            <button type="submit" class="btn-primary">Import Bookmarks</button>
+        </form>
+    </div>
+
+    <!-- Tab 2: Personal Bookmarks -->
+    <div id="personal" class="tab-content">
+        <h2>My Personal Bookmarks</h2>
+
+        {% if personal_count == 0 %}
+        <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
+        {% else %}
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Alias</th>
+                    <th>Type</th>
+                    <th>URL/Template</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bookmark in personal_bookmarks %}
+                <tr id="bookmark-{{ bookmark.id }}">
+                    <td><strong>{{ bookmark.alias }}</strong></td>
+                    <td>{{ bookmark.bookmark_type }}</td>
+                    <td>
+                        {% if bookmark.command_template != "" %}
+                            {{ bookmark.command_template }}
+                        {% else %}
+                            {{ bookmark.url }}
+                        {% endif %}
+                    </td>
+                    <td>{{ bookmark.description }}</td>
+                    <td>
+                        <button class="btn-secondary btn-edit"
+                                data-id="{{ bookmark.id }}"
+                                data-alias="{{ bookmark.alias }}"
+                                data-url="{{ bookmark.url }}"
+                                data-description="{{ bookmark.description }}"
+                                data-template="{{ bookmark.command_template }}">
+                            Edit
+                        </button>
+                        <button class="btn-danger"
+                                hx-delete="/manage/bookmark/{{ bookmark.id }}"
+                                hx-target="#bookmark-{{ bookmark.id }}"
+                                hx-swap="outerHTML swap:500ms"
+                                hx-confirm="Are you sure you want to delete '{{ bookmark.alias }}'?">
+                            Delete
+                        </button>
+                        {% if bookmark.bookmark_type == "nested" %}
+                        <button class="btn-secondary btn-nested-manager"
+                                data-id="{{ bookmark.id }}"
+                                data-alias="{{ bookmark.alias }}">
+                            Manage Nested ({{ bookmark.nested_count }})
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: var(--space-6);">Export Personal Bookmarks</h3>
+        <div class="export-buttons">
+            <button data-export-url="/manage/export?scope=personal&format=yaml" class="btn-primary export-btn">
+                Export as YAML
+            </button>
+            <button data-export-url="/manage/export?scope=personal&format=json" class="btn-secondary export-btn">
+                Export as JSON
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tab 3: Global Bookmarks -->
+    <div id="global" class="tab-content">
+        <h2>Built-in Bookmarks</h2>
+        <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Alias</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bookmark in global_bookmarks %}
+                <tr id="global-{{ bookmark.alias }}">
+                    <td><strong>{{ bookmark.alias }}</strong></td>
+                    <td>{{ bookmark.description }}</td>
+                    <td id="status-{{ bookmark.alias }}">
+                        {% if bookmark.is_overridden %}
+                        <span style="color: #ff9800;">⚠️ Overridden by your personal bookmark</span>
+                        {% else %}
+                            {% if bookmark.is_disabled %}
+                            <span style="color: #d32f2f;">✗ Disabled</span>
+                            {% else %}
+                            <span style="color: #4caf50;">✓ Active</span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display: flex; gap: 0.5em; align-items: center;">
+                            {% if user.is_admin %}
+                            <button class="btn-secondary btn-edit-global"
+                                    data-alias="{{ bookmark.alias }}"
+                                    data-url="{{ bookmark.url }}"
+                                    data-template="{{ bookmark.template }}"
+                                    data-description="{{ bookmark.description }}">
+                                Edit
+                            </button>
+                            {% endif %}
+                            <form hx-post="/manage/override"
+                                  hx-target="#global-{{ bookmark.alias }}"
+                                  hx-swap="outerHTML"
+                                  style="margin: 0;">
+                                <input type="hidden" name="builtin_alias" value="{{ bookmark.alias }}">
+                                {% if bookmark.is_disabled %}
+                                <button type="submit" class="btn-primary">Enable</button>
+                                {% else %}
+                                <input type="hidden" name="is_disabled" value="true">
+                                <button type="submit" class="btn-secondary btn-disable-global">Disable</button>
+                                {% endif %}
+                            </form>
+                            <form hx-post="/manage/fork-global"
+                                  hx-target="#fork-result-{{ bookmark.alias }}"
+                                  hx-swap="innerHTML"
+                                  style="margin: 0;">
+                                <input type="hidden" name="alias" value="{{ bookmark.alias }}">
+                                <button type="submit" class="btn-secondary">Fork</button>
+                            </form>
+                        </div>
+                        <div id="fork-result-{{ bookmark.alias }}"></div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if user.is_admin %}
+        <h3 style="margin-top: var(--space-6);">Export Global Bookmarks (Admin)</h3>
+        <div class="export-buttons">
+            <button data-export-url="/manage/export?scope=global&format=yaml" class="btn-primary export-btn">
+                Export as YAML
+            </button>
+            <button data-export-url="/manage/export?scope=global&format=json" class="btn-secondary export-btn">
+                Export as JSON
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tab 4: Admin Panel -->
+    {% if user.is_admin %}
+    <div id="admin" class="tab-content">
+        <h2>Admin Panel</h2>
+        <p>Manage users, view system statistics, and perform maintenance tasks.</p>
+        <p><a href="/admin" class="btn-primary">Go to Admin Panel</a></p>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Nested Command Manager Modal (will be shown via JavaScript) -->
+<div id="nested-manager" class="modal">
+    <h3 id="nested-manager-title" class="modal-title">Manage Nested Commands</h3>
+    <div id="nested-manager-content"></div>
+    <button id="close-nested-manager" class="btn-secondary" style="margin-top: var(--space-4);">Close</button>
+</div>
+
+<!-- Edit Bookmark Modal -->
+<div id="edit-modal" class="modal">
+    <h3 class="modal-title">Edit Bookmark</h3>
+    <div id="edit-result"></div>
+    <form id="edit-form" hx-put="" hx-target="#edit-result" style="margin-top: var(--space-4);">
+        <input type="hidden" id="edit-id" name="edit-id">
+
+        <div class="form-group">
+            <label>Alias:</label>
+            <input type="text" id="edit-alias" name="alias" required>
+        </div>
+
+        <div class="form-group">
+            <label>Base URL:</label>
+            <input type="url" id="edit-url" name="url" required>
+        </div>
+
+        <div class="form-group">
+            <label>Description:</label>
+            <input type="text" id="edit-description" name="description" required>
+        </div>
+
+        <div class="form-group">
+            <label>Search Template (optional):</label>
+            <input type="text" id="edit-template" name="command_template">
+        </div>
+
+        <button type="submit" class="btn-primary">Save Changes</button>
+        <button type="button" id="cancel-edit-btn" class="btn-secondary">Cancel</button>
+    </form>
+</div>
+
+<script src="/static/js/manage.js"></script>
+
+{% endblock %}

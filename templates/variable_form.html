@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% else %}
+        <a href="/login">Login</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: var(--space-8); max-width: 600px;">
+    <h1>Fill Variables for '{{ alias }}'</h1>
+    <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">{{ description }}</p>
+
+    <form id="variable-form" method="get" data-alias="{{ alias }}">
+        {% for var in variables %}
+        <div style="margin-bottom: var(--space-4);">
+            <label for="{{ var.name }}" style="display: block; margin-bottom: var(--space-2); font-weight: 600;">
+                {{ var.name }}
+                {% if !var.is_required %}
+                <span style="color: var(--text-secondary); font-weight: normal;">(optional)</span>
+                {% endif %}
+            </label>
+
+            {% if var.has_options %}
+            <select id="{{ var.name }}" name="{{ var.name }}" {% if var.is_required %}required{% endif %}>
+                <option value="">-- Select {{ var.name }} --</option>
+                {% for option in var.options %}
+                <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <input
+                type="text"
+                id="{{ var.name }}"
+                name="{{ var.name }}"
+                value="{{ var.current_value }}"
+                placeholder="{% if var.has_default %}{{ var.default_value }}{% endif %}"
+                {% if var.is_required %}required{% endif %}
+            >
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit" style="margin-top: var(--space-4);">Go</button>
+    </form>
+</div>
+
+<script src="/static/js/variable_form.js"></script>
+{% endblock %}

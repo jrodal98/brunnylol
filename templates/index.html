@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div class="flex-center flex-gap-4">
+        {% if has_user %}
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" class="m-0">
+            <button type="submit">Logout</button>
+        </form>
+        {% else %}
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: var(--space-8);">
+    <h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
+
+    <form id="search-form-Brunnylol" class="form-inline mb-6 mt-6" method="get">
+        <input id="search-bar-Brunnylol" class="form-control" type="text" autofocus placeholder="Search Brunnylol" name="q" alt="Search Brunnylol">
+    </form>
+
+    <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
+        <li style="margin-bottom: var(--space-3);">Brunnylol is a multi-user bookmarking tool that lets you navigate to websites using shortcuts from your browser's search bar. Type <code>yt</code> for YouTube or <code>yt coding videos</code> to search YouTube.</li>
+        <li style="margin-bottom: var(--space-3);">Create personal bookmarks, customize global ones, and set your default search behavior. {% if has_user %}Manage at <a href="/manage">My Bookmarks</a>.{% else %}<a href="/register">Register</a> to get started!{% endif %}</li>
+        <li style="margin-bottom: var(--space-3);">View all bookmarks at the <a href="help">help page</a> or type <code>help</code> after installing.</li>
+        <li style="margin-bottom: var(--space-3);">Inspired by Facebook's bunnylol and <a href="https://github.com/ccheever/bunny1">bunny1</a>.</li>
+        <li style="margin-bottom: var(--space-3);">Source: <a href="https://github.com/jrodal98/brunnylol">github.com/jrodal98/brunnylol</a></li>
+    </ul>
+
+    <h2 class="mt-8">How to install brunnylol</h2>
+
+    <p style="margin-bottom: var(--space-4);">To install brunnylol, add it as your default search engine in your browser settings. Set the URL to: <code>https://brunnylol.jrodal.com/search?q=%s</code></p>
+
+    <p style="margin-bottom: var(--space-4);">{% if has_user %}Customize your default search in <a href="/settings">Settings</a>.{% else %}After registering, customize your default search behavior in Settings.{% endif %}</p>
+
+    <h2 class="mt-8">How to use brunnylol once it's installed</h2>
+
+    <div style="margin: 24px 0;">
+        <ul style="line-height: 1.8;">
+            <li><strong>Basic:</strong> <code>alias query</code> - Type alias and search terms (e.g., <code>g hello world</code>)</li>
+            <li><strong>Form mode:</strong> <code>alias?</code> - Show interactive form for entering variables</li>
+            <li><strong>Named mode:</strong> <code>alias$ $key=value</code> - Provide variables explicitly</li>
+            <li><strong>Nested:</strong> <code>parent child query</code> - Use sub-commands (e.g., <code>dev frontend alice myproject</code>)</li>
+        </ul>
+    </div>
+
+    <p style="margin-bottom: var(--space-4);">
+    View all aliases at the <a href="/help">Help page</a>. {% if has_user %}Create your own at <a href="/manage">My Bookmarks</a>.{% else %}<a href="/register">Register</a> to create custom bookmarks!{% endif %}
+    </p>
+
+    {% if has_user %}
+    <h2 class="mt-8">Your Account</h2>
+
+    <ul style="line-height: var(--line-height-relaxed); margin-bottom: var(--space-8);">
+        <li style="margin-bottom: var(--space-3);"><a href="/manage">My Bookmarks</a> - Create and manage your bookmarks</li>
+        <li style="margin-bottom: var(--space-3);"><a href="/settings">Settings</a> - Set default search, change password</li>
+        {% if is_admin %}
+        <li style="margin-bottom: var(--space-3);"><a href="/admin">Admin Panel</a> - Manage users and global bookmarks</li>
+        {% endif %}
+    </ul>
+    {% endif %}
+</div>
+
+<script src="/static/js/search.js"></script>
+{% endblock %}

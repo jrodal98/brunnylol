@@ -1,10 +1,8 @@
-FROM rust:1.83.0
+FROM rust:latest
 WORKDIR /app
 COPY . /app
 RUN cargo build --release
-ENV ROCKET_ENV=prod
-ENV ROCKET_ADDRESS=0.0.0.0
-ENV ROCKET_PORT=80
-ENV ROCKET_LOG=critical
-EXPOSE 80
+ENV BRUNNYLOL_PORT=8000
+ENV BRUNNYLOL_DB=/data/brunnylol.db
+EXPOSE 8000
 CMD ["target/release/brunnylol"]

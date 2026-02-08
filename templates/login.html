@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-sm" style="margin-top: var(--space-12);">
+    <h1>Login to Brunnylol</h1>
+
+    {% if error != "" %}
+    <div style="background-color: var(--color-error-bg); color: var(--color-error-text); padding: var(--space-3); margin-bottom: var(--space-5); border-radius: var(--radius-sm);">
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" action="/login" style="display: flex; flex-direction: column; gap: var(--space-4);">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+
+        <div class="form-group">
+            <label for="username">Username:</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; padding: var(--space-3);">
+            Login
+        </button>
+    </form>
+
+    <p class="text-center" style="margin-top: var(--space-5);">
+        Don't have an account? <a href="/register" style="color: var(--gradient-start); font-weight: 600;">Register here</a>
+    </p>
+</div>
+{% endblock %}

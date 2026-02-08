@@ -1,0 +1,72 @@
+/* Help page specific styles */
+
+h2 {
+  margin-top: var(--space-8);
+  color: var(--text-accent) !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Table column widths - consistent for both personal and global bookmarks */
+#personal-aliases th:nth-child(1),
+#personal-aliases td:nth-child(1),
+#aliases th:nth-child(1),
+#aliases td:nth-child(1) {
+  width: 10%;
+}
+
+#personal-aliases th:nth-child(2),
+#personal-aliases td:nth-child(2),
+#aliases th:nth-child(2),
+#aliases td:nth-child(2) {
+  width: 70%;
+}
+
+#personal-aliases th:nth-child(3),
+#personal-aliases td:nth-child(3),
+#aliases th:nth-child(3),
+#aliases td:nth-child(3) {
+  width: 20%;
+}
+
+#search {
+  width: 100%;
+  padding: var(--space-3);
+  margin-bottom: var(--space-5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transition: var(--transition-base);
+}
+
+#search:focus {
+  outline: none;
+  border-color: var(--gradient-start);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+  background-color: var(--bg-elevated);
+}
+
+.command {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+.command-key {
+  font-weight: 600;
+  margin-right: var(--space-2);
+  color: var(--text-primary);
+}
+
+.disabled-row {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
+.disabled-badge {
+  color: #dc3545;
+  font-size: 11px;
+  margin-left: 5px;
+}

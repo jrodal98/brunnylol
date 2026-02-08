@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block nav %}
+<nav>
+    <div>
+        <a href="/">About</a>
+        <a href="/help">Help</a>
+        {% if has_user %}
+        <a href="/manage">My Bookmarks</a>
+        {% if is_admin %}
+        <a href="/admin">Admin</a>
+        {% endif %}
+        {% endif %}
+    </div>
+    <div class="flex-center flex-gap-4">
+        {% if has_user %}
+        <a href="/settings">Settings</a>
+        <form method="post" action="/logout" class="m-0">
+            <button type="submit">Logout</button>
+        </form>
+        {% else %}
+        <a href="/login">Login</a>
+        <a href="/register">Register</a>
+        {% endif %}
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/help.css">
+
+<div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+
+<h1>Brunnylol - Smart Bookmarking + Searching Tool</h1>
+
+<input type="text" id="search" placeholder="Search for aliases..">
+
+<div style="margin: 24px 0; padding: 16px; background: var(--color-bg-secondary); border-radius: 8px;">
+    <h3 style="margin-top: 0;">Usage</h3>
+    <ul style="margin-bottom: 0; line-height: 1.8;">
+        <li><strong>Basic:</strong> <code>alias query</code> - Type alias and search terms (e.g., <code>g hello world</code>)</li>
+        <li><strong>Form mode:</strong> <code>alias?</code> - Show interactive form for entering variables</li>
+        <li><strong>Named mode:</strong> <code>alias$ $key=value</code> - Provide variables explicitly</li>
+        <li><strong>Nested:</strong> <code>parent child query</code> - Use sub-commands (e.g., <code>dev frontend alice myproject</code>)</li>
+    </ul>
+</div>
+
+{% if !personal_aliases.is_empty() %}
+<h2>Your Personal Bookmarks</h2>
+<table id="personal-aliases">
+    <tr>
+        <th>Alias</th>
+        <th>Description</th>
+        <th>Actions</th>
+    </tr>
+    {% for (alias, description_parts) in personal_aliases %}
+    <tr>
+        <td>{{ alias }}</td>
+        <td>
+            {% for command in description_parts %}
+            <div class="command">
+                <span class="command-key">{{ command }}</span>
+            </div>
+            {% endfor %}
+        </td>
+        <td>
+            <button class="btn-secondary btn-small btn-fill-form" data-alias="{{ alias }}">Fill Form</button>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<h2>Global Bookmarks</h2>
+{% endif %}
+
+<table id="aliases">
+    <tr>
+        <th>Alias</th>
+        <th>Description</th>
+        <th>Actions</th>
+    </tr>
+    {% for (alias, description_parts, is_disabled) in alias_to_description %}
+    <tr {% if is_disabled %}class="disabled-row"{% endif %}>
+        <td>
+            {{ alias }}
+            {% if is_disabled %}
+            <span class="disabled-badge">(disabled)</span>
+            {% endif %}
+        </td>
+        <td>
+            {% for command in description_parts %}
+            <div class="command">
+                <span class="command-key">{{ command }}</span>
+            </div>
+            {% endfor %}
+        </td>
+        <td>
+            <button class="btn-secondary btn-small btn-fill-form" data-alias="{{ alias }}">Fill Form</button>
+        </td>
+    </tr>
+    {% endfor %}
+</table>
+
+<script src="/static/js/help.js"></script>
+
+</div>
+{% endblock %}
