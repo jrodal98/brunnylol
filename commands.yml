@@ -19,47 +19,47 @@
   description: Search bing
 
 - alias: w
-  url: https://www.wikipedia.org/
-  command: https://en.wikipedia.org/wiki/Special:Search/{query}
+  url: https://www.wikipedia.org
+  command: "{url}/wiki/Special:Search/{query}"
   description: Search wikipedia
 
 - alias: aw
-  url: https://wiki.archlinux.org/
+  url: https://wiki.archlinux.org
   command: "{url}/index.php?title=Special%3ASearch&search={query}"
   description: Search the arch wiki
 
 - alias: def
-  url: https://www.dictionary.com/
+  url: https://www.dictionary.com
   command: "{url}/browse/{query}?s=t"
   description: Define a word with dictionary.com
 
 - alias: wut
-  url: https://www.urbandictionary.com/
+  url: https://www.urbandictionary.com
   command: "{url}/define.php?term={query}"
   description: Searches for a phrase on urban dictionary
 
 - alias: am
-  url: https://amazon.com/
+  url: https://amazon.com
   command: "{url}/s?k={query}&ref=nb_sb_noss_2"
   description: Search amazon
 
 - alias: fb
-  url: https://www.facebook.com/
+  url: https://www.facebook.com
   command: "{url}/search/top?q={query}"
   description: Search Facebook
 
 - alias: ig
-  url: https://www.instagram.com/
+  url: https://www.instagram.com
   command: "{url}/{query}/"
   description: Search instagram
 
 - alias: li
-  url: https://www.linkedin.com/
+  url: https://www.linkedin.com
   command: "{url}/search/results/all/?keywords={query}&origin=GLOBAL_SEARCH_HEADER"
   description: Search LinkedIn
 
 - alias: img
-  url: https://images.google.com/
+  url: https://images.google.com
   command: "{url}/images?um=1&hl=en&safe=active&nfpr=1&q={query}"
   description: Search google images
 
@@ -69,7 +69,7 @@
   description: Forward the query to your local version of brunnylol (port 8000)
 
 - alias: eb
-  url: https://www.ebay.com/
+  url: https://www.ebay.com
   command: "{url}/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={query}&_sacat=0"
   description: Search ebay
 
