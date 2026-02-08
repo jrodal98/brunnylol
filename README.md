@@ -184,3 +184,9 @@ dev backend?           # Same result - suffix placement flexible
 
 - Live Demo: [https://brunnylol.jrodal.com](https://brunnylol.jrodal.com)
 - Help Page: [https://brunnylol.jrodal.com/help](https://brunnylol.jrodal.com/help)
+
+---
+
+## Historical Note
+
+The original implementation of brunnylol was written in 2020 without AI assistance. For those interested in viewing the pre-AI version of the codebase, it has been preserved in the [`legacy`](https://github.com/jrodal98/brunnylol/tree/legacy) branch. The current version incorporates modern development practices and features developed with the assistance of AI-powered coding tools.
