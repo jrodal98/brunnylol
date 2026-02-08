@@ -39,6 +39,9 @@ cargo run --release
 
 # Custom configuration
 BRUNNYLOL_PORT=3000 BRUNNYLOL_DB=custom.db cargo run --release
+
+# Or use Docker Compose (see docker-compose.yml for configuration)
+docker compose up -d
 ```
 
 ### First Time Setup
