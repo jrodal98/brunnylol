@@ -231,6 +231,74 @@ impl TemplateParser {
                 Ok(PipelineOp::Options { values, strict })
             }
             ("options", true) => bail!("Cannot negate 'options' operation"),
+            ("map", false) => {
+                // Parse map[key1:value1,key2:value2,...]
+                self.skip_whitespace();
+                if self.peek_char() != Some('[') {
+                    bail!("Expected '[' after 'map' at position {}", self.pos);
+                }
+                self.consume_char()?; // consume [
+
+                // Parse comma-separated key:value pairs
+                let mut mappings = Vec::new();
+                let mut current_pair = String::new();
+
+                loop {
+                    match self.peek_char() {
+                        Some(']') => {
+                            if !current_pair.is_empty() {
+                                // Parse the key:value pair
+                                let parts: Vec<&str> = current_pair.splitn(2, ':').collect();
+                                if parts.len() != 2 {
+                                    bail!("Invalid map syntax: expected 'key:value' but got '{}'", current_pair);
+                                }
+                                mappings.push((
+                                    parts[0].trim().to_string(),
+                                    parts[1].trim().to_string(),
+                                ));
+                                current_pair.clear();
+                            }
+                            self.consume_char()?; // consume ]
+                            break;
+                        }
+                        Some(',') => {
+                            if !current_pair.is_empty() {
+                                // Parse the key:value pair
+                                let parts: Vec<&str> = current_pair.splitn(2, ':').collect();
+                                if parts.len() != 2 {
+                                    bail!("Invalid map syntax: expected 'key:value' but got '{}'", current_pair);
+                                }
+                                mappings.push((
+                                    parts[0].trim().to_string(),
+                                    parts[1].trim().to_string(),
+                                ));
+                                current_pair.clear();
+                            }
+                            self.consume_char()?; // consume ,
+                        }
+                        Some(ch) => {
+                            current_pair.push(ch);
+                            self.consume_char()?;
+                        }
+                        None => bail!("Unexpected end of input in map list"),
+                    }
+                }
+
+                if mappings.is_empty() {
+                    bail!("Map operation requires at least one mapping");
+                }
+
+                // Check for duplicate keys
+                let mut seen_keys = std::collections::HashSet::new();
+                for (key, _) in &mappings {
+                    if !seen_keys.insert(key.as_str()) {
+                        bail!("Duplicate key '{}' in map operation", key);
+                    }
+                }
+
+                Ok(PipelineOp::Map { mappings })
+            }
+            ("map", true) => bail!("Cannot negate 'map' operation"),
             (name, _) => bail!("Unknown pipeline operation: {}", name),
         }
     }
@@ -410,5 +478,114 @@ mod tests {
         assert_eq!(vars[0].name, "page");
         assert_eq!(vars[1].name, "author");
         assert_eq!(vars[2].name, "repo");
+    }
+
+    #[test]
+    fn test_parse_map_single() {
+        let template = TemplateParser::parse("{var|map[cal:calendar]}").unwrap();
+        let vars = template.variables();
+        assert_eq!(vars.len(), 1);
+        assert_eq!(vars[0].pipelines.len(), 1);
+        match &vars[0].pipelines[0] {
+            PipelineOp::Map { mappings } => {
+                assert_eq!(mappings.len(), 1);
+                assert_eq!(mappings[0].0, "cal");
+                assert_eq!(mappings[0].1, "calendar");
+            }
+            _ => panic!("Expected Map pipeline"),
+        }
+    }
+
+    #[test]
+    fn test_parse_map_multiple() {
+        let template = TemplateParser::parse("{var|map[cal:calendar,sh:sheets,dc:docs]}").unwrap();
+        let vars = template.variables();
+        assert_eq!(vars.len(), 1);
+        match &vars[0].pipelines[0] {
+            PipelineOp::Map { mappings } => {
+                assert_eq!(mappings.len(), 3);
+                assert_eq!(mappings[0], ("cal".to_string(), "calendar".to_string()));
+                assert_eq!(mappings[1], ("sh".to_string(), "sheets".to_string()));
+                assert_eq!(mappings[2], ("dc".to_string(), "docs".to_string()));
+            }
+            _ => panic!("Expected Map pipeline"),
+        }
+    }
+
+    #[test]
+    fn test_parse_map_with_whitespace() {
+        let template = TemplateParser::parse("{var|map[ cal : calendar , sh : sheets ]}").unwrap();
+        let vars = template.variables();
+        match &vars[0].pipelines[0] {
+            PipelineOp::Map { mappings } => {
+                assert_eq!(mappings.len(), 2);
+                assert_eq!(mappings[0], ("cal".to_string(), "calendar".to_string()));
+                assert_eq!(mappings[1], ("sh".to_string(), "sheets".to_string()));
+            }
+            _ => panic!("Expected Map pipeline"),
+        }
+    }
+
+    #[test]
+    fn test_parse_map_chained_with_options() {
+        let template = TemplateParser::parse("{var|options[calendar,sheets,docs]|map[cal:calendar]}").unwrap();
+        let vars = template.variables();
+        assert_eq!(vars[0].pipelines.len(), 2);
+        match &vars[0].pipelines[0] {
+            PipelineOp::Options { values, strict } => {
+                assert_eq!(values.len(), 3);
+                assert!(!strict);
+            }
+            _ => panic!("Expected Options pipeline"),
+        }
+        match &vars[0].pipelines[1] {
+            PipelineOp::Map { mappings } => {
+                assert_eq!(mappings.len(), 1);
+                assert_eq!(mappings[0], ("cal".to_string(), "calendar".to_string()));
+            }
+            _ => panic!("Expected Map pipeline"),
+        }
+    }
+
+    #[test]
+    fn test_parse_map_with_colon_in_value() {
+        let template = TemplateParser::parse("{var|map[g:https://google.com,gh:https://github.com]}").unwrap();
+        let vars = template.variables();
+        match &vars[0].pipelines[0] {
+            PipelineOp::Map { mappings } => {
+                assert_eq!(mappings.len(), 2);
+                assert_eq!(mappings[0], ("g".to_string(), "https://google.com".to_string()));
+                assert_eq!(mappings[1], ("gh".to_string(), "https://github.com".to_string()));
+            }
+            _ => panic!("Expected Map pipeline"),
+        }
+    }
+
+    #[test]
+    fn test_parse_map_empty_fails() {
+        let result = TemplateParser::parse("{var|map[]}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("requires at least one mapping"));
+    }
+
+    #[test]
+    fn test_parse_map_missing_colon_fails() {
+        let result = TemplateParser::parse("{var|map[nocolon]}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid map syntax"));
+    }
+
+    #[test]
+    fn test_parse_map_negated_fails() {
+        let result = TemplateParser::parse("{var|!map[a:b]}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cannot negate 'map'"));
+    }
+
+    #[test]
+    fn test_parse_map_duplicate_keys_fails() {
+        let result = TemplateParser::parse("{var|map[cal:calendar,cal:contacts]}");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Duplicate key 'cal'"));
     }
 }
