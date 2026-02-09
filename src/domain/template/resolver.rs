@@ -101,6 +101,16 @@ impl TemplateResolver {
                 // Options pipeline doesn't transform the value, just validates
                 Ok(value.to_string())
             }
+            PipelineOp::Map { mappings } => {
+                // Look up value in mappings and return mapped value, or pass-through if not found
+                for (key, mapped_value) in mappings {
+                    if key == value {
+                        return Ok(mapped_value.clone());
+                    }
+                }
+                // Value not found in mappings, pass through unchanged
+                Ok(value.to_string())
+            }
         }
     }
 
@@ -254,5 +264,66 @@ mod tests {
 
         let missing = resolver.validate_variables(&template, &vars).unwrap();
         assert!(missing.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_with_map_matched() {
+        let template = TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("app".to_string(), "cal".to_string());
+
+        let result = resolver.resolve(&template, &vars).unwrap();
+        assert_eq!(result, "https://example.com/calendar");
+    }
+
+    #[test]
+    fn test_resolve_with_map_unmapped() {
+        let template = TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("app".to_string(), "sheets".to_string());
+
+        let result = resolver.resolve(&template, &vars).unwrap();
+        assert_eq!(result, "https://example.com/sheets");
+    }
+
+    #[test]
+    fn test_resolve_with_map_multiple_mappings() {
+        let template = TemplateParser::parse("{app|map[cal:calendar,sh:sheets,dc:docs]|!encode}").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("app".to_string(), "sh".to_string());
+
+        let result = resolver.resolve(&template, &vars).unwrap();
+        assert_eq!(result, "sheets");
+    }
+
+    #[test]
+    fn test_resolve_with_options_and_map() {
+        let template = TemplateParser::parse("{app|options[calendar,sheets,docs]|map[cal:calendar]|!encode}").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("app".to_string(), "cal".to_string());
+
+        let result = resolver.resolve(&template, &vars).unwrap();
+        assert_eq!(result, "calendar");
+    }
+
+    #[test]
+    fn test_resolve_with_map_and_encode() {
+        let template = TemplateParser::parse("{app|map[my app:my application]}").unwrap();
+        let resolver = TemplateResolver::new();
+
+        let mut vars = HashMap::new();
+        vars.insert("app".to_string(), "my app".to_string());
+
+        let result = resolver.resolve(&template, &vars).unwrap();
+        // Map first, then auto-encode
+        assert_eq!(result, "my%20application");
     }
 }

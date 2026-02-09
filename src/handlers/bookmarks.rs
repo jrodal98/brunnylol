@@ -50,6 +50,15 @@ fn render_template_to_string(template: &crate::domain::template::Template) -> St
                                 result.push_str("[strict]");
                             }
                         }
+                        PipelineOp::Map { mappings } => {
+                            result.push_str("map[");
+                            let mapping_strs: Vec<String> = mappings
+                                .iter()
+                                .map(|(k, v)| format!("{}:{}", k, v))
+                                .collect();
+                            result.push_str(&mapping_strs.join(","));
+                            result.push(']');
+                        }
                     }
                 }
 

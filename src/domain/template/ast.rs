@@ -77,6 +77,9 @@ pub enum PipelineOp {
         values: Vec<String>,
         strict: bool,
     },
+    Map {
+        mappings: Vec<(String, String)>,
+    },
 }
 
 /// Metadata about all variables in a template (for database storage)
