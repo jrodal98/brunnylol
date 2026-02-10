@@ -96,3 +96,9 @@
   url: https://github.com
   command: "{url}/{query|!encode}"
   description: Go to github repo
+
+- alias: pr
+  url: https://proton.me
+  command: "https://{product|map[m:mail,cal:calendar,dr:drive]|options[mail,drive,sheets,docs,vpn,calendar,pass,wallet,authenticator,meet,lumo][strict]}.proton.me/{subproduct?|map[p:photos,d:docs,s:sheets]|options[photos,docs,sheets][strict]}"
+  description: "Proton services (shortcuts: m=mail, cal=calendar, dr=drive, p=photos, d=docs, s=sheets)"
+
