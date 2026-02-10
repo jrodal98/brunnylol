@@ -95,7 +95,9 @@
                         <strong>Variable syntax:</strong> <code>{var}</code>, <code>{var?}</code> (optional), <code>{var=default}</code> (with default), <code>{url}</code> (base URL)<br>
                         <strong>Pipelines:</strong> <code>{var|!encode}</code> (no encoding), <code>{var|trim}</code> (trim whitespace)<br>
                         <strong>Options:</strong> <code>{product|options[mail,drive,sheets]}</code> or <code>{product|options[mail,drive][strict]}</code> (enforce validation)<br>
-                        <strong>Examples:</strong> <code>{url}/search?q={query}</code>, <code>https://github.com/{org}/{repo}</code>, <code>https://{product|options[mail,drive,sheets]}.proton.me</code>
+                        <strong>Map:</strong> <code>{app|map[m:mail,cal:calendar,dr:drive]}</code> (expand shortcuts to full values, unmapped values pass through)<br>
+                        <strong>⚠️ Pipeline order matters:</strong> Use <code>{var|map[...]|options[...][strict]}</code> to map THEN validate<br>
+                        <strong>Examples:</strong> <code>{url}/search?q={query}</code>, <code>https://github.com/{org}/{repo}</code>, <code>https://{product|map[m:mail,dr:drive]|options[mail,drive][strict]}.proton.me</code>
                     </p>
                 </div>
             </div>
