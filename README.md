@@ -155,11 +155,44 @@ dev backend?           # Same result - suffix placement flexible
 
 ### Template Syntax
 
+Brunnylol supports powerful template variables with pipelines for advanced transformations:
+
+**Basic Variables:**
 - `{var}` - Required variable
 - `{var?}` - Optional variable
 - `{var=default}` - Default value
+
+**Pipelines:**
 - `{var|!encode}` - No URL encoding
-- `{var|options[a,b,c]}` - Restrict to specific values
+- `{var|trim}` - Trim whitespace
+- `{var|options[a,b,c]}` - Suggest values (non-strict)
+- `{var|options[a,b,c][strict]}` - Restrict to specific values only
+- `{var|map[short:longvalue,...]}` - Map shortcuts to full values (pass-through if unmapped)
+
+**Advanced Example: Combining Map and Strict Validation**
+
+The real power comes from chaining pipelines. Here's a bookmark that lets you access Proton services with shortcuts:
+
+```yaml
+alias: pr
+url: https://proton.me
+command: "https://{product|map[m:mail,cal:calendar,dr:drive]|options[mail,drive,calendar,pass,vpn][strict]}.proton.me/{subproduct?|map[p:photos,d:docs,s:sheets]|options[photos,docs,sheets][strict]}"
+description: Proton services with shortcuts
+```
+
+**How it works:**
+
+```
+pr dr p       → https://drive.proton.me/photos
+pr mail       → https://mail.proton.me
+pr cal        → https://calendar.proton.me
+pr vpn        → https://vpn.proton.me
+pr m          → https://mail.proton.me
+```
+
+**Pipeline order matters!** Use `map` BEFORE `options[strict]` so shortcuts get mapped before validation:
+- ✅ Correct: `{var|map[dr:drive]|options[drive,mail][strict]}` - "dr" → "drive" → validates ✓
+- ❌ Wrong: `{var|options[drive,mail][strict]|map[dr:drive]}` - validates "dr" first → fails ✗
 
 ### Managing Bookmarks
 
