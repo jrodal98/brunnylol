@@ -893,6 +893,102 @@ async fn test_e2e_nested_global_bookmarks() {
 }
 
 #[tokio::test]
+async fn test_e2e_nested_base_url_redirect() {
+    let mut app = TestApp::start().await;
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())  // Don't follow redirects
+        .cookie_store(true)
+        .build()
+        .unwrap();
+
+    // Ensure admin user exists
+    let user_count = app.db_query_count("SELECT COUNT(*) FROM users;");
+    if user_count == 0 {
+        client
+            .post(format!("{}/register", app.base_url))
+            .form(&[
+                ("username", "admin"),
+                ("password", "admin123"),
+                ("confirm_password", "admin123"),
+            ])
+            .send()
+            .await
+            .unwrap();
+    }
+
+    // Login
+    client
+        .post(format!("{}/login", app.base_url))
+        .form(&[("username", "admin"), ("password", "admin123")])
+        .send()
+        .await
+        .unwrap();
+
+    println!("✓ Admin logged in");
+
+    // Import nested bookmark with base URL
+    let nested_yaml = r#"- alias: dev
+  url: https://example.com
+  description: Development shortcuts
+  nested:
+    - alias: frontend
+      url: https://github.com
+      description: Frontend repo"#;
+
+    let import_result = client
+        .post(format!("{}/manage/import", app.base_url))
+        .form(&[
+            ("source", "paste"),
+            ("format", "yaml"),
+            ("scope", "global"),
+            ("content", nested_yaml),
+        ])
+        .send()
+        .await
+        .unwrap();
+
+    assert!(import_result.text().await.unwrap().contains("Successfully imported 1"));
+    println!("✓ Imported nested bookmark with base URL");
+
+    // Reload global bookmarks so they're available for redirects
+    let reload = client
+        .post(format!("{}/admin/reload-global", app.base_url))
+        .send()
+        .await
+        .unwrap();
+    assert!(reload.status().is_success());
+    println!("✓ Reloaded global bookmarks");
+
+    // Test accessing just the parent alias (no args) - should redirect to base URL
+    let response = client
+        .get(format!("{}/search?q=dev", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), 303, "Should return redirect status");
+    let location = response.headers().get("location").unwrap().to_str().unwrap();
+    assert_eq!(location, "https://example.com", "Should redirect to base URL");
+    println!("✓ Parent alias redirects to base URL");
+
+    // Test accessing child command still works
+    let response = client
+        .get(format!("{}/search?q=dev%20frontend", app.base_url))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), 303, "Should return redirect status");
+    let location = response.headers().get("location").unwrap().to_str().unwrap();
+    assert_eq!(location, "https://github.com", "Should redirect to child URL");
+    println!("✓ Child command still works");
+
+    println!("\n✅ ALL NESTED BASE URL TESTS PASSED");
+
+    app.stop().await;
+}
+
+#[tokio::test]
 async fn test_e2e_bulk_operations() {
     let mut app = TestApp::start().await;
     let client = reqwest::Client::builder()

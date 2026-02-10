@@ -14,6 +14,7 @@ pub enum Command {
         metadata: Option<template::TemplateMetadata>,
     },
     Nested {
+        base_url: String,
         children: HashMap<String, Command>,
         description: String,
     },
@@ -30,7 +31,7 @@ impl Command {
     pub fn base_url(&self) -> &str {
         match self {
             Command::Variable { base_url, .. } => base_url,
-            Command::Nested { .. } => "",
+            Command::Nested { base_url, .. } => base_url,
         }
     }
 
@@ -84,7 +85,12 @@ impl Command {
                 let resolver = template::TemplateResolver::new();
                 resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
             }
-            Command::Nested { children, .. } => {
+            Command::Nested { base_url, children, .. } => {
+                // If no query, return base URL
+                if query.trim().is_empty() {
+                    return base_url.clone();
+                }
+
                 let parts: Vec<&str> = query.splitn(2, ' ').collect();
                 if let Some(child) = children.get(parts[0]) {
                     child.get_redirect_url(parts.get(1).unwrap_or(&""))

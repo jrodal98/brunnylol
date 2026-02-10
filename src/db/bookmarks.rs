@@ -78,6 +78,7 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
                 nested_commands.insert(nested_bm.alias.clone(), nested_cmd);
             }
             Ok(Command::Nested {
+                base_url: bookmark.url.clone(),  // Store parent's base URL
                 children: nested_commands,
                 description: bookmark.description.clone(),
             })
