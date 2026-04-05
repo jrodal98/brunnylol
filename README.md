@@ -2,7 +2,7 @@
 
 # brunnylol
 
-Like bunnylol, but written in Rust.
+A Rust implementation of bunnylol. For Meta's official implementation, see [facebook/bunnylol.rs](https://github.com/facebook/bunnylol.rs).
 
 A fast, multi-user bookmark management system with personalized shortcuts for quick web navigation.
 
@@ -215,6 +215,7 @@ pr m          → https://mail.proton.me
 
 ## Links
 
+- Official Implementation: [facebook/bunnylol.rs](https://github.com/facebook/bunnylol.rs)
 - Live Demo: [https://brunnylol.jrodal.com](https://brunnylol.jrodal.com)
 - Help Page: [https://brunnylol.jrodal.com/help](https://brunnylol.jrodal.com/help)
 
