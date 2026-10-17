@@ -32,7 +32,11 @@ where
         let session_cookie = jar.get("session_id")
             .ok_or_else(|| {
                 // Include the original URI in the error so we can redirect back after login
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 
@@ -43,7 +47,11 @@ where
             .await
             .map_err(|e| AppError::Internal(format!("Session validation error: {}", e)))?
             .ok_or_else(|| {
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 
@@ -52,7 +60,11 @@ where
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
             .ok_or_else(|| {
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 

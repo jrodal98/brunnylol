@@ -248,14 +248,25 @@ impl RedirectService {
             });
 
         // Usage metrics: when the winning root alias is one of the
-        // user's personal bookmarks, count this use. This is the one
-        // choke point every search resolution passes through (nested
-        // resolution delegates from here). Best-effort — a metrics
-        // failure must never break the redirect.
-        if let (Some(user), Some(user_map)) = (user, &user_bookmarks) {
-            if user_map.contains_key(root_alias.as_str()) {
+        // user's personal bookmarks, count this use against it;
+        // when it's a built-in, count it against the global bookmark
+        // (instance-wide, including anonymous searches). This is the
+        // one choke point every search resolution passes through
+        // (nested resolution delegates from here). Best-effort — a
+        // metrics failure must never break the redirect.
+        let from_personal = user_bookmarks
+            .as_ref()
+            .map(|m| m.contains_key(root_alias.as_str()))
+            .unwrap_or(false);
+        if from_personal {
+            if let Some(user) = user {
                 let _ = db::bookmarks::record_bookmark_use(&self.pool, user.id, root_alias).await;
             }
+        } else if root_command.is_some()
+            && !disabled_globals.contains(root_alias.as_str())
+            && global_bookmarks.contains_key(root_alias.as_str())
+        {
+            let _ = db::bookmarks::record_global_bookmark_use(&self.pool, root_alias).await;
         }
 
         // If root command is Nested and we have remaining query, check for subcommand suffix

@@ -184,7 +184,9 @@
         <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
             Drag this link to your bookmarks bar. Clicking it on any page opens the
             Create Bookmark form prefilled with that page's URL and title, so you
-            only have to pick an alias:
+            only have to pick an alias. If the site advertises its own search engine
+            (an OpenSearch descriptor), the bookmarklet detects it and prefills a
+            ready-made search template instead:
         </p>
         <p><a href="{{ bookmarklet_href }}" class="btn-secondary" style="display: inline-block; padding: var(--space-2) var(--space-4); text-decoration: none;">+ Add to Brunnylol</a></p>
     </div>

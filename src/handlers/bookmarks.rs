@@ -86,6 +86,10 @@ struct ManageTemplate {
     prefill_alias: String,
     prefill_url: String,
     prefill_title: String,
+    // Set when the bookmarked site advertised an OpenSearch search
+    // template (converted by the bookmarklet): the create form then
+    // starts as a templated bookmark.
+    prefill_command: String,
 }
 
 /// Query params the quick-add bookmarklet sends to /manage.
@@ -93,6 +97,7 @@ struct ManageTemplate {
 pub struct ManagePrefillQuery {
     prefill_url: Option<String>,
     prefill_title: Option<String>,
+    prefill_command: Option<String>,
 }
 
 /// Suggest an alias from a URL: the first host label, sanitized
@@ -166,6 +171,8 @@ struct GlobalBookmarkDisplay {
     template: String,
     is_overridden: bool,
     is_disabled: bool,
+    use_count: i64,
+    last_used_at: String,
 }
 
 #[derive(Template)]
@@ -278,6 +285,11 @@ pub async fn manage_page(
     let mut global_bookmarks = Vec::new();
     let mut conflicts = Vec::new();
 
+    // Instance-wide usage stats for the built-ins (best-effort)
+    let global_usage = db::bookmarks::get_global_usage_by_alias(&state.db_pool)
+        .await
+        .unwrap_or_default();
+
     let bookmark_map = state.alias_to_bookmark_map.read().await;
     for (alias, command) in bookmark_map.iter() {
         let is_overridden = user_aliases.contains(alias.as_str());
@@ -301,6 +313,11 @@ pub async fn manage_page(
             }
         };
 
+        let (g_use_count, g_last_used) = global_usage
+            .get(alias.as_str())
+            .cloned()
+            .unwrap_or((0, None));
+
         global_bookmarks.push(GlobalBookmarkDisplay {
             alias: alias.clone(),
             description: command.description().to_string(),
@@ -308,6 +325,8 @@ pub async fn manage_page(
             template,
             is_overridden,
             is_disabled,
+            use_count: g_use_count,
+            last_used_at: g_last_used.unwrap_or_default(),
         });
     }
 
@@ -342,6 +361,7 @@ pub async fn manage_page(
         prefill_alias,
         prefill_url,
         prefill_title: prefill.prefill_title.unwrap_or_default(),
+        prefill_command: prefill.prefill_command.unwrap_or_default(),
     };
 
     Ok(Html(template.render()?))

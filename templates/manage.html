@@ -128,7 +128,7 @@
             <div id="templated-fields" class="dynamic-field">
                 <div class="form-group">
                     <label for="command_template">Template (optional)</label>
-                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}">
+                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}" value="{{ prefill_command }}">
                     <small>Leave empty for simple redirect. Add variables for search templates.</small>
                 </div>
 
@@ -279,6 +279,7 @@
                     <th>Alias</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th>Uses</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -298,6 +299,7 @@
                             {% endif %}
                         {% endif %}
                     </td>
+                    <td>{% if bookmark.use_count > 0 %}<span title="Last used {{ bookmark.last_used_at }}">{{ bookmark.use_count }}</span>{% else %}0{% endif %}</td>
                     <td>
                         <div style="display: flex; gap: 0.5em; align-items: center;">
                             {% if user.is_admin %}

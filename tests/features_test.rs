@@ -352,7 +352,54 @@ async fn test_bookmarklet_prefill_and_settings_sections() {
         .await
         .unwrap();
     let body = body_string(resp).await;
-    assert!(body.contains("javascript:void(window.open("), "bookmarklet missing");
+    assert!(body.contains("javascript:(function(){"), "bookmarklet missing");
+    assert!(body.contains("window.open("), "bookmarklet must open a tab");
+    assert!(body.contains("opensearch"), "bookmarklet must probe for OpenSearch");
     assert!(body.contains("prefill_url"), "bookmarklet must carry prefill params");
     assert!(body.contains("API Tokens"), "token section missing");
+}
+
+#[tokio::test]
+async fn test_global_usage_counts_and_opensearch_prefill() {
+    let app = common::create_test_app().await;
+    let cookie = register_admin(&app).await;
+
+    // Two ANONYMOUS searches through the built-in "g" alias count
+    // against the global bookmark (instance-wide stats).
+    for _ in 0..2 {
+        let resp = app
+            .clone()
+            .oneshot(req("GET", "/search?q=g", None, None, None, None))
+            .await
+            .unwrap();
+        assert!(resp.status().is_redirection(), "search should redirect");
+    }
+
+    let resp = app
+        .clone()
+        .oneshot(req("GET", "/manage", Some(&cookie), None, None, None))
+        .await
+        .unwrap();
+    let body = body_string(resp).await;
+    let start = body.find("id=\"global-g\"").expect("global g row present");
+    let row = &body[start..usize::min(start + 2500, body.len())];
+    assert!(row.contains(">2</span>"), "global use count 2 not shown: {}", &row[..200]);
+
+    // OpenSearch-derived prefill: command lands in the template field.
+    let resp = app
+        .oneshot(req(
+            "GET",
+            "/manage?prefill_url=https%3A%2F%2Fexample.com%2Fsearch&prefill_title=Ex&prefill_command=%7Burl%7D%3Fq%3D%7Bquery%7D",
+            Some(&cookie),
+            None,
+            None,
+            None,
+        ))
+        .await
+        .unwrap();
+    let body = body_string(resp).await;
+    assert!(
+        body.contains("value=\"{url}?q={query}\""),
+        "prefill_command not in the template field"
+    );
 }
