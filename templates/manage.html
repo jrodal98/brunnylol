@@ -100,7 +100,7 @@
               hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }">
             <div class="form-group">
                 <label for="alias">Alias *</label>
-                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
+                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50" value="{{ prefill_alias }}">
                 <small>Shortcut you'll type to use this bookmark</small>
             </div>
 
@@ -115,20 +115,20 @@
 
             <div class="form-group">
                 <label for="url">Base URL *</label>
-                <input type="url" id="url" name="url" required placeholder="https://example.com">
+                <input type="url" id="url" name="url" required placeholder="https://example.com" value="{{ prefill_url }}">
                 <small>The URL to redirect to (or base URL for templates)</small>
             </div>
 
             <div class="form-group">
                 <label for="description">Description *</label>
-                <input type="text" id="description" name="description" required placeholder="What this bookmark does">
+                <input type="text" id="description" name="description" required placeholder="What this bookmark does" value="{{ prefill_title }}">
             </div>
 
             <!-- Template field (shown by default for standard bookmarks) -->
             <div id="templated-fields" class="dynamic-field">
                 <div class="form-group">
                     <label for="command_template">Template (optional)</label>
-                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}">
+                    <input type="text" id="command_template" name="command_template" placeholder="{url}/search?q={query}" value="{{ prefill_command }}">
                     <small>Leave empty for simple redirect. Add variables for search templates.</small>
                 </div>
 
@@ -279,6 +279,7 @@
                     <th>Alias</th>
                     <th>Description</th>
                     <th>Status</th>
+                    <th>Uses</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -298,6 +299,7 @@
                             {% endif %}
                         {% endif %}
                     </td>
+                    <td>{% if bookmark.use_count > 0 %}<span title="Last used {{ bookmark.last_used_at }}">{{ bookmark.use_count }}</span>{% else %}0{% endif %}</td>
                     <td>
                         <div style="display: flex; gap: 0.5em; align-items: center;">
                             {% if user.is_admin %}

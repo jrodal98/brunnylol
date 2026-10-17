@@ -32,7 +32,11 @@ where
         let session_cookie = jar.get("session_id")
             .ok_or_else(|| {
                 // Include the original URI in the error so we can redirect back after login
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 
@@ -43,7 +47,11 @@ where
             .await
             .map_err(|e| AppError::Internal(format!("Session validation error: {}", e)))?
             .ok_or_else(|| {
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 
@@ -52,7 +60,11 @@ where
             .await
             .map_err(|e| AppError::Internal(format!("Database error: {}", e)))?
             .ok_or_else(|| {
-                let return_to = parts.uri.path();
+                let return_to = parts
+                    .uri
+                    .path_and_query()
+                    .map(|pq| pq.as_str())
+                    .unwrap_or_else(|| parts.uri.path());
                 AppError::Unauthorized(return_to.to_string())
             })?;
 
@@ -89,6 +101,52 @@ where
 
         let user = db::get_user_by_id(&app_state.db_pool, user_id).await.ok().flatten();
         Ok(OptionalUser(user))
+    }
+}
+
+// Extractor for API-token authenticated requests (JSON API).
+// Usage: async fn handler(api_user: ApiUser) { ... }
+// Accepts "Authorization: Bearer brn_..." — the token is looked up by
+// its SHA-256 hash. Rejections are JSON 401s, never login redirects:
+// API clients (scripts, AI agents) can't follow a login form.
+pub struct ApiUser(pub User);
+
+impl<S> FromRequestParts<S> for ApiUser
+where
+    S: Send + Sync,
+    Arc<crate::AppState>: FromRef<S>,
+{
+    type Rejection = axum::response::Response;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        use axum::response::IntoResponse;
+
+        let unauthorized = || {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({
+                    "error": "missing or invalid API token"
+                })),
+            )
+                .into_response()
+        };
+
+        let header = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(unauthorized)?;
+        let token = header
+            .strip_prefix("Bearer ")
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .ok_or_else(unauthorized)?;
+
+        let app_state = Arc::<crate::AppState>::from_ref(state);
+        match db::tokens::user_for_token(&app_state.db_pool, token).await {
+            Ok(Some(user)) => Ok(ApiUser(user)),
+            _ => Err(unauthorized()),
+        }
     }
 }
 

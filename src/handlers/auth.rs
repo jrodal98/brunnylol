@@ -280,12 +280,18 @@ struct SettingsTemplate {
     // Personal AI settings + effective availability (grouped view
     // struct, see handlers::ai)
     ai: super::ai::UserAiSettingsView,
+    // API tokens (see handlers::api_tokens) for the token list partial
+    tokens: Vec<super::api_tokens::TokenRow>,
+    // javascript: URL for the quick-add bookmarklet (absolute origin
+    // of this deployment baked in)
+    bookmarklet_href: String,
 }
 
 // GET /settings - User settings page
 pub async fn settings_page(
     current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Html<String>, AppError> {
     let has_default_alias = current_user.0.default_alias.is_some();
     let default_alias_value = current_user.0.default_alias.clone().unwrap_or_default();
@@ -317,10 +323,51 @@ pub async fn settings_page(
         None => (false, String::new(), String::new()),
     };
 
+    let tokens = super::api_tokens::token_rows(&state.db_pool, current_user.0.id).await;
+    let origin = super::opensearch::request_origin(&headers);
+    // The bookmarklet opens a tab immediately (popup blockers), then
+    // checks the current page for an OpenSearch descriptor: when the
+    // site advertises a search engine, its template is converted to
+    // a brunnylol template ({searchTerms} -> {query}, base -> {url})
+    // and prefilled as a templated bookmark; otherwise the plain
+    // page URL/title prefill is used. Any failure falls back too.
+    let bookmarklet_href = concat!(
+        "javascript:(function(){",
+        "var w=window.open('','_blank');",
+        "var origin='__ORIGIN__';",
+        "var title=document.title;",
+        "var page=location.href;",
+        "function dest(url,cmd){",
+        "var u=origin+'/manage?prefill_url='+encodeURIComponent(url)+'&prefill_title='+encodeURIComponent(title);",
+        "if(cmd){u+='&prefill_command='+encodeURIComponent(cmd);}",
+        "w.location.href=u;}",
+        "var links=document.querySelectorAll('link[rel~=\"search\"]');",
+        "var link=null;",
+        "for(var i=0;i<links.length;i++){if((links[i].getAttribute('type')||'').indexOf('opensearch')>=0){link=links[i];break;}}",
+        "if(!link){dest(page,null);}",
+        "else{",
+        "fetch(link.href).then(function(r){return r.text();}).then(function(x){",
+        "var d=new DOMParser().parseFromString(x,'text/xml');",
+        "var urls=d.querySelectorAll('Url');",
+        "var tpl=null;",
+        "for(var i=0;i<urls.length;i++){if(urls[i].getAttribute('type')==='text/html'){tpl=urls[i].getAttribute('template');break;}}",
+        "if(!tpl||tpl.indexOf('{searchTerms}')<0){dest(page,null);return;}",
+        "var q=tpl.indexOf('?');",
+        "var root=q>=0?tpl.substring(0,q):tpl;",
+        "var rest=q>=0?tpl.substring(q):'';",
+        "var cmd='{url}'+rest.split('{searchTerms}').join('{query}');",
+        "dest(root,cmd);",
+        "}).catch(function(){dest(page,null);});}",
+        "})();"
+    )
+    .replace("__ORIGIN__", &origin);
+
     let template = SettingsTemplate {
         is_admin: current_user.0.is_admin,
         default_alias_value,
         has_default_alias,
+        tokens,
+        bookmarklet_href,
         ai: super::ai::UserAiSettingsView {
             enabled: ai_enabled,
             base_url: ai_base_url,

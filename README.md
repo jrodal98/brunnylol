@@ -250,6 +250,15 @@ pr m          → https://mail.proton.me
 - Manage users
 - Import/export global bookmarks
 
+## API
+
+Brunnylol has a JSON API for scripts and AI agents: create a token in
+**Settings → API Tokens**, then manage your personal bookmarks with
+`Authorization: Bearer` requests — no website login needed. The full
+reference is in [docs/api.md](docs/api.md), and every running instance
+serves the same document at `GET /api` (markdown), so agents can fetch
+the docs from the deployment itself.
+
 ## Links
 
 - Official Implementation: [facebook/bunnylol.rs](https://github.com/facebook/bunnylol.rs)
