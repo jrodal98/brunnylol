@@ -153,6 +153,41 @@
             <button type="submit" class="btn-primary">Save AI Settings</button>
         </form>
     </div>
+
+    <!-- API Tokens -->
+    <div class="section">
+        <h3>API Tokens</h3>
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+            Tokens let scripts and AI agents manage your bookmarks through the JSON API
+            (<code>GET/POST /api/bookmarks</code>, <code>PUT/DELETE /api/bookmarks/&lt;alias&gt;</code>,
+            <code>GET /api/whoami</code>) with an <code>Authorization: Bearer</code> header —
+            no website login needed. A token can do anything you can do to your own bookmarks,
+            so treat it like a password.
+        </p>
+        <div id="api-token-created"></div>
+        <form hx-post="/settings/api-tokens"
+              hx-target="#api-token-created"
+              style="margin-bottom: var(--space-4);">
+            <div class="form-group">
+                <label for="token_name">New token name</label>
+                <input type="text" id="token_name" name="name" required maxlength="60"
+                       placeholder="e.g., my AI agent">
+            </div>
+            <button type="submit" class="btn-primary">Create Token</button>
+        </form>
+        {% include "partials/api_token_list.html" %}
+    </div>
+
+    <!-- Bookmarklet -->
+    <div class="section">
+        <h3>Quick-Add Bookmarklet</h3>
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+            Drag this link to your bookmarks bar. Clicking it on any page opens the
+            Create Bookmark form prefilled with that page's URL and title, so you
+            only have to pick an alias:
+        </p>
+        <p><a href="{{ bookmarklet_href }}" class="btn-secondary" style="display: inline-block; padding: var(--space-2) var(--space-4); text-decoration: none;">+ Add to Brunnylol</a></p>
+    </div>
 </div>
 
 {% endblock %}

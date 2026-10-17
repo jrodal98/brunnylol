@@ -333,6 +333,21 @@ pub async fn create_router() -> Router {
         // Public routes
         .route("/", get(index))
         .route("/about", get(about))
+        .route("/opensearch.xml", get(handlers::opensearch::descriptor))
+        .route("/api/suggest", get(handlers::opensearch::suggest))
+        // JSON API (API-token auth via the ApiUser extractor)
+        .route("/api/whoami", get(handlers::api_bookmarks::whoami))
+        .route(
+            "/api/bookmarks",
+            get(handlers::api_bookmarks::list_bookmarks)
+                .post(handlers::api_bookmarks::create_bookmark),
+        )
+        .route(
+            "/api/bookmarks/{alias}",
+            get(handlers::api_bookmarks::get_bookmark)
+                .put(handlers::api_bookmarks::update_bookmark)
+                .delete(handlers::api_bookmarks::delete_bookmark),
+        )
         .route("/help", get(help))
         .route("/search", get(redirect))
 
@@ -373,6 +388,11 @@ pub async fn create_router() -> Router {
         .route("/settings/password", post(handlers::auth::change_password))
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
         .route("/settings/ai", post(handlers::ai::update_user_ai_settings))
+        .route("/settings/api-tokens", post(handlers::api_tokens::create_token))
+        .route(
+            "/settings/api-tokens/{id}/revoke",
+            post(handlers::api_tokens::revoke_token),
+        )
 
         // AI API routes (require authentication; JSON, surface-agnostic so
         // future clients like a browser extension can reuse them)

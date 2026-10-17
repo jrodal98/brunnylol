@@ -280,12 +280,18 @@ struct SettingsTemplate {
     // Personal AI settings + effective availability (grouped view
     // struct, see handlers::ai)
     ai: super::ai::UserAiSettingsView,
+    // API tokens (see handlers::api_tokens) for the token list partial
+    tokens: Vec<super::api_tokens::TokenRow>,
+    // javascript: URL for the quick-add bookmarklet (absolute origin
+    // of this deployment baked in)
+    bookmarklet_href: String,
 }
 
 // GET /settings - User settings page
 pub async fn settings_page(
     current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
+    headers: axum::http::HeaderMap,
 ) -> Result<Html<String>, AppError> {
     let has_default_alias = current_user.0.default_alias.is_some();
     let default_alias_value = current_user.0.default_alias.clone().unwrap_or_default();
@@ -317,10 +323,19 @@ pub async fn settings_page(
         None => (false, String::new(), String::new()),
     };
 
+    let tokens = super::api_tokens::token_rows(&state.db_pool, current_user.0.id).await;
+    let origin = super::opensearch::request_origin(&headers);
+    let bookmarklet_href = format!(
+        "javascript:void(window.open('{}/manage?prefill_url='+encodeURIComponent(location.href)+'&prefill_title='+encodeURIComponent(document.title),'_blank'))",
+        origin
+    );
+
     let template = SettingsTemplate {
         is_admin: current_user.0.is_admin,
         default_alias_value,
         has_default_alias,
+        tokens,
+        bookmarklet_href,
         ai: super::ai::UserAiSettingsView {
             enabled: ai_enabled,
             base_url: ai_base_url,

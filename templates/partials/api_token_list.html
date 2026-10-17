@@ -1,0 +1,29 @@
+<div id="api-token-list">
+    {% if tokens.is_empty() %}
+    <p style="color: var(--text-secondary);">No API tokens yet.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr><th>Name</th><th>Created</th><th>Last used</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for token in tokens %}
+            <tr>
+                <td>{{ token.name }}</td>
+                <td>{{ token.created_at }}</td>
+                <td>{{ token.last_used_at }}</td>
+                <td>
+                    <button class="btn-danger"
+                            hx-post="/settings/api-tokens/{{ token.id }}/revoke"
+                            hx-target="#api-token-list"
+                            hx-swap="outerHTML"
+                            hx-confirm="Revoke token '{{ token.name }}'? Anything using it will stop working.">
+                        Revoke
+                    </button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>

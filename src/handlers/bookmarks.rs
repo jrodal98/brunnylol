@@ -2,7 +2,7 @@
 
 use askama::Template;
 use axum::{
-    extract::{Form, Path, State},
+    extract::{Form, Path, Query, State},
     response::{Html, IntoResponse, Response},
     http::header,
 };
@@ -81,6 +81,36 @@ struct ManageTemplate {
     conflicts_text: String,
     has_conflicts: bool,
     ai_available: bool,
+    // Quick-add bookmarklet prefill (empty unless the bookmarklet
+    // sent prefill_url/prefill_title query params)
+    prefill_alias: String,
+    prefill_url: String,
+    prefill_title: String,
+}
+
+/// Query params the quick-add bookmarklet sends to /manage.
+#[derive(Deserialize)]
+pub struct ManagePrefillQuery {
+    prefill_url: Option<String>,
+    prefill_title: Option<String>,
+}
+
+/// Suggest an alias from a URL: the first host label, sanitized
+/// ("https://www.google.com/x" -> "google").
+fn suggest_alias_from_url(raw_url: &str) -> String {
+    let Ok(parsed) = url::Url::parse(raw_url) else {
+        return String::new();
+    };
+    let Some(host) = parsed.host_str() else {
+        return String::new();
+    };
+    let host = host.strip_prefix("www.").unwrap_or(host);
+    let first = host.split('.').next().unwrap_or("");
+    first
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '-')
+        .collect::<String>()
+        .to_lowercase()
 }
 
 /// The My Bookmarks table. The update endpoint returns this with
@@ -104,6 +134,28 @@ struct BookmarkDisplay {
     description: String,
     command_template: String,
     nested_count: usize,
+    use_count: i64,
+    last_used_at: String,
+}
+
+/// Build a BookmarkDisplay from a bookmark row + its nested children +
+/// its usage stats (0 / empty when never used).
+fn to_bookmark_display(
+    bookmark: db::Bookmark,
+    nested: Vec<db::NestedBookmark>,
+    usage: &(i64, Option<String>),
+) -> BookmarkDisplay {
+    BookmarkDisplay {
+        id: bookmark.id,
+        alias: bookmark.alias,
+        bookmark_type: bookmark.bookmark_type,
+        url: bookmark.url,
+        description: bookmark.description,
+        command_template: bookmark.command_template.unwrap_or_default(),
+        nested_count: nested.len(),
+        use_count: usage.0,
+        last_used_at: usage.1.clone().unwrap_or_default(),
+    }
 }
 
 #[derive(Clone)]
@@ -180,6 +232,7 @@ pub struct CreateNestedForm {
 pub async fn manage_page(
     current_user: CurrentUser,
     State(state): State<Arc<crate::AppState>>,
+    Query(prefill): Query<ManagePrefillQuery>,
 ) -> Result<Html<String>, AppError> {
     // Get user's personal bookmarks with nested counts (optimized to avoid N+1)
     let bookmarks_with_nested = db::get_bookmarks_with_nested(
@@ -187,19 +240,20 @@ pub async fn manage_page(
         db::BookmarkScope::Personal { user_id: current_user.0.id }
     ).await.db_err()?;
 
+    // Usage stats (best-effort: an empty map just shows zeros)
+    let usage_map = db::bookmarks::get_usage_map(&state.db_pool, current_user.0.id)
+        .await
+        .unwrap_or_default();
+
     // Convert to display format
     let personal_bookmarks: Vec<BookmarkDisplay> = bookmarks_with_nested
         .into_iter()
         .map(|(bookmark, nested)| {
-            BookmarkDisplay {
-                id: bookmark.id,
-                alias: bookmark.alias,
-                bookmark_type: bookmark.bookmark_type,
-                url: bookmark.url,
-                description: bookmark.description,
-                command_template: bookmark.command_template.unwrap_or_default(),
-                nested_count: nested.len(),
-            }
+            let usage = usage_map
+                .get(&bookmark.id)
+                .cloned()
+                .unwrap_or((0, None));
+            to_bookmark_display(bookmark, nested, &usage)
         })
         .collect();
 
@@ -270,6 +324,13 @@ pub async fn manage_page(
     .await
     .is_some();
 
+    let prefill_url = prefill.prefill_url.unwrap_or_default();
+    let prefill_alias = if prefill_url.is_empty() {
+        String::new()
+    } else {
+        suggest_alias_from_url(&prefill_url)
+    };
+
     let template = ManageTemplate {
         user: current_user.0,
         personal_bookmarks,
@@ -278,6 +339,9 @@ pub async fn manage_page(
         conflicts_text,
         has_conflicts,
         ai_available,
+        prefill_alias,
+        prefill_url,
+        prefill_title: prefill.prefill_title.unwrap_or_default(),
     };
 
     Ok(Html(template.render()?))
@@ -417,17 +481,18 @@ pub async fn update_bookmark(
     )
     .await
     {
+        let usage_map = db::bookmarks::get_usage_map(&state.db_pool, current_user.0.id)
+            .await
+            .unwrap_or_default();
         let table = PersonalBookmarksTableTemplate {
             personal_bookmarks: bookmarks_with_nested
                 .into_iter()
-                .map(|(bookmark, nested)| BookmarkDisplay {
-                    id: bookmark.id,
-                    alias: bookmark.alias,
-                    bookmark_type: bookmark.bookmark_type,
-                    url: bookmark.url,
-                    description: bookmark.description,
-                    command_template: bookmark.command_template.unwrap_or_default(),
-                    nested_count: nested.len(),
+                .map(|(bookmark, nested)| {
+                    let usage = usage_map
+                        .get(&bookmark.id)
+                        .cloned()
+                        .unwrap_or((0, None));
+                    to_bookmark_display(bookmark, nested, &usage)
                 })
                 .collect(),
         };

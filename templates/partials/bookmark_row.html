@@ -1,4 +1,4 @@
-<tr id="bookmark-{{ bookmark.id }}">
+<tr id="bookmark-{{ bookmark.id }}" data-alias="{{ bookmark.alias }}" data-uses="{{ bookmark.use_count }}">
     <td><strong>{{ bookmark.alias }}</strong></td>
     <td>{{ bookmark.bookmark_type }}</td>
     <td>
@@ -9,6 +9,7 @@
         {% endif %}
     </td>
     <td>{{ bookmark.description }}</td>
+    <td>{% if bookmark.use_count > 0 %}<span title="Last used {{ bookmark.last_used_at }}">{{ bookmark.use_count }}</span>{% else %}0{% endif %}</td>
     <td>
         <button class="btn-secondary btn-edit"
                 data-id="{{ bookmark.id }}"

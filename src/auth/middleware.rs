@@ -92,6 +92,52 @@ where
     }
 }
 
+// Extractor for API-token authenticated requests (JSON API).
+// Usage: async fn handler(api_user: ApiUser) { ... }
+// Accepts "Authorization: Bearer brn_..." — the token is looked up by
+// its SHA-256 hash. Rejections are JSON 401s, never login redirects:
+// API clients (scripts, AI agents) can't follow a login form.
+pub struct ApiUser(pub User);
+
+impl<S> FromRequestParts<S> for ApiUser
+where
+    S: Send + Sync,
+    Arc<crate::AppState>: FromRef<S>,
+{
+    type Rejection = axum::response::Response;
+
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
+        use axum::response::IntoResponse;
+
+        let unauthorized = || {
+            (
+                axum::http::StatusCode::UNAUTHORIZED,
+                axum::Json(serde_json::json!({
+                    "error": "missing or invalid API token"
+                })),
+            )
+                .into_response()
+        };
+
+        let header = parts
+            .headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .ok_or_else(unauthorized)?;
+        let token = header
+            .strip_prefix("Bearer ")
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .ok_or_else(unauthorized)?;
+
+        let app_state = Arc::<crate::AppState>::from_ref(state);
+        match db::tokens::user_for_token(&app_state.db_pool, token).await {
+            Ok(Some(user)) => Ok(ApiUser(user)),
+            _ => Err(unauthorized()),
+        }
+    }
+}
+
 // Extractor for admin users only
 // Usage: async fn handler(admin_user: AdminUser) { ... }
 // Returns Forbidden error if user is not an admin

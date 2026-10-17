@@ -247,6 +247,17 @@ impl RedirectService {
                 }
             });
 
+        // Usage metrics: when the winning root alias is one of the
+        // user's personal bookmarks, count this use. This is the one
+        // choke point every search resolution passes through (nested
+        // resolution delegates from here). Best-effort — a metrics
+        // failure must never break the redirect.
+        if let (Some(user), Some(user_map)) = (user, &user_bookmarks) {
+            if user_map.contains_key(root_alias.as_str()) {
+                let _ = db::bookmarks::record_bookmark_use(&self.pool, user.id, root_alias).await;
+            }
+        }
+
         // If root command is Nested and we have remaining query, check for subcommand suffix
         if let Some(Command::Nested { .. }) = root_command {
             if let Some(query) = &remaining_query {

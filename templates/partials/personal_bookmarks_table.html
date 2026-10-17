@@ -1,10 +1,11 @@
 <table id="personal-bookmarks-table" hx-swap-oob="true">
             <thead>
                 <tr>
-                    <th>Alias</th>
+                    <th class="sortable-th" data-sort-key="alias" title="Sort by alias" style="cursor: pointer;">Alias ↕</th>
                     <th>Type</th>
                     <th>URL/Template</th>
                     <th>Description</th>
+                    <th class="sortable-th" data-sort-key="uses" title="Sort by uses" style="cursor: pointer;">Uses ↕</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -13,7 +14,7 @@
                 {% include "partials/bookmark_row.html" %}
                 {% endfor %}
                 <tr id="personal-filter-empty" style="display: none;">
-                    <td colspan="5" style="color: var(--text-secondary);">No bookmarks match your filter.</td>
+                    <td colspan="6" style="color: var(--text-secondary);">No bookmarks match your filter.</td>
                 </tr>
             </tbody>
         </table>

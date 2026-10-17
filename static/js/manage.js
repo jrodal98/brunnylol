@@ -420,3 +420,58 @@ function filterPersonalBookmarks(query) {
     var empty = document.getElementById('personal-filter-empty');
     if (empty) empty.style.display = visible === 0 ? '' : 'none';
 }
+
+// My Bookmarks sorting: click the Alias / Uses headers to sort.
+// State lives outside the table so it survives HTMX out-of-band
+// table swaps (after an edit, filter + sort are re-applied below).
+var personalSort = { key: null, dir: 1 };
+
+function sortPersonalBookmarks(key) {
+    if (personalSort.key === key) {
+        personalSort.dir = -personalSort.dir;
+    } else {
+        personalSort.key = key;
+        personalSort.dir = key === 'uses' ? -1 : 1;
+    }
+    applyPersonalSort();
+}
+
+function applyPersonalSort() {
+    var body = document.getElementById('personal-bookmarks-body');
+    if (!body || !personalSort.key) { return; }
+    var empty = document.getElementById('personal-filter-empty');
+    var rows = Array.prototype.slice.call(body.querySelectorAll('tr[data-alias]'));
+    rows.sort(function(a, b) {
+        var cmp;
+        if (personalSort.key === 'uses') {
+            cmp = parseInt(a.dataset.uses || '0', 10) - parseInt(b.dataset.uses || '0', 10);
+        } else {
+            cmp = (a.dataset.alias || '').toLowerCase()
+                .localeCompare((b.dataset.alias || '').toLowerCase());
+        }
+        return cmp * personalSort.dir;
+    });
+    rows.forEach(function(row) {
+        if (empty) { body.insertBefore(row, empty); } else { body.appendChild(row); }
+    });
+}
+
+// Header clicks use delegation: the whole table (thead included) is
+// replaced by out-of-band swaps, so listeners on the headers
+// themselves would be lost.
+document.addEventListener('click', function(e) {
+    var th = e.target && e.target.closest ? e.target.closest('.sortable-th') : null;
+    if (th && th.dataset.sortKey) {
+        sortPersonalBookmarks(th.dataset.sortKey);
+    }
+});
+
+// After the bookmarks table is swapped in (e.g. after an edit),
+// re-apply the current filter text and sort order to the new rows.
+document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.target && e.target.id === 'personal-bookmarks-table') {
+        var input = document.getElementById('personal-filter');
+        filterPersonalBookmarks(input ? input.value : '');
+        applyPersonalSort();
+    }
+});

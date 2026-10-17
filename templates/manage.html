@@ -100,7 +100,7 @@
               hx-on::after-request="if(event.detail.successful) { setTimeout(function() { window.location.reload(); }, 1000); }">
             <div class="form-group">
                 <label for="alias">Alias *</label>
-                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50">
+                <input type="text" id="alias" name="alias" required placeholder="e.g., gh" maxlength="50" value="{{ prefill_alias }}">
                 <small>Shortcut you'll type to use this bookmark</small>
             </div>
 
@@ -115,13 +115,13 @@
 
             <div class="form-group">
                 <label for="url">Base URL *</label>
-                <input type="url" id="url" name="url" required placeholder="https://example.com">
+                <input type="url" id="url" name="url" required placeholder="https://example.com" value="{{ prefill_url }}">
                 <small>The URL to redirect to (or base URL for templates)</small>
             </div>
 
             <div class="form-group">
                 <label for="description">Description *</label>
-                <input type="text" id="description" name="description" required placeholder="What this bookmark does">
+                <input type="text" id="description" name="description" required placeholder="What this bookmark does" value="{{ prefill_title }}">
             </div>
 
             <!-- Template field (shown by default for standard bookmarks) -->
