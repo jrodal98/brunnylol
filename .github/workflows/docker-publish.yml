@@ -12,9 +12,6 @@ on:
     tags: [ 'v*.*.*' ]
   pull_request:
     branches: [ "master" ]
-  workflow_run:
-    workflows: ["Rust"]
-    types: [completed]
 
 env:
   # Use docker.io for Docker Hub if empty
