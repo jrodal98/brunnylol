@@ -8,14 +8,21 @@ use axum::{
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::AdminUser, db, error::{AppError, DbResultExt}, validation};
 use super::common::{ErrorTemplate, SuccessTemplate, SuccessWithLinkTemplate};
+use crate::{
+    auth::middleware::AdminUser,
+    db,
+    error::{AppError, DbResultExt},
+    validation,
+};
 
 // Template struct
 #[derive(Template)]
 #[template(path = "admin.html")]
 struct AdminTemplate {
     users: Vec<UserDisplay>,
+    // Shared AI settings (grouped view struct, see handlers::ai)
+    ai: super::ai::AdminAiSettingsView,
 }
 
 #[derive(Clone)]
@@ -24,6 +31,7 @@ struct UserDisplay {
     username: String,
     is_admin: bool,
     bookmark_count: usize,
+    ai_allowed: bool,
 }
 
 // GET /admin - Admin panel
@@ -32,29 +40,46 @@ pub async fn admin_page(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
     // Get all users
-    let all_users = db::list_all_users(&state.db_pool)
-        .await
-        .db_err()?;
+    let all_users = db::list_all_users(&state.db_pool).await.db_err()?;
 
     // Get bookmark counts for all users in single query (avoids N+1)
     let bookmark_counts = db::get_user_bookmark_counts(&state.db_pool)
         .await
         .db_err()?;
 
+    // Shared AI settings + env fallback + allow-list
+    let ai_settings = db::ai::get_global_ai_settings(&state.db_pool)
+        .await
+        .db_err()?;
+    let env_ai = crate::services::ai_service::EnvAiConfig::from_env();
+    let allowed_ids: std::collections::HashSet<i64> = db::ai::get_allowed_user_ids(&state.db_pool)
+        .await
+        .db_err()?
+        .into_iter()
+        .collect();
+
     let users_display: Vec<UserDisplay> = all_users
         .into_iter()
-        .map(|user| {
-            UserDisplay {
-                id: user.id,
-                username: user.username,
-                is_admin: user.is_admin,
-                bookmark_count: bookmark_counts.get(&user.id).copied().unwrap_or(0),
-            }
+        .map(|user| UserDisplay {
+            ai_allowed: allowed_ids.contains(&user.id),
+            id: user.id,
+            username: user.username,
+            is_admin: user.is_admin,
+            bookmark_count: bookmark_counts.get(&user.id).copied().unwrap_or(0),
         })
         .collect();
 
     let template = AdminTemplate {
         users: users_display,
+        ai: super::ai::AdminAiSettingsView {
+            base_url: ai_settings.base_url.clone().unwrap_or_default(),
+            model: ai_settings.model.clone().unwrap_or_default(),
+            has_api_key: ai_settings.api_key.is_some(),
+            access_mode: ai_settings.access_mode.clone(),
+            env_base_url: env_ai.base_url.clone().unwrap_or_default(),
+            env_model: env_ai.model.clone().unwrap_or_default(),
+            env_has_api_key: env_ai.api_key.is_some(),
+        },
     };
 
     Ok(Html(template.render()?))
@@ -91,19 +116,25 @@ pub async fn create_user(
 ) -> Result<impl IntoResponse, AppError> {
     // Validate passwords match
     if validation::validate_passwords_match(&form.password, &form.confirm_password).is_err() {
-        let template = ErrorTemplate { message: "Passwords do not match" };
+        let template = ErrorTemplate {
+            message: "Passwords do not match",
+        };
         return Ok(Html(template.render()?));
     }
 
     // Validate username
     if let Err(e) = crate::auth::validate_username(&form.username) {
-        let template = ErrorTemplate { message: &e.to_string() };
+        let template = ErrorTemplate {
+            message: &e.to_string(),
+        };
         return Ok(Html(template.render()?));
     }
 
     // Validate password
     if let Err(e) = crate::auth::validate_password(&form.password) {
-        let template = ErrorTemplate { message: &e.to_string() };
+        let template = ErrorTemplate {
+            message: &e.to_string(),
+        };
         return Ok(Html(template.render()?));
     }
 
@@ -143,7 +174,8 @@ pub async fn reload_global_bookmarks(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
     // Reload bookmarks from database
-    let new_map = state.bookmark_service
+    let new_map = state
+        .bookmark_service
         .load_global_bookmarks()
         .await
         .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
@@ -188,7 +220,8 @@ pub async fn update_global_bookmark(
     .map_err(|e| AppError::Internal(format!("Failed to update global bookmark: {}", e)))?;
 
     // Reload global bookmarks
-    let new_map = state.bookmark_service
+    let new_map = state
+        .bookmark_service
         .load_global_bookmarks()
         .await
         .map_err(|e| AppError::Internal(format!("Failed to reload bookmarks: {}", e)))?;
@@ -196,7 +229,10 @@ pub async fn update_global_bookmark(
     *state.alias_to_bookmark_map.write().await = new_map;
 
     let message = if form.alias != alias {
-        format!("Global bookmark '{}' renamed to '{}' and reloaded", alias, form.alias)
+        format!(
+            "Global bookmark '{}' renamed to '{}' and reloaded",
+            alias, form.alias
+        )
     } else {
         format!("Global bookmark '{}' updated and reloaded", alias)
     };

@@ -48,8 +48,8 @@ tower_governor = "0.8"
 # JSON for bookmark config storage
 serde_json = "1.0"
 
-# HTTP client for URL imports
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies"] }
+# HTTP client for URL imports and OpenAI-compatible AI calls
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "cookies", "json"] }
 
 [dev-dependencies]
 # Axum testing

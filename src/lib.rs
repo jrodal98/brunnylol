@@ -79,6 +79,7 @@ pub struct AppState {
     pub db_pool: SqlitePool,
     pub bookmark_service: std::sync::Arc<services::bookmark_service::BookmarkService>,
     pub redirect_service: std::sync::Arc<services::redirect_service::RedirectService>,
+    pub ai_service: std::sync::Arc<services::ai_service::AiService>,
 }
 
 // Route handlers
@@ -261,6 +262,7 @@ pub async fn create_router() -> Router {
         db_pool: db_pool.clone(),
         bookmark_service: bookmark_service.clone(),
         redirect_service: Arc::new(services::redirect_service::RedirectService::new(db_pool.clone())),
+        ai_service: Arc::new(services::ai_service::AiService::new()),
     });
 
     // Configure rate limiting: 5 attempts per 15 minutes
@@ -335,6 +337,12 @@ pub async fn create_router() -> Router {
         .route("/settings/username", post(handlers::auth::change_username))
         .route("/settings/password", post(handlers::auth::change_password))
         .route("/settings/default-alias", post(handlers::auth::change_default_alias))
+        .route("/settings/ai", post(handlers::ai::update_user_ai_settings))
+
+        // AI API routes (require authentication; JSON, surface-agnostic so
+        // future clients like a browser extension can reuse them)
+        .route("/api/ai/status", get(handlers::ai::ai_status))
+        .route("/api/ai/bookmark/propose", post(handlers::ai::propose_bookmark))
 
         // Variable form routes (GET shows form, POST submits)
         .route("/f/{*path}", get(handlers::variable_form::show_variable_form)
@@ -345,6 +353,7 @@ pub async fn create_router() -> Router {
         .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
         .route("/admin/create-user", post(handlers::admin::create_user))
         .route("/admin/reload-global", post(handlers::admin::reload_global_bookmarks))
+        .route("/admin/ai-settings", post(handlers::ai::update_admin_ai_settings))
         .route("/admin/bookmark/{alias}", put(handlers::admin::update_global_bookmark))
 
         // Serve static files (JavaScript, CSS, etc.)

@@ -98,6 +98,61 @@
             <button type="submit" class="btn-primary">Update Default Alias</button>
         </form>
     </div>
+
+    <!-- Personal AI Settings Section -->
+    <div class="section">
+        <h2>AI Settings (Personal)</h2>
+        <div id="ai-settings-result"></div>
+
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+            {% if ai.available %}
+            <strong>Status:</strong> AI is available for your account using the <strong>{{ ai.source }}</strong> configuration (model: <strong>{{ ai.effective_model }}</strong>).
+            {% else %}
+            <strong>Status:</strong> AI is not currently available for your account. Fill in your own provider below, or ask an admin to enable the shared configuration for you.
+            {% endif %}
+        </p>
+
+        <form hx-post="/settings/ai"
+              hx-target="#ai-settings-result"
+              hx-swap="innerHTML">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="enabled" value="true" {% if ai.enabled %}checked{% endif %}>
+                    Enable AI features for my account
+                </label>
+                <small>Uncheck to opt out of AI entirely, including the shared admin configuration.</small>
+            </div>
+            <div class="form-group">
+                <label for="ai_base_url">Base URL (OpenAI-compatible)</label>
+                <input type="url" id="ai_base_url" name="base_url"
+                       value="{{ ai.base_url }}"
+                       placeholder="e.g., https://api.openai.com/v1 or https://llm.example.com">
+                <small>Leave blank to use the shared admin configuration. The <code>/chat/completions</code> path is appended automatically unless already present.</small>
+            </div>
+            <div class="form-group">
+                <label for="ai_api_key">API Token</label>
+                <input type="password" id="ai_api_key" name="api_key" autocomplete="off"
+                       placeholder="{% if ai.has_api_key %}A token is saved — leave blank to keep it{% else %}No token saved{% endif %}">
+                <small>Your token is stored server-side and never shown again. Leave blank to keep the saved token.</small>
+            </div>
+            {% if ai.has_api_key %}
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="clear_api_key" value="true">
+                    Remove my saved API token
+                </label>
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="ai_model">Model</label>
+                <input type="text" id="ai_model" name="model"
+                       value="{{ ai.model }}"
+                       placeholder="e.g., gpt-4o-mini">
+                <small>Leave blank to use the shared admin configuration. To use your own provider, set all three fields: base URL, API token, and model.</small>
+            </div>
+            <button type="submit" class="btn-primary">Save AI Settings</button>
+        </form>
+    </div>
 </div>
 
 {% endblock %}

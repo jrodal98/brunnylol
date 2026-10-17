@@ -92,6 +92,83 @@
     </div>
 
     <div style="margin-top: 40px;">
+        <h2>AI Settings (Shared)</h2>
+        <p style="color: var(--text-secondary); max-width: 700px;">
+            Configure an OpenAI-compatible provider for AI features such as "Create with AI" on the bookmark page.
+            Any field left blank falls back to the server environment variables
+            <code>BRUNNYLOL_AI_BASE_URL</code> / <code>BRUNNYLOL_AI_API_KEY</code> / <code>BRUNNYLOL_AI_MODEL</code>
+            (or the <code>OPENAI_*</code> equivalents). Users with their own complete configuration in their
+            personal Settings use theirs instead of this shared one.
+        </p>
+        <div id="ai-settings-result"></div>
+        <form hx-post="/admin/ai-settings"
+              hx-target="#ai-settings-result"
+              hx-swap="innerHTML"
+              style="max-width: 700px;">
+            <div class="form-group">
+                <label for="ai_base_url">Base URL (OpenAI-compatible)</label>
+                <input type="url" id="ai_base_url" name="base_url"
+                       value="{{ ai.base_url }}"
+                       placeholder="e.g., https://api.openai.com/v1 or https://llm.example.com"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>
+                    {% if ai.env_base_url != "" %}Env fallback is set to <code>{{ ai.env_base_url }}</code>. {% endif %}
+                    The <code>/chat/completions</code> path is appended automatically unless already present.
+                </small>
+            </div>
+            <div class="form-group">
+                <label for="ai_api_key">API Token</label>
+                <input type="password" id="ai_api_key" name="api_key" autocomplete="off"
+                       placeholder="{% if ai.has_api_key %}A token is saved — leave blank to keep it{% else %}No token saved in the database{% endif %}"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>
+                    {% if ai.env_has_api_key %}An env-var token is also set as a fallback. {% endif %}
+                    The token is never shown again after saving. Leave blank to keep the saved token.
+                </small>
+            </div>
+            {% if ai.has_api_key %}
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="clear_api_key" value="true">
+                    Remove the saved API token (fall back to the env var, if any)
+                </label>
+            </div>
+            {% endif %}
+            <div class="form-group">
+                <label for="ai_model">Model</label>
+                <input type="text" id="ai_model" name="model"
+                       value="{{ ai.model }}"
+                       placeholder="e.g., gpt-4o-mini"
+                       style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                <small>{% if ai.env_model != "" %}Env fallback model: <code>{{ ai.env_model }}</code>{% endif %}</small>
+            </div>
+            <div class="form-group">
+                <label for="ai_access_mode">Who can use the shared AI configuration?</label>
+                <select id="ai_access_mode" name="access_mode"
+                        style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                    <option value="disabled" {% if ai.access_mode == "disabled" %}selected{% endif %}>Nobody — AI disabled (shared config)</option>
+                    <option value="admins_only" {% if ai.access_mode == "admins_only" %}selected{% endif %}>All admins</option>
+                    <option value="all_users" {% if ai.access_mode == "all_users" %}selected{% endif %}>All users</option>
+                    <option value="selected_users" {% if ai.access_mode == "selected_users" %}selected{% endif %}>Only selected users (below)</option>
+                </select>
+                <small>This controls the shared configuration only. A user with a complete personal configuration in their own Settings can always use that instead — unless they opt out there.</small>
+            </div>
+            <div class="form-group">
+                <label>Selected users (only used when "Only selected users" is chosen above)</label>
+                {% for user_item in users %}
+                <div>
+                    <label>
+                        <input type="checkbox" name="allowed_user_ids" value="{{ user_item.id }}" {% if user_item.ai_allowed %}checked{% endif %}>
+                        {{ user_item.username }}{% if user_item.is_admin %} (admin){% endif %}
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn-primary">Save AI Settings</button>
+        </form>
+    </div>
+
+    <div style="margin-top: 40px;">
         <h2>System Maintenance</h2>
         <div id="cleanup-result"></div>
         <button hx-post="/admin/cleanup-sessions"

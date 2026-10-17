@@ -49,6 +49,48 @@
     <!-- Tab 1: Create Bookmark -->
     <div id="create" class="tab-content active">
         <h2>Create New Bookmark</h2>
+
+        <!-- Create with AI -->
+        <div class="ai-create-box">
+            <h3>✨ Create with AI</h3>
+            {% if ai_available %}
+            <p style="color: var(--text-secondary);">Describe the bookmark you want and AI will propose one for you to accept, edit, or refine.</p>
+            <div class="form-group">
+                <label for="ai-prompt">Describe your bookmark</label>
+                <textarea id="ai-prompt" rows="3" placeholder="e.g. A shortcut 'hn' that searches Hacker News, or a nested bookmark for my GitHub and GitLab repos"></textarea>
+            </div>
+            <button type="button" id="ai-generate-btn" class="btn-primary">Generate proposal</button>
+            <span id="ai-status" style="margin-left: var(--space-3); color: var(--text-secondary);"></span>
+            <div id="ai-error" class="ai-error" style="display: none;"></div>
+
+            <!-- Proposal card -->
+            <div id="ai-proposal" class="ai-proposal" style="display: none;">
+                <h4>Proposed bookmark</h4>
+                <div id="ai-proposal-fields"></div>
+                <div class="ai-actions">
+                    <button type="button" id="ai-accept-btn" class="btn-primary">✓ Accept — create bookmark</button>
+                    <button type="button" id="ai-edit-btn" class="btn-secondary">✎ Edit manually</button>
+                    <button type="button" id="ai-followup-btn" class="btn-secondary">↩ Follow-up</button>
+                    <button type="button" id="ai-reject-btn" class="btn-danger">✗ Reject</button>
+                </div>
+                <div id="ai-accept-result" style="margin-top: var(--space-3);"></div>
+                <div id="ai-followup-box" style="display: none; margin-top: var(--space-4);">
+                    <div class="form-group">
+                        <label for="ai-followup-text">What should change?</label>
+                        <textarea id="ai-followup-text" rows="2" placeholder="e.g. Use alias 'hnews' instead, and search Algolia instead of the homepage"></textarea>
+                    </div>
+                    <button type="button" id="ai-followup-submit-btn" class="btn-primary">Send follow-up</button>
+                </div>
+            </div>
+            {% else %}
+            <p style="color: var(--text-secondary); margin: 0;">
+                AI creation isn't available for your account yet. Add your own provider in
+                <a href="/settings">Settings</a>, or ask an admin to enable AI.
+            </p>
+            {% endif %}
+        </div>
+
+        <h3>Or create manually</h3>
         <div id="create-result"></div>
 
         <form hx-post="/manage/bookmark"
@@ -382,5 +424,6 @@
 </div>
 
 <script src="/static/js/manage.js"></script>
+<script src="/static/js/ai_bookmark.js"></script>
 
 {% endblock %}

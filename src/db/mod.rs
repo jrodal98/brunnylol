@@ -1,5 +1,6 @@
 // Database module for user management and bookmarks
 
+pub mod ai;
 pub mod bookmarks;
 pub mod seed;
 
@@ -27,12 +28,18 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .await
         .context("Failed to enable foreign keys")?;
 
-    // Run single consolidated migration
+    // Run consolidated migrations (all idempotent, safe on every startup)
     let migration_sql = include_str!("../../migrations/001_initial_schema.sql");
     sqlx::query(migration_sql)
         .execute(&pool)
         .await
         .context("Failed to run migrations")?;
+
+    let ai_migration_sql = include_str!("../../migrations/002_ai_settings.sql");
+    sqlx::query(ai_migration_sql)
+        .execute(&pool)
+        .await
+        .context("Failed to run AI migrations")?;
 
     Ok(pool)
 }
