@@ -12,6 +12,12 @@ services:
     environment:
       # Database file path inside the container
       - BRUNNYLOL_DB=/data/brunnylol.db
+      # Optional: AI ("Create with AI") fallback config. These can also be
+      # set in the Admin Panel / user Settings UI, which take precedence
+      # per-field when set there.
+      # - BRUNNYLOL_AI_BASE_URL=https://api.openai.com/v1
+      # - BRUNNYLOL_AI_API_KEY=sk-...
+      # - BRUNNYLOL_AI_MODEL=gpt-4o-mini
     volumes:
       # Persist database to local directory
       # Change './brunnylol-data' to customize the host directory

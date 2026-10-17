@@ -80,6 +80,7 @@ struct ManageTemplate {
     global_bookmarks: Vec<GlobalBookmarkDisplay>,
     conflicts_text: String,
     has_conflicts: bool,
+    ai_available: bool,
 }
 
 #[derive(Clone)]
@@ -250,6 +251,13 @@ pub async fn manage_page(
     let has_conflicts = !conflicts.is_empty();
     let conflicts_text = conflicts.join(", ");
 
+    let ai_available = crate::services::ai_service::resolve_effective_config(
+        &state.db_pool,
+        &current_user.0,
+    )
+    .await
+    .is_some();
+
     let template = ManageTemplate {
         user: current_user.0,
         personal_bookmarks,
@@ -257,6 +265,7 @@ pub async fn manage_page(
         global_bookmarks,
         conflicts_text,
         has_conflicts,
+        ai_available,
     };
 
     Ok(Html(template.render()?))

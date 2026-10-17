@@ -22,6 +22,12 @@ pub async fn setup_test_db() -> SqlitePool {
         .await
         .expect("Failed to run migration 001");
 
+    let ai_migration = include_str!("../../migrations/002_ai_settings.sql");
+    sqlx::query(ai_migration)
+        .execute(&pool)
+        .await
+        .expect("Failed to run migration 002");
+
     pool
 }
 
@@ -37,9 +43,7 @@ pub async fn create_admin_user(pool: &SqlitePool) -> (i64, String) {
         .unwrap();
 
     // Create session
-    let session_id = brunnylol::db::create_session(pool, user.id)
-        .await
-        .unwrap();
+    let session_id = brunnylol::db::create_session(pool, user.id).await.unwrap();
 
     (user.id, session_id)
 }
@@ -58,7 +62,7 @@ pub fn add_test_socket_addr<B>(mut req: axum::http::Request<B>) -> axum::http::R
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};
     req.extensions_mut().insert(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
-        8000
+        8000,
     ));
     req
 }

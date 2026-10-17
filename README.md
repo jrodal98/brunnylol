@@ -73,6 +73,40 @@ docker compose up -d
 
 - `BRUNNYLOL_PORT` - Server port (default: 8000)
 - `BRUNNYLOL_DB` - Database file path (default: brunnylol.db)
+- `BRUNNYLOL_AI_BASE_URL` - Fallback OpenAI-compatible base URL for AI features (`OPENAI_BASE_URL` also works)
+- `BRUNNYLOL_AI_API_KEY` - Fallback AI API token (`OPENAI_API_KEY` also works)
+- `BRUNNYLOL_AI_MODEL` - Fallback AI model name (`OPENAI_MODEL` also works)
+
+### AI Bookmark Creation ("Create with AI")
+
+On the **Create Bookmark** tab of `/manage`, describe the bookmark you want
+and an AI model will propose one. You can **Accept** it (creates the
+bookmark), **Reject** it, **Edit** it (loads the proposal into the manual
+form, prefilled), or send a **Follow-up** message to have the AI revise it
+with more context.
+
+AI is configured at two levels, with the same fields at each level
+(OpenAI-compatible **base URL**, **API token**, and **model**):
+
+- **Admin (Admin Panel → AI Settings):** sets the shared configuration.
+  Any field left blank falls back to the `BRUNNYLOL_AI_*` / `OPENAI_*`
+  environment variables above. The admin also chooses who may use the
+  shared configuration: nobody, all admins, all users, or only selected
+  users.
+- **User (Settings → AI Settings):** sets a personal configuration that
+  applies only to that user and takes precedence over the shared one when
+  complete (all three fields). Leaving the fields blank uses the shared
+  configuration; unchecking "Enable AI features" opts the user out
+  entirely.
+
+API tokens are stored server-side and never displayed again after saving.
+
+The feature is built on a reusable service (`src/services/ai_service.rs`)
+and a surface-agnostic JSON API, so future surfaces (an "edit with AI"
+flow, a browser extension, ...) can reuse it:
+
+- `GET /api/ai/status` — whether AI is available to the signed-in user, and from which config source.
+- `POST /api/ai/bookmark/propose` — JSON body `{ "message": "...", "history": [{"role": "user"|"assistant", "content": "..."}], "previous_proposal": { ... } }`; returns `{ "proposal": { "alias", "bookmark_type", "url", "description", "command_template", "nested_commands" }, "model", "source" }`. Send `history` and `previous_proposal` back on follow-ups; the server is stateless.
 
 ### Bookmark Types
 

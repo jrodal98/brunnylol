@@ -252,18 +252,65 @@ struct SettingsTemplate {
     is_admin: bool,
     default_alias_value: String,
     has_default_alias: bool,
+    // Personal AI settings
+    ai_enabled: bool,
+    ai_base_url: String,
+    ai_model: String,
+    ai_has_api_key: bool,
+    // Effective AI availability for this user
+    ai_available: bool,
+    ai_source: String,
+    ai_effective_model: String,
 }
 
 // GET /settings - User settings page
 pub async fn settings_page(
     current_user: CurrentUser,
+    State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
     let has_default_alias = current_user.0.default_alias.is_some();
     let default_alias_value = current_user.0.default_alias.clone().unwrap_or_default();
+
+    let personal = db::ai::get_user_ai_settings(&state.db_pool, current_user.0.id)
+        .await
+        .ok()
+        .flatten();
+    // Users who never saved AI settings are treated as enabled.
+    let ai_enabled = personal.as_ref().map(|p| p.enabled).unwrap_or(true);
+    let ai_base_url = personal
+        .as_ref()
+        .and_then(|p| p.base_url.clone())
+        .unwrap_or_default();
+    let ai_model = personal
+        .as_ref()
+        .and_then(|p| p.model.clone())
+        .unwrap_or_default();
+    let ai_has_api_key = personal
+        .as_ref()
+        .map(|p| p.api_key.is_some())
+        .unwrap_or(false);
+
+    let effective = crate::services::ai_service::resolve_effective_config(
+        &state.db_pool,
+        &current_user.0,
+    )
+    .await;
+    let (ai_available, ai_source, ai_effective_model) = match effective {
+        Some(cfg) => (true, cfg.source.as_str().to_string(), cfg.model),
+        None => (false, String::new(), String::new()),
+    };
+
     let template = SettingsTemplate {
         is_admin: current_user.0.is_admin,
         default_alias_value,
         has_default_alias,
+        ai_enabled,
+        ai_base_url,
+        ai_model,
+        ai_has_api_key,
+        ai_available,
+        ai_source,
+        ai_effective_model,
     };
     Ok(Html(template.render()?))
 }

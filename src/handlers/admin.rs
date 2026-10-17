@@ -16,6 +16,14 @@ use super::common::{ErrorTemplate, SuccessTemplate, SuccessWithLinkTemplate};
 #[template(path = "admin.html")]
 struct AdminTemplate {
     users: Vec<UserDisplay>,
+    // Shared AI settings
+    ai_base_url: String,
+    ai_model: String,
+    ai_has_api_key: bool,
+    ai_access_mode: String,
+    ai_env_base_url: String,
+    ai_env_model: String,
+    ai_env_has_api_key: bool,
 }
 
 #[derive(Clone)]
@@ -24,6 +32,7 @@ struct UserDisplay {
     username: String,
     is_admin: bool,
     bookmark_count: usize,
+    ai_allowed: bool,
 }
 
 // GET /admin - Admin panel
@@ -41,10 +50,22 @@ pub async fn admin_page(
         .await
         .db_err()?;
 
+    // Shared AI settings + env fallback + allow-list
+    let ai_settings = db::ai::get_global_ai_settings(&state.db_pool)
+        .await
+        .db_err()?;
+    let env_ai = crate::services::ai_service::EnvAiConfig::from_env();
+    let allowed_ids: std::collections::HashSet<i64> = db::ai::get_allowed_user_ids(&state.db_pool)
+        .await
+        .db_err()?
+        .into_iter()
+        .collect();
+
     let users_display: Vec<UserDisplay> = all_users
         .into_iter()
         .map(|user| {
             UserDisplay {
+                ai_allowed: allowed_ids.contains(&user.id),
                 id: user.id,
                 username: user.username,
                 is_admin: user.is_admin,
@@ -55,6 +76,13 @@ pub async fn admin_page(
 
     let template = AdminTemplate {
         users: users_display,
+        ai_base_url: ai_settings.base_url.clone().unwrap_or_default(),
+        ai_model: ai_settings.model.clone().unwrap_or_default(),
+        ai_has_api_key: ai_settings.api_key.is_some(),
+        ai_access_mode: ai_settings.access_mode.clone(),
+        ai_env_base_url: env_ai.base_url.clone().unwrap_or_default(),
+        ai_env_model: env_ai.model.clone().unwrap_or_default(),
+        ai_env_has_api_key: env_ai.api_key.is_some(),
     };
 
     Ok(Html(template.render()?))
