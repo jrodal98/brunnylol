@@ -1,0 +1,31 @@
+<tr>
+    <td>{{ user_item.id }}</td>
+    <td><strong>{{ user_item.username }}</strong></td>
+    <td>
+        {% if user_item.is_admin %}
+        <span class="admin-badge">ADMIN</span>
+        {% else %}
+        User
+        {% endif %}
+    </td>
+    <td>{{ user_item.bookmark_count }} bookmark(s)</td>
+    <td>
+        {% if user_item.id == current_user_id %}
+        <span style="color: var(--text-secondary);">(you)</span>
+        {% else %}
+        <button class="btn-secondary"
+                hx-post="/admin/users/{{ user_item.id }}/toggle-admin"
+                hx-target="closest tr"
+                hx-swap="outerHTML">
+            {% if user_item.is_admin %}Remove admin{% else %}Make admin{% endif %}
+        </button>
+        <button class="btn-danger"
+                hx-post="/admin/users/{{ user_item.id }}/delete"
+                hx-target="closest tr"
+                hx-swap="outerHTML swap:500ms"
+                hx-confirm="Delete user '{{ user_item.username }}' and all of their bookmarks? This can't be undone.">
+            Delete
+        </button>
+        {% endif %}
+    </td>
+</tr>

@@ -28,8 +28,10 @@
         </button>
     </form>
 
+    {% if registration_open %}
     <p class="text-center" style="margin-top: var(--space-5);">
         Don't have an account? <a href="/register" style="color: var(--gradient-start); font-weight: 600;">Register here</a>
     </p>
+    {% endif %}
 </div>
 {% endblock %}

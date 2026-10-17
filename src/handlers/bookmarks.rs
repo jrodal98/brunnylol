@@ -83,6 +83,15 @@ struct ManageTemplate {
     ai_available: bool,
 }
 
+/// A single My Bookmarks table row. The update endpoint returns this
+/// with hx-swap-oob set (see templates/partials/bookmark_row.html) so the
+/// row refreshes in place after an edit.
+#[derive(Template)]
+#[template(path = "partials/bookmark_row.html")]
+struct BookmarkRowTemplate {
+    bookmark: BookmarkDisplay,
+}
+
 #[derive(Clone)]
 struct BookmarkDisplay {
     id: i64,
@@ -392,7 +401,33 @@ pub async fn update_bookmark(
 
     let message = format!("Bookmark '{}' updated successfully!", form.alias);
     let template = SuccessTemplate { message: &message };
-    Ok(Html(template.render()?))
+    let mut html = template.render()?;
+
+    // Include the refreshed row as an out-of-band swap so the bookmarks
+    // list reflects the edit immediately (it previously kept showing the
+    // old values until a manual page reload).
+    if let Ok(Some(updated)) = db::get_bookmark_by_id(&state.db_pool, bookmark_id).await {
+        let nested_count = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
+            .await
+            .map(|n| n.len())
+            .unwrap_or(0);
+        let row = BookmarkRowTemplate {
+            bookmark: BookmarkDisplay {
+                id: updated.id,
+                alias: updated.alias,
+                bookmark_type: updated.bookmark_type,
+                url: updated.url,
+                description: updated.description,
+                command_template: updated.command_template.unwrap_or_default(),
+                nested_count,
+            },
+        };
+        if let Ok(row_html) = row.render() {
+            html.push_str(&row_html);
+        }
+    }
+
+    Ok(Html(html))
 }
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark

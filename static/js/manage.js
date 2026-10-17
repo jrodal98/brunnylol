@@ -319,6 +319,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Wire up edit buttons using data attributes (XSS-safe)
     document.querySelectorAll('.btn-edit').forEach(function(btn) {
+        btn.setAttribute('data-listener-attached', 'true');
         btn.addEventListener('click', function() {
             showEditForm(
                 this.dataset.id,
@@ -344,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Wire up nested manager buttons using data attributes (XSS-safe)
     document.querySelectorAll('.btn-nested-manager').forEach(function(btn) {
+        btn.setAttribute('data-listener-attached', 'true');
         btn.addEventListener('click', function() {
             showNestedManager(this.dataset.id, this.dataset.alias);
         });
@@ -351,6 +353,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Re-attach event listeners after HTMX swaps content
     document.body.addEventListener('htmx:afterSwap', function(event) {
+        // Re-wire personal edit buttons after an out-of-band row swap
+        // (e.g. the updated row returned by the edit endpoint)
+        document.querySelectorAll('.btn-edit').forEach(function(btn) {
+            if (!btn.hasAttribute('data-listener-attached')) {
+                btn.setAttribute('data-listener-attached', 'true');
+                btn.addEventListener('click', function() {
+                    showEditForm(
+                        this.dataset.id,
+                        this.dataset.alias,
+                        this.dataset.url,
+                        this.dataset.description,
+                        this.dataset.template
+                    );
+                });
+            }
+        });
+
+        // Re-wire nested manager buttons after row swap
+        document.querySelectorAll('.btn-nested-manager').forEach(function(btn) {
+            if (!btn.hasAttribute('data-listener-attached')) {
+                btn.setAttribute('data-listener-attached', 'true');
+                btn.addEventListener('click', function() {
+                    showNestedManager(this.dataset.id, this.dataset.alias);
+                });
+            }
+        });
+
         // Re-wire global edit buttons after row swap
         document.querySelectorAll('.btn-edit-global').forEach(function(btn) {
             if (!btn.hasAttribute('data-listener-attached')) {
@@ -367,3 +396,19 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Client-side filter for the My Bookmarks table (mirrors the Help page's
+// alias search): hides rows that don't match, shows an empty-state row
+// when nothing matches.
+function filterPersonalBookmarks(query) {
+    var q = (query || '').toLowerCase().trim();
+    var rows = document.querySelectorAll('#personal-bookmarks-body tr[id^="bookmark-"]');
+    var visible = 0;
+    rows.forEach(function(row) {
+        var match = row.textContent.toLowerCase().includes(q);
+        row.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    var empty = document.getElementById('personal-filter-empty');
+    if (empty) empty.style.display = visible === 0 ? '' : 'none';
+}

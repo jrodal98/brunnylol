@@ -1,47 +1,47 @@
 - alias: g
   url: https://www.google.com
   command: "{url}/search?q={query}"
-  description: Search google
+  description: Search Google
 
 - alias: ddg
   url: https://www.duckduckgo.com
   command: "{url}/?q={query}"
-  description: Search duckduckgo
+  description: Search DuckDuckGo
 
 - alias: yt
   url: https://www.youtube.com
   command: "{url}/results?search_query={query}"
-  description: Search youtube
+  description: Search YouTube
 
 - alias: b
   url: https://www.bing.com
   command: "{url}/search?q={query}"
-  description: Search bing
+  description: Search Bing
 
 - alias: w
   url: https://www.wikipedia.org
   command: "{url}/wiki/Special:Search/{query}"
-  description: Search wikipedia
+  description: Search Wikipedia
 
 - alias: aw
   url: https://wiki.archlinux.org
   command: "{url}/index.php?title=Special%3ASearch&search={query}"
-  description: Search the arch wiki
+  description: Search the Arch Wiki
 
 - alias: def
   url: https://www.dictionary.com
   command: "{url}/browse/{query}?s=t"
-  description: Define a word with dictionary.com
+  description: Define a word with Dictionary.com
 
 - alias: wut
   url: https://www.urbandictionary.com
   command: "{url}/define.php?term={query}"
-  description: Searches for a phrase on urban dictionary
+  description: Search for a phrase on Urban Dictionary
 
 - alias: am
   url: https://amazon.com
   command: "{url}/s?k={query}&ref=nb_sb_noss_2"
-  description: Search amazon
+  description: Search Amazon
 
 - alias: fb
   url: https://www.facebook.com
@@ -51,7 +51,7 @@
 - alias: ig
   url: https://www.instagram.com
   command: "{url}/{query}/"
-  description: Search instagram
+  description: Search Instagram
 
 - alias: li
   url: https://www.linkedin.com
@@ -61,31 +61,31 @@
 - alias: img
   url: https://images.google.com
   command: "{url}/images?um=1&hl=en&safe=active&nfpr=1&q={query}"
-  description: Search google images
+  description: Search Google Images
 
 - alias: dbl
   url: http://localhost:8000/
   command: "{url}search?q={query}"
-  description: Forward the query to your local version of brunnylol (port 8000)
+  description: Forward the query to your local version of Brunnylol (port 8000)
 
 - alias: eb
   url: https://www.ebay.com
   command: "{url}/sch/i.html?_from=R40&_trksid=p2380057.m570.l1313&_nkw={query}&_sacat=0"
-  description: Search ebay
+  description: Search eBay
 
 - alias: maps
   url: https://www.google.com/maps
   command: "{url}/search/{query}"
-  description: Search Google maps
+  description: Search Google Maps
 
 - alias: so
   url: https://stackoverflow.com
   command: "{url}/search?q={query}"
-  description: Search questions on stackoverflow
+  description: Search questions on Stack Overflow
 
 - alias: help
   url: /help
-  description: Go to brunnylol's help page
+  description: Go to Brunnylol's help page
 
 - alias: bl
   url: /
@@ -95,7 +95,7 @@
 - alias: gh
   url: https://github.com
   command: "{url}/{query|!encode}"
-  description: Go to github repo
+  description: Go to a GitHub repo
 
 - alias: pr
   url: https://proton.me

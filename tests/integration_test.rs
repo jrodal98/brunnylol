@@ -64,8 +64,9 @@ async fn test_help_page_contains_google_alias() {
         .unwrap();
     let body_str = String::from_utf8(body.to_vec()).unwrap();
 
-    // Should contain the google alias from commands.yml
-    assert!(body_str.contains(">g<") || body_str.contains("google"));
+    // Should contain the google alias from commands.yml (matched via its
+    // description; the alias cell itself is whitespace-padded markup)
+    assert!(body_str.contains("Search Google"));
 }
 
 #[tokio::test]

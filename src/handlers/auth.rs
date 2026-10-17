@@ -53,6 +53,7 @@ fn sanitize_return_url(url: &str) -> String {
 struct LoginTemplate {
     error: String,
     return_to: String,
+    registration_open: bool,
 }
 
 #[derive(Template)]
@@ -60,6 +61,7 @@ struct LoginTemplate {
 struct RegisterTemplate {
     error: String,
     is_first_user: bool,
+    registration_open: bool,
 }
 
 // Form structs
@@ -86,6 +88,7 @@ pub struct RegisterForm {
 // GET /login - Show login page
 pub async fn login_page(
     optional_user: auth::middleware::OptionalUser,
+    State(state): State<Arc<crate::AppState>>,
     Query(query): Query<LoginQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     // If already logged in, redirect to manage
@@ -97,6 +100,7 @@ pub async fn login_page(
     let template = LoginTemplate {
         error: String::new(),
         return_to,
+        registration_open: db::registration_open(&state.db_pool).await,
     };
     Ok(Html(template.render()?).into_response())
 }
@@ -112,13 +116,16 @@ pub async fn login_submit(
         .await
         .db_err()?;
 
-    let (user_id, password_hash, _is_admin) = user_data.ok_or(AppError::Unauthorized(
-        "Invalid username or password".to_string(),
-    ))?;
-
-    // Verify password
-    let valid = auth::verify_password(&form.password, &password_hash)
-        .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?;
+    // Verify credentials. An unknown username takes the same path as a
+    // wrong password so the error renders on the login page. (Previously
+    // an unknown username propagated AppError::Unauthorized, which the
+    // error handler treats as a *return path* and redirected to
+    // /login?return=<message> — where the message was never displayed.)
+    let valid = match &user_data {
+        Some((_, password_hash, _)) => auth::verify_password(&form.password, password_hash)
+            .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?,
+        None => false,
+    };
 
     if !valid {
         // Return login page with error, preserve return_to
@@ -127,9 +134,13 @@ pub async fn login_submit(
         let template = LoginTemplate {
             error: "Invalid username or password".to_string(),
             return_to,
+            registration_open: db::registration_open(&state.db_pool).await,
         };
         return Ok(Html(template.render()?).into_response());
     }
+
+    // Credentials are valid, so the user exists.
+    let (user_id, _, _) = user_data.expect("user exists after successful login");
 
     // Create session
     let session_id = db::create_session(&state.db_pool, user_id)
@@ -164,6 +175,7 @@ pub async fn register_page(
     let template = RegisterTemplate {
         error: String::new(),
         is_first_user: count == 0,
+        registration_open: count == 0,
     };
     Ok(Html(template.render()?))
 }
@@ -192,6 +204,7 @@ pub async fn register_submit(
         let template = RegisterTemplate {
             error: e.to_string(),
             is_first_user: count == 0,
+            registration_open: count == 0,
         };
         return Ok(Html(template.render()?).into_response());
     }
@@ -201,6 +214,7 @@ pub async fn register_submit(
         let template = RegisterTemplate {
             error: e.to_string(),
             is_first_user: count == 0,
+            registration_open: count == 0,
         };
         return Ok(Html(template.render()?).into_response());
     }
@@ -210,6 +224,7 @@ pub async fn register_submit(
         let template = RegisterTemplate {
             error: e.to_string(),
             is_first_user: count == 0,
+            registration_open: count == 0,
         };
         return Ok(Html(template.render()?).into_response());
     }
