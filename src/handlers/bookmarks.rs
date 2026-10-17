@@ -83,13 +83,16 @@ struct ManageTemplate {
     ai_available: bool,
 }
 
-/// A single My Bookmarks table row. The update endpoint returns this
-/// with hx-swap-oob set (see templates/partials/bookmark_row.html) so the
-/// row refreshes in place after an edit.
+/// The My Bookmarks table. The update endpoint returns this with
+/// hx-swap-oob set (see templates/partials/personal_bookmarks_table.html)
+/// so the whole table refreshes in place after an edit. A whole table is
+/// used rather than a single row because a bare <tr> in an HTMX response
+/// targeted at a <div> is dropped by the HTML parser before the
+/// out-of-band swap can find it; a complete <table> parses intact.
 #[derive(Template)]
-#[template(path = "partials/bookmark_row.html")]
-struct BookmarkRowTemplate {
-    bookmark: BookmarkDisplay,
+#[template(path = "partials/personal_bookmarks_table.html")]
+struct PersonalBookmarksTableTemplate {
+    personal_bookmarks: Vec<BookmarkDisplay>,
 }
 
 #[derive(Clone)]
@@ -403,27 +406,33 @@ pub async fn update_bookmark(
     let template = SuccessTemplate { message: &message };
     let mut html = template.render()?;
 
-    // Include the refreshed row as an out-of-band swap so the bookmarks
+    // Include the refreshed bookmarks table as an out-of-band swap so the
     // list reflects the edit immediately (it previously kept showing the
     // old values until a manual page reload).
-    if let Ok(Some(updated)) = db::get_bookmark_by_id(&state.db_pool, bookmark_id).await {
-        let nested_count = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
-            .await
-            .map(|n| n.len())
-            .unwrap_or(0);
-        let row = BookmarkRowTemplate {
-            bookmark: BookmarkDisplay {
-                id: updated.id,
-                alias: updated.alias,
-                bookmark_type: updated.bookmark_type,
-                url: updated.url,
-                description: updated.description,
-                command_template: updated.command_template.unwrap_or_default(),
-                nested_count,
-            },
+    if let Ok(bookmarks_with_nested) = db::get_bookmarks_with_nested(
+        &state.db_pool,
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        },
+    )
+    .await
+    {
+        let table = PersonalBookmarksTableTemplate {
+            personal_bookmarks: bookmarks_with_nested
+                .into_iter()
+                .map(|(bookmark, nested)| BookmarkDisplay {
+                    id: bookmark.id,
+                    alias: bookmark.alias,
+                    bookmark_type: bookmark.bookmark_type,
+                    url: bookmark.url,
+                    description: bookmark.description,
+                    command_template: bookmark.command_template.unwrap_or_default(),
+                    nested_count: nested.len(),
+                })
+                .collect(),
         };
-        if let Ok(row_html) = row.render() {
-            html.push_str(&row_html);
+        if let Ok(table_html) = table.render() {
+            html.push_str(&table_html);
         }
     }
 

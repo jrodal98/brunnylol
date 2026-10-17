@@ -243,6 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
         bookmarkTypeSelect.addEventListener('change', toggleFields);
     }
 
+    // Wire up the My Bookmarks filter box
+    const personalFilter = document.getElementById('personal-filter');
+    if (personalFilter) {
+        personalFilter.addEventListener('input', function() {
+            filterPersonalBookmarks(this.value);
+        });
+    }
+
     // Wire up add nested button
     const addNestedBtn = document.getElementById('add-nested-btn');
     if (addNestedBtn) {
