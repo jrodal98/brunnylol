@@ -25,6 +25,37 @@ use crate::{
 use askama::Template;
 
 // ---------------------------------------------------------------------------
+// Template view structs
+//
+// Grouped AI view data for the admin and settings pages, so the page
+// templates take one `ai` field instead of a pile of flat `ai_*` fields.
+// ---------------------------------------------------------------------------
+
+/// AI section of the admin page: the shared config as stored, plus what
+/// the environment fallback currently provides.
+pub struct AdminAiSettingsView {
+    pub base_url: String,
+    pub model: String,
+    pub has_api_key: bool,
+    pub access_mode: String,
+    pub env_base_url: String,
+    pub env_model: String,
+    pub env_has_api_key: bool,
+}
+
+/// AI section of the user settings page: the user's own stored config,
+/// plus the effective availability resolved for them.
+pub struct UserAiSettingsView {
+    pub enabled: bool,
+    pub base_url: String,
+    pub model: String,
+    pub has_api_key: bool,
+    pub available: bool,
+    pub source: String,
+    pub effective_model: String,
+}
+
+// ---------------------------------------------------------------------------
 // JSON API
 // ---------------------------------------------------------------------------
 
@@ -97,6 +128,7 @@ pub async fn propose_bookmark(
         "proposal": outcome.proposal,
         "model": outcome.model,
         "source": outcome.source.as_str(),
+        "attempts": outcome.attempts,
     })))
 }
 

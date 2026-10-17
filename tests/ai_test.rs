@@ -391,6 +391,10 @@ async fn test_propose_with_mock_provider_and_follow_up() {
         .unwrap();
     assert_eq!(first.proposal.alias, "hn");
     assert_eq!(first.model, "mock-model");
+    assert_eq!(
+        first.attempts, 1,
+        "valid first proposal should take one attempt"
+    );
 
     // Follow-up shape: history + previous proposal are accepted.
     let previous: BookmarkProposal = serde_json::from_str(proposal_json).unwrap();
@@ -415,4 +419,157 @@ async fn test_propose_with_mock_provider_and_follow_up() {
         .await
         .unwrap();
     assert_eq!(follow_up.proposal.alias, "hn");
+}
+
+// ---------------------------------------------------------------------------
+// Validation retry loop: invalid proposals are fed back to the model
+// ---------------------------------------------------------------------------
+
+/// Spawn a mock provider that returns `contents` in order (repeating the
+/// last one), counting how many times it was called.
+async fn spawn_sequence_mock(
+    contents: Vec<String>,
+) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use axum::{extract::State as AxumState, routing::post, Json, Router};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+
+    #[derive(Clone)]
+    struct MockState {
+        calls: Arc<AtomicUsize>,
+        contents: Arc<Vec<String>>,
+    }
+
+    async fn handler(AxumState(st): AxumState<MockState>) -> Json<serde_json::Value> {
+        let i = st.calls.fetch_add(1, Ordering::SeqCst);
+        let idx = i.min(st.contents.len() - 1);
+        let content = st.contents[idx].clone();
+        Json(serde_json::json!({
+            "id": "chatcmpl-test",
+            "object": "chat.completion",
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop"
+            }]
+        }))
+    }
+
+    let calls = Arc::new(AtomicUsize::new(0));
+    let state = MockState {
+        calls: calls.clone(),
+        contents: Arc::new(contents),
+    };
+    let mock = Router::new()
+        .route("/chat/completions", post(handler))
+        .with_state(state);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, mock).await.unwrap();
+    });
+    (format!("http://{}", addr), calls)
+}
+
+fn test_config(base_url: String) -> ResolvedAiConfig {
+    ResolvedAiConfig {
+        base_url,
+        api_key: "sk-test".to_string(),
+        model: "mock-model".to_string(),
+        source: AiConfigSource::Personal,
+    }
+}
+
+const VALID_PROPOSAL: &str = r#"{"alias":"hn","bookmark_type":"templated","url":"https://news.ycombinator.com","description":"Search Hacker News","command_template":"{url}/search?q={query}","nested_commands":[]}"#;
+const INVALID_PROPOSAL: &str = r#"{"alias":"hn","bookmark_type":"templated","url":"javascript:alert(1)","description":"Search Hacker News","command_template":"{url}/search?q={query}","nested_commands":[]}"#;
+
+#[tokio::test]
+async fn test_propose_retries_after_invalid_proposal() {
+    use std::sync::atomic::Ordering;
+
+    // First response fails validation (bad URL scheme), second is valid.
+    let (base_url, calls) = spawn_sequence_mock(vec![
+        INVALID_PROPOSAL.to_string(),
+        VALID_PROPOSAL.to_string(),
+    ])
+    .await;
+
+    let outcome = AiService::new()
+        .propose_with_config(
+            &test_config(base_url),
+            &ProposeRequest {
+                message: "a shortcut to search Hacker News".to_string(),
+                history: vec![],
+                previous_proposal: None,
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(outcome.proposal.alias, "hn");
+    assert_eq!(outcome.attempts, 2);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        2,
+        "model should be called twice"
+    );
+}
+
+#[tokio::test]
+async fn test_propose_retries_after_unparseable_response() {
+    use std::sync::atomic::Ordering;
+
+    // First response is not JSON at all, second is a valid proposal.
+    let (base_url, calls) = spawn_sequence_mock(vec![
+        "Sure! Here is your bookmark: hn -> Hacker News".to_string(),
+        VALID_PROPOSAL.to_string(),
+    ])
+    .await;
+
+    let outcome = AiService::new()
+        .propose_with_config(
+            &test_config(base_url),
+            &ProposeRequest {
+                message: "a shortcut to search Hacker News".to_string(),
+                history: vec![],
+                previous_proposal: None,
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(outcome.attempts, 2);
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+}
+
+#[tokio::test]
+async fn test_propose_gives_up_after_three_invalid_attempts() {
+    use std::sync::atomic::Ordering;
+
+    let (base_url, calls) = spawn_sequence_mock(vec![INVALID_PROPOSAL.to_string()]).await;
+
+    let result = AiService::new()
+        .propose_with_config(
+            &test_config(base_url),
+            &ProposeRequest {
+                message: "a shortcut to search Hacker News".to_string(),
+                history: vec![],
+                previous_proposal: None,
+            },
+        )
+        .await;
+
+    let err = result.expect_err("always-invalid proposals must fail");
+    assert!(
+        err.to_string().contains("after 3 attempts"),
+        "error should mention the attempt limit, got: {}",
+        err
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        3,
+        "model should be called exactly 3 times"
+    );
 }

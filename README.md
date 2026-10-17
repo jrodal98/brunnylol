@@ -83,7 +83,10 @@ On the **Create Bookmark** tab of `/manage`, describe the bookmark you want
 and an AI model will propose one. You can **Accept** it (creates the
 bookmark), **Reject** it, **Edit** it (loads the proposal into the manual
 form, prefilled), or send a **Follow-up** message to have the AI revise it
-with more context.
+with more context. Proposals are validated with the same rules as the
+manual form before they are ever shown; if a proposal fails validation,
+the error is fed back to the model and it retries behind the scenes, up
+to 3 attempts per request.
 
 AI is configured at two levels, with the same fields at each level
 (OpenAI-compatible **base URL**, **API token**, and **model**):

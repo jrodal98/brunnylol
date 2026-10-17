@@ -255,7 +255,16 @@ pub struct ProposeOutcome {
     pub proposal: BookmarkProposal,
     pub model: String,
     pub source: AiConfigSource,
+    /// How many model calls were needed (1 = first proposal was valid;
+    /// higher means earlier proposals failed validation and were fed
+    /// back to the model for correction).
+    pub attempts: u32,
 }
+
+/// Maximum number of model calls per proposal request. A proposal that
+/// fails validation is fed back to the model with the validation error
+/// and retried, up to this many total attempts.
+pub const MAX_PROPOSAL_ATTEMPTS: u32 = 3;
 
 const SYSTEM_PROMPT: &str = r#"You design bookmarks for brunnylol, a bunnylol-style bookmark service. Given a user's description, propose exactly one bookmark.
 
@@ -446,6 +455,77 @@ impl AiService {
 
         messages.push(serde_json::json!({"role": "user", "content": request.message}));
 
+        // Validation retry loop: a proposal is only ever returned to the
+        // caller after parse_proposal (which validates it with the same
+        // rules as the manual create form) accepts it. When validation
+        // fails, the invalid response and the validation error are fed
+        // back to the model and it tries again, behind the scenes, up to
+        // MAX_PROPOSAL_ATTEMPTS total attempts.
+        let mut last_error = String::new();
+        for attempt in 1..=MAX_PROPOSAL_ATTEMPTS {
+            let content = match self.call_model(config, &messages).await {
+                Ok(content) => content,
+                // Unusable envelope (e.g. empty content): counts as a
+                // failed attempt, fed back like a validation failure.
+                Err(ModelCallError::InvalidResponse(reason)) => {
+                    last_error = reason;
+                    if attempt < MAX_PROPOSAL_ATTEMPTS {
+                        messages.push(serde_json::json!({
+                            "role": "user",
+                            "content": format!(
+                                "Your previous response could not be used: {}. Respond with ONLY the corrected proposal JSON object, no commentary.",
+                                last_error
+                            ),
+                        }));
+                    }
+                    continue;
+                }
+                // Transport / HTTP errors are not the model's output being
+                // invalid; fail immediately instead of retrying.
+                Err(ModelCallError::Fatal(e)) => return Err(e),
+            };
+
+            match parse_proposal(&content) {
+                Ok(proposal) => {
+                    return Ok(ProposeOutcome {
+                        proposal,
+                        model: config.model.clone(),
+                        source: config.source,
+                        attempts: attempt,
+                    });
+                }
+                Err(e) => {
+                    last_error = e.to_string();
+                    if attempt < MAX_PROPOSAL_ATTEMPTS {
+                        messages.push(serde_json::json!({
+                            "role": "assistant",
+                            "content": content,
+                        }));
+                        messages.push(serde_json::json!({
+                            "role": "user",
+                            "content": format!(
+                                "That proposal is invalid: {}. Fix the problem and respond with ONLY the corrected proposal JSON object, no commentary.",
+                                last_error
+                            ),
+                        }));
+                    }
+                }
+            }
+        }
+
+        Err(anyhow!(
+            "AI could not produce a valid bookmark proposal after {} attempts (last error: {})",
+            MAX_PROPOSAL_ATTEMPTS,
+            last_error
+        ))
+    }
+
+    /// One chat-completions call. Returns the assistant message content.
+    async fn call_model(
+        &self,
+        config: &ResolvedAiConfig,
+        messages: &[serde_json::Value],
+    ) -> Result<String, ModelCallError> {
         let body = serde_json::json!({
             "model": config.model,
             "messages": messages,
@@ -464,7 +544,9 @@ impl AiService {
             .json(&body)
             .send()
             .await
-            .context("Failed to reach the AI provider")?;
+            .map_err(|e| {
+                ModelCallError::Fatal(anyhow!(e).context("Failed to reach the AI provider"))
+            })?;
 
         let status = response.status();
         if !status.is_success() {
@@ -477,24 +559,33 @@ impl AiService {
                 .chars()
                 .take(300)
                 .collect();
-            return Err(anyhow!("AI provider returned {}: {}", status, snippet));
+            return Err(ModelCallError::Fatal(anyhow!(
+                "AI provider returned {}: {}",
+                status,
+                snippet
+            )));
         }
 
-        let payload: serde_json::Value = response
-            .json()
-            .await
-            .context("AI provider returned invalid JSON")?;
+        let payload: serde_json::Value = response.json().await.map_err(|e| {
+            ModelCallError::InvalidResponse(format!("AI provider returned invalid JSON: {}", e))
+        })?;
 
-        let content = payload
+        payload
             .pointer("/choices/0/message/content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("AI provider returned an empty response"))?;
-
-        let proposal = parse_proposal(content)?;
-        Ok(ProposeOutcome {
-            proposal,
-            model: config.model.clone(),
-            source: config.source,
-        })
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.to_string())
+            .ok_or(ModelCallError::InvalidResponse(
+                "AI provider returned an empty response".to_string(),
+            ))
     }
+}
+
+/// How a single model call failed.
+/// - `Fatal`: not worth retrying (transport error, HTTP error status).
+/// - `InvalidResponse`: the provider answered but the envelope/content
+///   was unusable; treated like a failed validation attempt.
+enum ModelCallError {
+    Fatal(anyhow::Error),
+    InvalidResponse(String),
 }

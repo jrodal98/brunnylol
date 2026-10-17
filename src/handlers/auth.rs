@@ -9,8 +9,14 @@ use axum_extra::extract::cookie::{Cookie, CookieJar};
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth, auth::middleware::CurrentUser, db, error::{AppError, DbResultExt}, validation};
 use super::common::{ErrorTemplate, SuccessTemplate, SuccessWithLinkTemplate};
+use crate::{
+    auth,
+    auth::middleware::CurrentUser,
+    db,
+    error::{AppError, DbResultExt},
+    validation,
+};
 
 /// Build a secure session cookie with consistent settings
 fn build_session_cookie(session_id: String) -> Cookie<'static> {
@@ -106,8 +112,9 @@ pub async fn login_submit(
         .await
         .db_err()?;
 
-    let (user_id, password_hash, _is_admin) = user_data
-        .ok_or(AppError::Unauthorized("Invalid username or password".to_string()))?;
+    let (user_id, password_hash, _is_admin) = user_data.ok_or(AppError::Unauthorized(
+        "Invalid username or password".to_string(),
+    ))?;
 
     // Verify password
     let valid = auth::verify_password(&form.password, &password_hash)
@@ -115,7 +122,8 @@ pub async fn login_submit(
 
     if !valid {
         // Return login page with error, preserve return_to
-        let return_to = sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
+        let return_to =
+            sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
         let template = LoginTemplate {
             error: "Invalid username or password".to_string(),
             return_to,
@@ -130,7 +138,8 @@ pub async fn login_submit(
 
     // Set secure cookie and redirect
     let cookie = build_session_cookie(session_id);
-    let redirect_url = sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
+    let redirect_url =
+        sanitize_return_url(&form.return_to.unwrap_or_else(|| "/manage".to_string()));
     Ok((jar.add(cookie), Redirect::to(&redirect_url)).into_response())
 }
 
@@ -147,7 +156,8 @@ pub async fn register_page(
     // If users exist, registration is closed
     if count > 0 {
         return Err(AppError::Forbidden(
-            "Registration is closed. Please contact an administrator to create an account.".to_string()
+            "Registration is closed. Please contact an administrator to create an account."
+                .to_string(),
         ));
     }
 
@@ -173,7 +183,7 @@ pub async fn register_submit(
     // If users exist, registration is closed
     if count > 0 {
         return Err(AppError::Forbidden(
-            "Registration is closed. Please contact an administrator.".to_string()
+            "Registration is closed. Please contact an administrator.".to_string(),
         ));
     }
 
@@ -252,15 +262,9 @@ struct SettingsTemplate {
     is_admin: bool,
     default_alias_value: String,
     has_default_alias: bool,
-    // Personal AI settings
-    ai_enabled: bool,
-    ai_base_url: String,
-    ai_model: String,
-    ai_has_api_key: bool,
-    // Effective AI availability for this user
-    ai_available: bool,
-    ai_source: String,
-    ai_effective_model: String,
+    // Personal AI settings + effective availability (grouped view
+    // struct, see handlers::ai)
+    ai: super::ai::UserAiSettingsView,
 }
 
 // GET /settings - User settings page
@@ -290,11 +294,9 @@ pub async fn settings_page(
         .map(|p| p.api_key.is_some())
         .unwrap_or(false);
 
-    let effective = crate::services::ai_service::resolve_effective_config(
-        &state.db_pool,
-        &current_user.0,
-    )
-    .await;
+    let effective =
+        crate::services::ai_service::resolve_effective_config(&state.db_pool, &current_user.0)
+            .await;
     let (ai_available, ai_source, ai_effective_model) = match effective {
         Some(cfg) => (true, cfg.source.as_str().to_string(), cfg.model),
         None => (false, String::new(), String::new()),
@@ -304,13 +306,15 @@ pub async fn settings_page(
         is_admin: current_user.0.is_admin,
         default_alias_value,
         has_default_alias,
-        ai_enabled,
-        ai_base_url,
-        ai_model,
-        ai_has_api_key,
-        ai_available,
-        ai_source,
-        ai_effective_model,
+        ai: super::ai::UserAiSettingsView {
+            enabled: ai_enabled,
+            base_url: ai_base_url,
+            model: ai_model,
+            has_api_key: ai_has_api_key,
+            available: ai_available,
+            source: ai_source,
+            effective_model: ai_effective_model,
+        },
     };
     Ok(Html(template.render()?))
 }
@@ -341,7 +345,9 @@ pub async fn change_username(
 ) -> Result<impl IntoResponse, AppError> {
     // Validate new username
     if let Err(e) = auth::validate_username(&form.new_username) {
-        let template = ErrorTemplate { message: &e.to_string() };
+        let template = ErrorTemplate {
+            message: &e.to_string(),
+        };
         return Ok(Html(template.render()?));
     }
 
@@ -387,19 +393,25 @@ pub async fn change_password(
         .map_err(|e| AppError::Internal(format!("Password verification error: {}", e)))?;
 
     if !valid {
-        let template = ErrorTemplate { message: "Current password is incorrect" };
+        let template = ErrorTemplate {
+            message: "Current password is incorrect",
+        };
         return Ok(Html(template.render()?));
     }
 
     // Validate new passwords match
     if validation::validate_passwords_match(&form.new_password, &form.confirm_password).is_err() {
-        let template = ErrorTemplate { message: "New passwords do not match" };
+        let template = ErrorTemplate {
+            message: "New passwords do not match",
+        };
         return Ok(Html(template.render()?));
     }
 
     // Validate new password strength
     if let Err(e) = auth::validate_password(&form.new_password) {
-        let template = ErrorTemplate { message: &e.to_string() };
+        let template = ErrorTemplate {
+            message: &e.to_string(),
+        };
         return Ok(Html(template.render()?));
     }
 
@@ -447,7 +459,10 @@ pub async fn change_default_alias(
         .db_err()?;
 
     let message = if let Some(alias) = default_alias {
-        format!("Default alias set to '{}'. Unknown aliases will now redirect to this bookmark.", alias)
+        format!(
+            "Default alias set to '{}'. Unknown aliases will now redirect to this bookmark.",
+            alias
+        )
     } else {
         "Default alias cleared. Unknown aliases will now show a 404 error.".to_string()
     };
