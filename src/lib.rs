@@ -336,6 +336,7 @@ pub async fn create_router() -> Router {
         .route("/opensearch.xml", get(handlers::opensearch::descriptor))
         .route("/api/suggest", get(handlers::opensearch::suggest))
         // JSON API (API-token auth via the ApiUser extractor)
+        .route("/api", get(handlers::api_bookmarks::docs))
         .route("/api/whoami", get(handlers::api_bookmarks::whoami))
         .route(
             "/api/bookmarks",

@@ -100,6 +100,28 @@ async fn create_token(app: &axum::Router, cookie: &str) -> String {
 }
 
 #[tokio::test]
+async fn test_api_docs_endpoint() {
+    let app = common::create_test_app().await;
+    let resp = app
+        .oneshot(req("GET", "/api", None, None, None, None))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.contains("text/markdown"), "ct: {}", ct);
+    let body = body_string(resp).await;
+    assert!(body.contains("Authorization: Bearer"), "docs must cover auth");
+    assert!(body.contains("/api/bookmarks/{alias}"), "docs must cover endpoints");
+    assert!(body.contains("/api/whoami"), "docs must cover whoami");
+}
+
+#[tokio::test]
 async fn test_opensearch_descriptor() {
     let app = common::create_test_app().await;
     let resp = app

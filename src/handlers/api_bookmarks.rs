@@ -195,6 +195,18 @@ async fn insert_nested(
     Ok(())
 }
 
+/// GET /api — this API's documentation as markdown, so scripts and
+/// agents can fetch the reference from the deployment itself (and
+/// therefore always get the version matching the server).
+pub async fn docs() -> Response {
+    (
+        StatusCode::OK,
+        [("content-type", "text/markdown; charset=utf-8")],
+        include_str!("../../docs/api.md"),
+    )
+        .into_response()
+}
+
 /// GET /api/whoami — verify a token and see whose it is.
 pub async fn whoami(ApiUser(user): ApiUser) -> Response {
     Json(serde_json::json!({
