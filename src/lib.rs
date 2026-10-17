@@ -59,6 +59,8 @@ struct IndexTemplate {
 #[derive(Template)]
 #[template(path = "about.html")]
 struct AboutTemplate {
+    has_user: bool,
+    is_admin: bool,
     registration_open: bool,
 }
 
@@ -117,9 +119,18 @@ async fn index(
 }
 
 async fn about(
+    optional_user: auth::middleware::OptionalUser,
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
+    let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
+        (true, user.is_admin)
+    } else {
+        (false, false)
+    };
+
     let template = AboutTemplate {
+        has_user,
+        is_admin,
         registration_open: db::registration_open(&state.db_pool).await,
     };
     Ok(Html(template.render()?).into_response())
@@ -386,7 +397,26 @@ pub async fn create_router() -> Router {
         .route("/admin/bookmark/{alias}", put(handlers::admin::update_global_bookmark))
 
         // Serve static files (JavaScript, CSS, etc.)
-        .nest_service("/static", ServeDir::new("static"))
+        .nest_service(
+            "/static",
+            // Static assets must revalidate on every load: without a
+            // Cache-Control header, browsers cache them heuristically and
+            // keep running pre-deploy JS/CSS after an update (this made a
+            // just-fixed manage page filter look broken). With no-cache,
+            // unchanged files still cost only a 304 via Last-Modified.
+            tower::ServiceBuilder::new()
+                .layer(axum::middleware::from_fn(
+                    |req: axum::extract::Request, next: axum::middleware::Next| async move {
+                        let mut response = next.run(req).await;
+                        response.headers_mut().insert(
+                            axum::http::header::CACHE_CONTROL,
+                            axum::http::HeaderValue::from_static("no-cache"),
+                        );
+                        response
+                    },
+                ))
+                .service(ServeDir::new("static")),
+        )
 
         .with_state(state)
         // Apply security headers to all responses
