@@ -9,12 +9,12 @@
     {% block nav %}
     <nav>
       <div>
-        <a href="/">About</a>
+        <a href="/about">About</a>
         <a href="/help">Help</a>
       </div>
       <div>
         <a href="/login">Login</a>
-        <a href="/register">Register</a>
+        {% if registration_open %}<a href="/register">Register</a>{% endif %}
       </div>
     </nav>
     {% endblock %} {% block content %}{% endblock %}

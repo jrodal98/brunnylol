@@ -53,6 +53,16 @@ pub struct User {
     pub default_alias: Option<String>,
 }
 
+/// Registration is open only while no users exist yet (the first account
+/// created becomes the admin; after that, admins create accounts).
+/// Used to decide whether Register links should be shown at all.
+pub async fn registration_open(pool: &SqlitePool) -> bool {
+    let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM users")
+        .fetch_one(pool)
+        .await;
+    matches!(count, Ok(0))
+}
+
 // Create a new user (first user becomes admin automatically)
 pub async fn create_user(pool: &SqlitePool, username: &str, password_hash: &str) -> Result<User> {
     // Check if this is the first user
@@ -106,6 +116,35 @@ pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<Us
     .await?;
 
     Ok(user)
+}
+
+// Count admin users (used to protect the last remaining admin)
+pub async fn count_admins(pool: &SqlitePool) -> Result<i64> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_admin = TRUE")
+        .fetch_one(pool)
+        .await?;
+    Ok(count)
+}
+
+// Promote or demote a user (admin user management)
+pub async fn set_user_admin(pool: &SqlitePool, user_id: i64, is_admin: bool) -> Result<()> {
+    sqlx::query("UPDATE users SET is_admin = ? WHERE id = ?")
+        .bind(is_admin)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
+}
+
+// Delete a user. Their sessions, personal bookmarks (and nested
+// bookmarks under them), overrides, and AI settings are removed by
+// ON DELETE CASCADE foreign keys.
+pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<()> {
+    sqlx::query("DELETE FROM users WHERE id = ?")
+        .bind(user_id)
+        .execute(pool)
+        .await?;
+    Ok(())
 }
 
 // List all users (admin only)

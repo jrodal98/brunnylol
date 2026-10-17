@@ -20,9 +20,19 @@ use crate::{
 #[derive(Template)]
 #[template(path = "admin.html")]
 struct AdminTemplate {
+    current_user_id: i64,
     users: Vec<UserDisplay>,
     // Shared AI settings (grouped view struct, see handlers::ai)
     ai: super::ai::AdminAiSettingsView,
+}
+
+/// One row of the admin user table (also returned on its own by the
+/// promote/demote endpoint so HTMX can swap the row in place).
+#[derive(Template)]
+#[template(path = "partials/admin_user_row.html")]
+struct AdminUserRowTemplate {
+    user_item: UserDisplay,
+    current_user_id: i64,
 }
 
 #[derive(Clone)]
@@ -36,7 +46,7 @@ struct UserDisplay {
 
 // GET /admin - Admin panel
 pub async fn admin_page(
-    _admin_user: AdminUser,
+    admin_user: AdminUser,
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Html<String>, AppError> {
     // Get all users
@@ -70,6 +80,7 @@ pub async fn admin_page(
         .collect();
 
     let template = AdminTemplate {
+        current_user_id: admin_user.0.id,
         users: users_display,
         ai: super::ai::AdminAiSettingsView {
             base_url: ai_settings.base_url.clone().unwrap_or_default(),
@@ -246,4 +257,95 @@ pub struct UpdateGlobalBookmarkForm {
     url: String,
     description: String,
     command_template: String,
+}
+
+// ---------------------------------------------------------------------------
+// User management: promote/demote and delete
+// ---------------------------------------------------------------------------
+
+/// Build the display row for one user (shared by the toggle-admin
+/// response, which re-renders just that row).
+async fn user_display_row(
+    state: &Arc<crate::AppState>,
+    user: &db::User,
+) -> Result<UserDisplay, AppError> {
+    let bookmark_counts = db::get_user_bookmark_counts(&state.db_pool)
+        .await
+        .db_err()?;
+    let allowed_ids = db::ai::get_allowed_user_ids(&state.db_pool)
+        .await
+        .db_err()?;
+    Ok(UserDisplay {
+        id: user.id,
+        username: user.username.clone(),
+        is_admin: user.is_admin,
+        bookmark_count: bookmark_counts.get(&user.id).copied().unwrap_or(0),
+        ai_allowed: allowed_ids.contains(&user.id),
+    })
+}
+
+// POST /admin/users/:id/toggle-admin - Promote a user to admin, or demote
+// an admin back to a regular user. Returns the updated table row.
+pub async fn toggle_user_admin(
+    admin_user: AdminUser,
+    State(state): State<Arc<crate::AppState>>,
+    Path(user_id): Path<i64>,
+) -> Result<Html<String>, AppError> {
+    let target = db::get_user_by_id(&state.db_pool, user_id)
+        .await
+        .db_err()?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    if target.id == admin_user.0.id {
+        return Err(AppError::Forbidden(
+            "You can't change your own admin status".to_string(),
+        ));
+    }
+    if target.is_admin && db::count_admins(&state.db_pool).await.db_err()? <= 1 {
+        return Err(AppError::Forbidden(
+            "Can't remove the last admin".to_string(),
+        ));
+    }
+
+    db::set_user_admin(&state.db_pool, user_id, !target.is_admin)
+        .await
+        .db_err()?;
+
+    let updated = db::get_user_by_id(&state.db_pool, user_id)
+        .await
+        .db_err()?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+    let template = AdminUserRowTemplate {
+        user_item: user_display_row(&state, &updated).await?,
+        current_user_id: admin_user.0.id,
+    };
+    Ok(Html(template.render()?))
+}
+
+// POST /admin/users/:id/delete - Delete a user and (via FK cascades)
+// their sessions, bookmarks, overrides, and AI settings. Returns an
+// empty body; HTMX removes the row.
+pub async fn delete_user(
+    admin_user: AdminUser,
+    State(state): State<Arc<crate::AppState>>,
+    Path(user_id): Path<i64>,
+) -> Result<Html<String>, AppError> {
+    let target = db::get_user_by_id(&state.db_pool, user_id)
+        .await
+        .db_err()?
+        .ok_or_else(|| AppError::NotFound("User not found".to_string()))?;
+
+    if target.id == admin_user.0.id {
+        return Err(AppError::Forbidden(
+            "You can't delete your own account".to_string(),
+        ));
+    }
+    if target.is_admin && db::count_admins(&state.db_pool).await.db_err()? <= 1 {
+        return Err(AppError::Forbidden(
+            "Can't delete the last admin".to_string(),
+        ));
+    }
+
+    db::delete_user(&state.db_pool, user_id).await.db_err()?;
+    Ok(Html(String::new()))
 }

@@ -3,7 +3,7 @@
 {% block nav %}
 <nav>
     <div>
-        <a href="/">About</a>
+        <a href="/about">About</a>
         <a href="/help">Help</a>
         <a href="/manage">My Bookmarks</a>
         <a href="/admin">Admin</a>
@@ -35,22 +35,12 @@
                 <th>Username</th>
                 <th>Role</th>
                 <th>Bookmarks</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for user_item in users %}
-            <tr>
-                <td>{{ user_item.id }}</td>
-                <td><strong>{{ user_item.username }}</strong></td>
-                <td>
-                    {% if user_item.is_admin %}
-                    <span class="admin-badge">ADMIN</span>
-                    {% else %}
-                    User
-                    {% endif %}
-                </td>
-                <td>{{ user_item.bookmark_count }} bookmark(s)</td>
-            </tr>
+            {% include "partials/admin_user_row.html" %}
             {% endfor %}
         </tbody>
     </table>

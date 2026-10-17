@@ -218,7 +218,39 @@ pub async fn update_user_ai_settings(
     let template = SuccessTemplate {
         message: "AI settings saved. They apply only to your account.",
     };
-    Ok(Html(template.render()?))
+    let mut html = template.render()?;
+
+    // Also return the AI status line as an out-of-band swap: saving can
+    // change which configuration is effective (e.g. shared -> personal),
+    // and the status line previously kept showing the old source until a
+    // manual page reload.
+    let status_inner = match ai_service::resolve_effective_config(
+        &state.db_pool,
+        &current_user.0,
+    )
+    .await
+    {
+        Some(cfg) => format!(
+            "<strong>Status:</strong> AI is available for your account using the <strong>{}</strong> configuration (model: <strong>{}</strong>).",
+            html_escape(cfg.source.as_str()),
+            html_escape(&cfg.model),
+        ),
+        None => "<strong>Status:</strong> AI is not currently available for your account. Fill in your own provider below, or ask an admin to enable the shared configuration for you.".to_string(),
+    };
+    html.push_str(&format!(
+        "<p id=\"ai-status-line\" hx-swap-oob=\"true\" style=\"color: var(--text-secondary); margin-bottom: var(--space-4);\">{}</p>",
+        status_inner
+    ));
+
+    Ok(Html(html))
+}
+
+/// Minimal HTML escaping for values interpolated into OOB fragments.
+fn html_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 // ---------------------------------------------------------------------------

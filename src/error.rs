@@ -9,10 +9,10 @@ use std::fmt;
 /// HTML escape a string to prevent XSS
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
-     .replace('<', "&lt;")
-     .replace('>', "&gt;")
-     .replace('"', "&quot;")
-     .replace('\'', "&#x27;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#x27;")
 }
 
 /// Application error type
@@ -63,32 +63,44 @@ impl IntoResponse for AppError {
             AppError::Unauthorized(_) => unreachable!(), // Handled above
             AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, format!("Forbidden: {}", msg)),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, format!("Bad request: {}", msg)),
-            AppError::Internal(msg) => (StatusCode::INTERNAL_SERVER_ERROR, format!("Internal error: {}", msg)),
+            AppError::Internal(msg) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Internal error: {}", msg),
+            ),
         };
 
-        // Return a simple HTML error page with escaped message to prevent XSS
+        // Return an HTML error page styled to match the rest of the site
+        // (same stylesheet, dark theme, and nav as the regular pages),
+        // with the message escaped to prevent XSS.
         let error_html = format!(
-            r#"<!DOCTYPE html>
-<html>
+            r#"<!doctype html>
+<html data-theme="dark">
 <head>
-    <title>Error - Brunnylol</title>
-    <style>
-        body {{
-            font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 100px auto;
-            text-align: center;
-        }}
-        h1 {{ color: #d32f2f; }}
-        p {{ color: #666; }}
-    </style>
+    <meta charset="utf-8" />
+    <title>{} - Brunnylol</title>
+    <link rel="stylesheet" href="/static/css/main.css">
 </head>
 <body>
-    <h1>{}</h1>
-    <p>{}</p>
-    <p><a href="/">Return to home</a></p>
+    <nav>
+      <div>
+        <a href="/about">About</a>
+        <a href="/help">Help</a>
+      </div>
+      <div>
+        <a href="/login">Login</a>
+      </div>
+    </nav>
+    <div class="container-sm" style="margin-top: var(--space-12); text-align: center;">
+        <h1 style="font-size: 3rem; margin-bottom: var(--space-3);">{}</h1>
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-6);">{}</p>
+        <a href="/" class="btn btn-primary" style="display: inline-block; padding: var(--space-3) var(--space-5); text-decoration: none;">Return to home</a>
+    </div>
+    <div class="footer">
+        <p>Jacob Rodal © 2020</p>
+    </div>
 </body>
 </html>"#,
+            html_escape(status.as_str()),
             html_escape(status.as_str()),
             html_escape(&message)
         );

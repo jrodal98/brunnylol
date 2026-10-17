@@ -3,7 +3,7 @@
 {% block nav %}
 <nav>
     <div>
-        <a href="/">About</a>
+        <a href="/about">About</a>
         <a href="/help">Help</a>
         <a href="/manage">My Bookmarks</a>
         {% if user.is_admin %}
@@ -191,6 +191,25 @@
                 <small>Paste the bookmark data in YAML or JSON format</small>
             </div>
 
+            <details style="margin-bottom: var(--space-4);">
+                <summary style="cursor: pointer; font-weight: 600;">What format should the content be?</summary>
+                <p style="color: var(--text-secondary); margin-top: var(--space-2);">
+                    A list of bookmarks. Each entry needs an <code>alias</code>, a <code>url</code>, and a
+                    <code>description</code>. An optional <code>command</code> makes it a templated bookmark
+                    (use <code>{url}</code> and <code>{query}</code>), and templated bookmarks can carry a
+                    <code>nested</code> list of sub-commands in the same shape. Entries whose alias already
+                    exists in the chosen scope are skipped as duplicates. The Export buttons produce exactly
+                    this format, so an export file can be re-imported as-is.
+                </p>
+                <p style="margin-top: var(--space-2);"><strong>JSON:</strong></p>
+                <pre style="overflow-x: auto;">[{"alias": "ex", "url": "https://example.com", "description": "Search Example", "command": "{url}/?q={query}"}]</pre>
+                <p style="margin-top: var(--space-2);"><strong>YAML:</strong></p>
+                <pre style="overflow-x: auto;">- alias: ex
+  url: https://example.com
+  description: Search Example
+  command: "{url}/?q={query}"</pre>
+            </details>
+
             <div id="import-url" class="form-group" style="display: none;">
                 <label for="import-url-field">URL to Bookmark File *</label>
                 <input type="url" id="import-url-field" name="url"
@@ -225,61 +244,17 @@
     <div id="personal" class="tab-content">
         <h2>My Personal Bookmarks</h2>
 
+        {% if personal_count != 0 %}
+        <div class="form-group" style="max-width: 420px;">
+            <input type="text" id="personal-filter" placeholder="Filter by alias, URL, or description…">
+        </div>
+        {% endif %}
+
         {% if personal_count == 0 %}
         <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
         {% else %}
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Alias</th>
-                    <th>Type</th>
-                    <th>URL/Template</th>
-                    <th>Description</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for bookmark in personal_bookmarks %}
-                <tr id="bookmark-{{ bookmark.id }}">
-                    <td><strong>{{ bookmark.alias }}</strong></td>
-                    <td>{{ bookmark.bookmark_type }}</td>
-                    <td>
-                        {% if bookmark.command_template != "" %}
-                            {{ bookmark.command_template }}
-                        {% else %}
-                            {{ bookmark.url }}
-                        {% endif %}
-                    </td>
-                    <td>{{ bookmark.description }}</td>
-                    <td>
-                        <button class="btn-secondary btn-edit"
-                                data-id="{{ bookmark.id }}"
-                                data-alias="{{ bookmark.alias }}"
-                                data-url="{{ bookmark.url }}"
-                                data-description="{{ bookmark.description }}"
-                                data-template="{{ bookmark.command_template }}">
-                            Edit
-                        </button>
-                        <button class="btn-danger"
-                                hx-delete="/manage/bookmark/{{ bookmark.id }}"
-                                hx-target="#bookmark-{{ bookmark.id }}"
-                                hx-swap="outerHTML swap:500ms"
-                                hx-confirm="Are you sure you want to delete '{{ bookmark.alias }}'?">
-                            Delete
-                        </button>
-                        {% if bookmark.bookmark_type == "nested" %}
-                        <button class="btn-secondary btn-nested-manager"
-                                data-id="{{ bookmark.id }}"
-                                data-alias="{{ bookmark.alias }}">
-                            Manage Nested ({{ bookmark.nested_count }})
-                        </button>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        {% include "partials/personal_bookmarks_table.html" %}
 
         <h3 style="margin-top: var(--space-6);">Export Personal Bookmarks</h3>
         <div class="export-buttons">

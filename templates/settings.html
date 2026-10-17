@@ -3,7 +3,7 @@
 {% block nav %}
 <nav>
     <div>
-        <a href="/">About</a>
+        <a href="/about">About</a>
         <a href="/help">Help</a>
         <a href="/manage">My Bookmarks</a>
         {% if is_admin %}
@@ -104,7 +104,7 @@
         <h2>AI Settings (Personal)</h2>
         <div id="ai-settings-result"></div>
 
-        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">
+        <p id="ai-status-line" style="color: var(--text-secondary); margin-bottom: var(--space-4);">
             {% if ai.available %}
             <strong>Status:</strong> AI is available for your account using the <strong>{{ ai.source }}</strong> configuration (model: <strong>{{ ai.effective_model }}</strong>).
             {% else %}

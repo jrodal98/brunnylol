@@ -53,6 +53,13 @@ async fn load_disabled_globals(pool: &SqlitePool, user_id: i64) -> std::collecti
 struct IndexTemplate {
     has_user: bool,
     is_admin: bool,
+    registration_open: bool,
+}
+
+#[derive(Template)]
+#[template(path = "about.html")]
+struct AboutTemplate {
+    registration_open: bool,
 }
 
 #[derive(Template)]
@@ -62,6 +69,7 @@ struct HelpTemplate {
     personal_aliases: Vec<(String, Vec<String>)>,
     has_user: bool,
     is_admin: bool,
+    registration_open: bool,
 }
 
 // Query parameter struct for search
@@ -85,6 +93,7 @@ pub struct AppState {
 // Route handlers
 async fn index(
     optional_user: auth::middleware::OptionalUser,
+    State(state): State<Arc<AppState>>,
     Query(params): Query<SearchParams>,
 ) -> Result<impl IntoResponse, AppError> {
     // If query param is present, redirect to search endpoint
@@ -99,7 +108,20 @@ async fn index(
         (false, false)
     };
 
-    let template = IndexTemplate { has_user, is_admin };
+    let template = IndexTemplate {
+        has_user,
+        is_admin,
+        registration_open: db::registration_open(&state.db_pool).await,
+    };
+    Ok(Html(template.render()?).into_response())
+}
+
+async fn about(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    let template = AboutTemplate {
+        registration_open: db::registration_open(&state.db_pool).await,
+    };
     Ok(Html(template.render()?).into_response())
 }
 
@@ -154,6 +176,7 @@ async fn help(
         personal_aliases,
         has_user,
         is_admin,
+        registration_open: db::registration_open(&state.db_pool).await,
     };
     Ok(Html(template.render()?))
 }
@@ -298,6 +321,7 @@ pub async fn create_router() -> Router {
     Router::new()
         // Public routes
         .route("/", get(index))
+        .route("/about", get(about))
         .route("/help", get(help))
         .route("/search", get(redirect))
 
@@ -354,6 +378,11 @@ pub async fn create_router() -> Router {
         .route("/admin/create-user", post(handlers::admin::create_user))
         .route("/admin/reload-global", post(handlers::admin::reload_global_bookmarks))
         .route("/admin/ai-settings", post(handlers::ai::update_admin_ai_settings))
+        .route(
+            "/admin/users/{id}/toggle-admin",
+            post(handlers::admin::toggle_user_admin),
+        )
+        .route("/admin/users/{id}/delete", post(handlers::admin::delete_user))
         .route("/admin/bookmark/{alias}", put(handlers::admin::update_global_bookmark))
 
         // Serve static files (JavaScript, CSS, etc.)

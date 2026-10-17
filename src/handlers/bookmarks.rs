@@ -83,6 +83,18 @@ struct ManageTemplate {
     ai_available: bool,
 }
 
+/// The My Bookmarks table. The update endpoint returns this with
+/// hx-swap-oob set (see templates/partials/personal_bookmarks_table.html)
+/// so the whole table refreshes in place after an edit. A whole table is
+/// used rather than a single row because a bare <tr> in an HTMX response
+/// targeted at a <div> is dropped by the HTML parser before the
+/// out-of-band swap can find it; a complete <table> parses intact.
+#[derive(Template)]
+#[template(path = "partials/personal_bookmarks_table.html")]
+struct PersonalBookmarksTableTemplate {
+    personal_bookmarks: Vec<BookmarkDisplay>,
+}
+
 #[derive(Clone)]
 struct BookmarkDisplay {
     id: i64,
@@ -392,7 +404,39 @@ pub async fn update_bookmark(
 
     let message = format!("Bookmark '{}' updated successfully!", form.alias);
     let template = SuccessTemplate { message: &message };
-    Ok(Html(template.render()?))
+    let mut html = template.render()?;
+
+    // Include the refreshed bookmarks table as an out-of-band swap so the
+    // list reflects the edit immediately (it previously kept showing the
+    // old values until a manual page reload).
+    if let Ok(bookmarks_with_nested) = db::get_bookmarks_with_nested(
+        &state.db_pool,
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        },
+    )
+    .await
+    {
+        let table = PersonalBookmarksTableTemplate {
+            personal_bookmarks: bookmarks_with_nested
+                .into_iter()
+                .map(|(bookmark, nested)| BookmarkDisplay {
+                    id: bookmark.id,
+                    alias: bookmark.alias,
+                    bookmark_type: bookmark.bookmark_type,
+                    url: bookmark.url,
+                    description: bookmark.description,
+                    command_template: bookmark.command_template.unwrap_or_default(),
+                    nested_count: nested.len(),
+                })
+                .collect(),
+        };
+        if let Ok(table_html) = table.render() {
+            html.push_str(&table_html);
+        }
+    }
+
+    Ok(Html(html))
 }
 
 // POST /manage/bookmark/:id/nested - Add nested bookmark
