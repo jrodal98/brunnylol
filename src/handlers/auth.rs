@@ -24,7 +24,15 @@ fn build_session_cookie(session_id: String) -> Cookie<'static> {
     let mut cookie_builder = Cookie::build(("session_id", session_id))
         .path("/")
         .http_only(true)
-        .same_site(axum_extra::extract::cookie::SameSite::Strict) // CSRF protection
+        // Lax, not Strict: Strict withholds the cookie on cross-site
+        // top-level navigations, which broke the quick-add
+        // bookmarklet (it opens /manage from another site, arrived
+        // cookieless, and bounced to the login page every time). Lax
+        // sends the cookie on top-level GET navigations while still
+        // withholding it from cross-site POSTs and subresource
+        // requests — the CSRF-relevant cases, since this app changes
+        // state only via POST/DELETE, never GET.
+        .same_site(axum_extra::extract::cookie::SameSite::Lax)
         .max_age(time::Duration::days(3650)); // 10 years - essentially permanent
 
     // Only set Secure flag in release builds (production)
