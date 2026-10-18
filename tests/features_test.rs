@@ -85,6 +85,35 @@ async fn register_admin(app: &axum::Router) -> String {
         .to_string()
 }
 
+#[tokio::test]
+async fn test_session_cookie_is_lax_for_bookmarklet() {
+    // The bookmarklet opens /manage via a cross-site top-level
+    // navigation; a SameSite=Strict session cookie would be withheld
+    // and every bookmarklet click would bounce to the login page.
+    let app = common::create_test_app().await;
+    let resp = app
+        .oneshot(form_req(
+            "POST",
+            "/register",
+            None,
+            "username=admin1&password=<redacted>&confirm_password=<redacted>",
+        ))
+        .await
+        .unwrap();
+    let cookie = resp
+        .headers()
+        .get("set-cookie")
+        .expect("register sets a session cookie")
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(
+        cookie.contains("SameSite=Lax"),
+        "session cookie must be SameSite=Lax, got: {}",
+        cookie
+    );
+}
+
 /// Create an API token through the settings form; returns the
 /// plaintext shown exactly once in the response fragment.
 async fn create_token(app: &axum::Router, cookie: &str) -> String {
