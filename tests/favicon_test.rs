@@ -42,6 +42,20 @@ async fn test_favicon_assets_served() {
     let body = body_string(resp).await;
     assert!(body.contains("#764ba2"), "favicon should carry the brand violet face");
     assert!(body.contains("#667eea"), "favicon should carry the brand gradient");
+    // The SVG must be well-formed XML: strict parsers (Firefox)
+    // reject the whole file otherwise. The classic footgun is a
+    // double hyphen inside a comment (e.g. a CSS var name like
+    // --gradient-start), which XML comments may not contain.
+    let mut rest = body.as_str();
+    while let Some(start) = rest.find("<!--") {
+        let after = &rest[start + 4..];
+        let end = after.find("-->").expect("unterminated XML comment in favicon.svg");
+        assert!(
+            !after[..end].contains("--"),
+            "favicon.svg comment contains a double hyphen; strict XML parsers reject the file"
+        );
+        rest = &after[end + 3..];
+    }
 
     for path in ["/static/favicon-32.png", "/static/favicon-64.png", "/static/apple-touch-icon.png"] {
         let resp = get(&app, path).await;
