@@ -14,6 +14,11 @@ pub enum Command {
         metadata: Option<template::TemplateMetadata>,
     },
     Nested {
+        /// The parent bookmark's own URL — where a bare alias (no
+        /// subcommand) lands. This used to be discarded when loading
+        /// from the database, which is why bare nested aliases
+        /// resolved to an empty redirect and failed.
+        base_url: String,
         children: HashMap<String, Command>,
         description: String,
     },
@@ -30,7 +35,7 @@ impl Command {
     pub fn base_url(&self) -> &str {
         match self {
             Command::Variable { base_url, .. } => base_url,
-            Command::Nested { .. } => "",
+            Command::Nested { base_url, .. } => base_url,
         }
     }
 
@@ -84,12 +89,24 @@ impl Command {
                 let resolver = template::TemplateResolver::new();
                 resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
             }
-            Command::Nested { children, .. } => {
+            Command::Nested {
+                base_url, children, ..
+            } => {
+                // A bare nested alias (no subcommand) goes to the
+                // parent's own URL — previously this fell into the
+                // else branch and produced an empty redirect target,
+                // which broke the navigation entirely. An unknown
+                // subcommand lands on the parent's URL too rather
+                // than failing with an empty Location.
+                let query = query.trim();
+                if query.is_empty() {
+                    return base_url.clone();
+                }
                 let parts: Vec<&str> = query.splitn(2, ' ').collect();
                 if let Some(child) = children.get(parts[0]) {
                     child.get_redirect_url(parts.get(1).unwrap_or(&""))
                 } else {
-                    String::new() // Empty string for invalid nested command
+                    base_url.clone()
                 }
             }
         }

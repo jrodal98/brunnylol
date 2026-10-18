@@ -144,7 +144,9 @@ pub async fn show_variable_form(
 
             Ok(Html(tmpl.render()?).into_response())
         }
-        Command::Nested { children, description } => {
+        Command::Nested {
+            children, description, ..
+        } => {
             // Show nested command selection UI
             let mut child_list: Vec<NestedChildDisplay> = children
                 .into_iter()
