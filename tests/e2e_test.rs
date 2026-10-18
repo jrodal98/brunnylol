@@ -62,8 +62,34 @@ impl TestApp {
             .spawn()
             .expect("Failed to start application");
 
-        // Wait for server to start
-        tokio_sleep(Duration::from_secs(5)).await;
+        // Wait for the server to be READY, not just started. A fixed
+        // sleep here was the source of a recurring flake
+        // (test_e2e_comprehensive reading 0 seeded bookmarks): the
+        // database file exists before startup finishes, and under
+        // parallel load the app's migrations + seeding can outlast
+        // the sleep. Because the app seeds BEFORE it binds its port
+        // (create_router awaits seeding), an HTTP response guarantees
+        // seeding is complete — poll for one, up to 60s.
+        let ready_deadline = std::time::Instant::now() + Duration::from_secs(60);
+        loop {
+            match process.try_wait() {
+                Ok(Some(_)) => break, // exited; the check below reports it
+                _ => {}
+            }
+            let probe = std::net::TcpStream::connect(format!("127.0.0.1:{}", port));
+            if let Ok(mut stream) = probe {
+                use std::io::{Read, Write};
+                let _ = stream.write_all(b"GET / HTTP/1.0\r\n\r\n");
+                let mut buf = [0u8; 64];
+                if stream.read(&mut buf).map(|n| n > 0).unwrap_or(false) {
+                    break; // server is serving; startup (incl. seeding) is done
+                }
+            }
+            if std::time::Instant::now() > ready_deadline {
+                break; // fall through to the existing failure reporting
+            }
+            tokio_sleep(Duration::from_millis(250)).await;
+        }
 
         // Check if process is still running
         match process.try_wait() {
