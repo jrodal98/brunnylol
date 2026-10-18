@@ -207,8 +207,74 @@ impl RedirectService {
         }
     }
 
-    /// Resolve a search query to a redirect result
+    /// Resolve a search query to a redirect result.
+    ///
+    /// Usage counters are recorded here, AFTER the inner resolution
+    /// succeeds — a failed resolution (unknown alias, unknown nested
+    /// path, unsupported mode) must not inflate the counts. This was
+    /// previously recorded up-front inside the resolver, so every
+    /// failed attempt ticked the root alias's counter too.
     pub async fn resolve_redirect(
+        &self,
+        query: &str,
+        user: Option<&db::User>,
+        global_bookmarks: &HashMap<String, Command>,
+        default_alias: Option<&str>,
+    ) -> Result<RedirectResult, AppError> {
+        let result = self
+            .resolve_redirect_inner(query, user, global_bookmarks, default_alias)
+            .await;
+        if result.is_ok() {
+            self.record_usage(query, user, global_bookmarks).await;
+        }
+        result
+    }
+
+    /// Attribute a successful resolution to the root alias for the
+    /// usage counters: when the winning root alias is one of the
+    /// user's personal bookmarks, count it against that bookmark
+    /// (subcommand uses roll up to their nested parent — children
+    /// have no counters of their own); when it's a built-in, count
+    /// it against the global bookmark (instance-wide, including
+    /// anonymous searches). Best-effort — a metrics failure must
+    /// never break the redirect it describes.
+    async fn record_usage(
+        &self,
+        query: &str,
+        user: Option<&db::User>,
+        global_bookmarks: &HashMap<String, Command>,
+    ) {
+        let (path, _, _) = Self::parse_nested_path(query);
+        let Some(root_alias) = path.first() else {
+            return;
+        };
+
+        let (user_bookmarks, disabled_globals) = if let Some(user) = user {
+            let bookmarks = db::bookmarks::load_user_bookmarks(&self.pool, user.id)
+                .await
+                .ok();
+            let disabled = db::get_disabled_global_aliases(&self.pool, user.id).await;
+            (bookmarks, disabled)
+        } else {
+            (None, std::collections::HashSet::new())
+        };
+
+        let from_personal = user_bookmarks
+            .as_ref()
+            .map(|m| m.contains_key(root_alias.as_str()))
+            .unwrap_or(false);
+        if from_personal {
+            if let Some(user) = user {
+                let _ = db::bookmarks::record_bookmark_use(&self.pool, user.id, root_alias).await;
+            }
+        } else if !disabled_globals.contains(root_alias.as_str())
+            && global_bookmarks.contains_key(root_alias.as_str())
+        {
+            let _ = db::bookmarks::record_global_bookmark_use(&self.pool, root_alias).await;
+        }
+    }
+
+    async fn resolve_redirect_inner(
         &self,
         query: &str,
         user: Option<&db::User>,
@@ -246,28 +312,6 @@ impl RedirectService {
                     global_bookmarks.get(root_alias)
                 }
             });
-
-        // Usage metrics: when the winning root alias is one of the
-        // user's personal bookmarks, count this use against it;
-        // when it's a built-in, count it against the global bookmark
-        // (instance-wide, including anonymous searches). This is the
-        // one choke point every search resolution passes through
-        // (nested resolution delegates from here). Best-effort — a
-        // metrics failure must never break the redirect.
-        let from_personal = user_bookmarks
-            .as_ref()
-            .map(|m| m.contains_key(root_alias.as_str()))
-            .unwrap_or(false);
-        if from_personal {
-            if let Some(user) = user {
-                let _ = db::bookmarks::record_bookmark_use(&self.pool, user.id, root_alias).await;
-            }
-        } else if root_command.is_some()
-            && !disabled_globals.contains(root_alias.as_str())
-            && global_bookmarks.contains_key(root_alias.as_str())
-        {
-            let _ = db::bookmarks::record_global_bookmark_use(&self.pool, root_alias).await;
-        }
 
         // If root command is Nested and we have remaining query, check for subcommand suffix
         if let Some(Command::Nested { .. }) = root_command {
