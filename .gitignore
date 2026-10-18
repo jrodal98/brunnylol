@@ -20,3 +20,9 @@ Cargo.lock
 
 # Backup files
 *.bak
+
+# Favicon PNGs are generated at build time by build.rs from the
+# base64 sources in assets/ (favicon.svg is the artwork source)
+static/favicon-32.png
+static/favicon-64.png
+static/apple-touch-icon.png
