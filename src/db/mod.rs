@@ -3,6 +3,7 @@
 pub mod ai;
 pub mod bookmarks;
 pub mod seed;
+pub mod tokens;
 
 use sqlx::{sqlite::SqlitePool, Row};
 use anyhow::{Context, Result};
@@ -40,6 +41,12 @@ pub async fn init_db(db_path: &str) -> Result<SqlitePool> {
         .execute(&pool)
         .await
         .context("Failed to run AI migrations")?;
+
+    let features_migration_sql = include_str!("../../migrations/003_features.sql");
+    sqlx::query(features_migration_sql)
+        .execute(&pool)
+        .await
+        .context("Failed to run feature migrations")?;
 
     Ok(pool)
 }

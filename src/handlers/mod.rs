@@ -2,5 +2,8 @@ pub mod auth;
 pub mod bookmarks;
 pub mod admin;
 pub mod ai;
+pub mod api_bookmarks;
+pub mod api_tokens;
 pub mod common;
+pub mod opensearch;
 pub mod variable_form;

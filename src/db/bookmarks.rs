@@ -96,6 +96,96 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
 }
 
 
+/// Record one use of a personal bookmark (upsert into bookmark_usage).
+/// Errors are the caller's choice to ignore: usage metrics must never
+/// break the redirect they describe.
+pub async fn record_bookmark_use(pool: &SqlitePool, user_id: i64, alias: &str) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO bookmark_usage (bookmark_id, use_count, last_used_at)
+         SELECT id, 1, CURRENT_TIMESTAMP FROM bookmarks
+         WHERE scope = 'personal' AND user_id = ? AND alias = ?
+         ON CONFLICT(bookmark_id) DO UPDATE SET
+             use_count = use_count + 1,
+             last_used_at = CURRENT_TIMESTAMP",
+    )
+    .bind(user_id)
+    .bind(alias)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Record one use of a global (built-in) bookmark. Global counts are
+/// instance-wide: they accumulate across all users, signed in or not.
+pub async fn record_global_bookmark_use(pool: &SqlitePool, alias: &str) -> Result<()> {
+    sqlx::query(
+        "INSERT INTO bookmark_usage (bookmark_id, use_count, last_used_at)
+         SELECT id, 1, CURRENT_TIMESTAMP FROM bookmarks
+         WHERE scope = 'global' AND alias = ?
+         ON CONFLICT(bookmark_id) DO UPDATE SET
+             use_count = use_count + 1,
+             last_used_at = CURRENT_TIMESTAMP",
+    )
+    .bind(alias)
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
+/// Usage stats for global bookmarks:
+/// alias -> (use_count, last_used_at as display string).
+pub async fn get_global_usage_by_alias(
+    pool: &SqlitePool,
+) -> Result<HashMap<String, (i64, Option<String>)>> {
+    let rows = sqlx::query(
+        "SELECT b.alias AS alias, u.use_count AS use_count,
+                CAST(u.last_used_at AS TEXT) AS last_used_at
+         FROM bookmark_usage u
+         JOIN bookmarks b ON b.id = u.bookmark_id
+         WHERE b.scope = 'global'",
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let mut map = HashMap::new();
+    for row in rows {
+        use sqlx::Row;
+        let alias: String = row.get("alias");
+        let use_count: i64 = row.get("use_count");
+        let last_used_at: Option<String> = row.get("last_used_at");
+        map.insert(alias, (use_count, last_used_at));
+    }
+    Ok(map)
+}
+
+/// Usage stats for a user's personal bookmarks:
+/// bookmark_id -> (use_count, last_used_at as display string).
+pub async fn get_usage_map(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> Result<HashMap<i64, (i64, Option<String>)>> {
+    let rows = sqlx::query(
+        "SELECT u.bookmark_id AS bookmark_id, u.use_count AS use_count,
+                CAST(u.last_used_at AS TEXT) AS last_used_at
+         FROM bookmark_usage u
+         JOIN bookmarks b ON b.id = u.bookmark_id
+         WHERE b.scope = 'personal' AND b.user_id = ?",
+    )
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    let mut map = HashMap::new();
+    for row in rows {
+        use sqlx::Row;
+        let bookmark_id: i64 = row.get("bookmark_id");
+        let use_count: i64 = row.get("use_count");
+        let last_used_at: Option<String> = row.get("last_used_at");
+        map.insert(bookmark_id, (use_count, last_used_at));
+    }
+    Ok(map)
+}
+
 // Load all user bookmarks and convert to Commands
 pub async fn load_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<HashMap<String, Command>> {
     // Use optimized v2 API that fetches bookmarks + nested in single query
