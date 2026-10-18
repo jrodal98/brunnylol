@@ -79,6 +79,9 @@ impl IntoResponse for AppError {
     <meta charset="utf-8" />
     <title>{} - Brunnylol</title>
     <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/static/apple-touch-icon.png">
 </head>
 <body>
     <nav>

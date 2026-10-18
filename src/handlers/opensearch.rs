@@ -51,6 +51,7 @@ pub async fn descriptor(headers: HeaderMap) -> Response {
   <ShortName>Brunnylol</ShortName>
   <Description>Search and shortcuts with Brunnylol</Description>
   <InputEncoding>UTF-8</InputEncoding>
+  <Image width="64" height="64" type="image/png">{origin}/static/favicon-64.png</Image>
   <Url type="text/html" template="{origin}/search?q={{searchTerms}}"/>
   <Url type="application/x-suggestions+json" template="{origin}/api/suggest?q={{searchTerms}}"/>
 </OpenSearchDescription>
