@@ -1,14 +1,15 @@
 //! Build-time generation of the favicon PNGs.
 //!
-//! `static/favicon.svg` is the artwork source of truth, but browsers
-//! and the OpenSearch descriptor also need raster icons
-//! (favicon-32.png, favicon-64.png, apple-touch-icon.png). Those
-//! PNGs are rendered from the SVG once and stored, base64-encoded,
-//! under `assets/` (this project's contribution flow can only push
-//! text files, so the binaries travel as text). At build time this
-//! script decodes them into `static/` — but only when the target
-//! file is missing, so a real PNG placed in `static/` by hand
-//! always wins. The generated files are gitignored.
+//! `static/favicon.svg` is the artwork source of truth, but browsers,
+//! the OpenSearch descriptor, and the web app manifest also need
+//! raster icons (favicon-32.png, favicon-64.png, apple-touch-icon.png,
+//! favicon-192.png, favicon-512.png). Those PNGs are rendered from
+//! the SVG once and stored, base64-encoded, under `assets/` (this
+//! project's contribution flow can only push text files, so the
+//! binaries travel as text). At build time this script decodes them
+//! into `static/` — but only when the target file is missing, so a
+//! real PNG placed in `static/` by hand always wins. The generated
+//! files are gitignored.
 //!
 //! To refresh the icons: re-render the PNGs from favicon.svg,
 //! re-encode them over the files in `assets/`, and delete the
@@ -16,13 +17,15 @@
 
 use std::{fs, path::Path};
 
-const ICONS: [(&str, &str); 3] = [
+const ICONS: [(&str, &str); 5] = [
     ("assets/favicon-32.png.b64", "static/favicon-32.png"),
     ("assets/favicon-64.png.b64", "static/favicon-64.png"),
     (
         "assets/apple-touch-icon.png.b64",
         "static/apple-touch-icon.png",
     ),
+    ("assets/favicon-192.png.b64", "static/favicon-192.png"),
+    ("assets/favicon-512.png.b64", "static/favicon-512.png"),
 ];
 
 fn base64_value(byte: u8) -> Option<u8> {
