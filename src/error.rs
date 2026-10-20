@@ -73,10 +73,12 @@ impl IntoResponse for AppError {
         // (same stylesheet, dark theme, and nav as the regular pages),
         // with the message escaped to prevent XSS.
         let error_html = format!(
-            r#"<!doctype html>
+            r##"<!doctype html>
 <html data-theme="dark">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1a1a2e" />
     <title>{} - Brunnylol</title>
     <link rel="stylesheet" href="/static/css/main.css">
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
@@ -102,7 +104,7 @@ impl IntoResponse for AppError {
         <p>Jacob Rodal © 2020</p>
     </div>
 </body>
-</html>"#,
+</html>"##,
             html_escape(status.as_str()),
             html_escape(status.as_str()),
             html_escape(&message)

@@ -26,3 +26,5 @@ Cargo.lock
 static/favicon-32.png
 static/favicon-64.png
 static/apple-touch-icon.png
+static/favicon-192.png
+static/favicon-512.png
