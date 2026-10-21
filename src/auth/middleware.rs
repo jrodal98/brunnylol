@@ -29,16 +29,15 @@ where
         let jar = CookieJar::from_headers(&parts.headers);
 
         // Get session cookie
-        let session_cookie = jar.get("session_id")
-            .ok_or_else(|| {
-                // Include the original URI in the error so we can redirect back after login
-                let return_to = parts
-                    .uri
-                    .path_and_query()
-                    .map(|pq| pq.as_str())
-                    .unwrap_or_else(|| parts.uri.path());
-                AppError::Unauthorized(return_to.to_string())
-            })?;
+        let session_cookie = jar.get("session_id").ok_or_else(|| {
+            // Include the original URI in the error so we can redirect back after login
+            let return_to = parts
+                .uri
+                .path_and_query()
+                .map(|pq| pq.as_str())
+                .unwrap_or_else(|| parts.uri.path());
+            AppError::Unauthorized(return_to.to_string())
+        })?;
 
         let session_id = session_cookie.value();
 
@@ -99,7 +98,10 @@ where
             _ => return Ok(OptionalUser(None)),
         };
 
-        let user = db::get_user_by_id(&app_state.db_pool, user_id).await.ok().flatten();
+        let user = db::get_user_by_id(&app_state.db_pool, user_id)
+            .await
+            .ok()
+            .flatten();
         Ok(OptionalUser(user))
     }
 }
@@ -153,7 +155,10 @@ where
 // Extractor for admin users only
 // Usage: async fn handler(admin_user: AdminUser) { ... }
 // Returns Forbidden error if user is not an admin
-pub struct AdminUser(#[allow(dead_code)] pub User);
+// The payload is the proof of admin status; handlers take the
+// extractor as a guard and rarely need the user itself, but it is
+// kept available (and mirrors CurrentUser) for those that do.
+pub struct AdminUser(pub User);
 
 impl<S> FromRequestParts<S> for AdminUser
 where

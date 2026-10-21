@@ -22,12 +22,7 @@ async fn body_string(resp: axum::response::Response) -> String {
 
 async fn get(app: &axum::Router, uri: &str) -> axum::response::Response {
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
         .await
         .unwrap()
 }

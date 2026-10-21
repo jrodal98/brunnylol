@@ -1,7 +1,7 @@
 // Serializers for bookmark import/export
 
-use anyhow::Result;
 use crate::config::yml_settings::YmlSettings;
+use anyhow::Result;
 
 /// Strategy trait for import/export formats
 pub trait BookmarkSerializer: Send + Sync {

@@ -21,12 +21,7 @@ async fn body_string(resp: axum::response::Response) -> String {
 
 async fn get(app: &axum::Router, uri: &str) -> axum::response::Response {
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
         .await
         .unwrap()
 }
@@ -37,11 +32,23 @@ async fn test_favicon_assets_served() {
 
     let resp = get(&app, "/static/favicon.svg").await;
     assert_eq!(resp.status(), StatusCode::OK);
-    let ct = resp.headers().get("content-type").unwrap().to_str().unwrap().to_string();
+    let ct = resp
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
     assert!(ct.contains("image/svg+xml"), "svg content type: {}", ct);
     let body = body_string(resp).await;
-    assert!(body.contains("#764ba2"), "favicon should carry the brand violet face");
-    assert!(body.contains("#667eea"), "favicon should carry the brand gradient");
+    assert!(
+        body.contains("#764ba2"),
+        "favicon should carry the brand violet face"
+    );
+    assert!(
+        body.contains("#667eea"),
+        "favicon should carry the brand gradient"
+    );
     // The SVG must be well-formed XML: strict parsers (Firefox)
     // reject the whole file otherwise. The classic footgun is a
     // double hyphen inside a comment (e.g. a CSS var name like
@@ -49,7 +56,9 @@ async fn test_favicon_assets_served() {
     let mut rest = body.as_str();
     while let Some(start) = rest.find("<!--") {
         let after = &rest[start + 4..];
-        let end = after.find("-->").expect("unterminated XML comment in favicon.svg");
+        let end = after
+            .find("-->")
+            .expect("unterminated XML comment in favicon.svg");
         assert!(
             !after[..end].contains("--"),
             "favicon.svg comment contains a double hyphen; strict XML parsers reject the file"
@@ -57,10 +66,20 @@ async fn test_favicon_assets_served() {
         rest = &after[end + 3..];
     }
 
-    for path in ["/static/favicon-32.png", "/static/favicon-64.png", "/static/apple-touch-icon.png"] {
+    for path in [
+        "/static/favicon-32.png",
+        "/static/favicon-64.png",
+        "/static/apple-touch-icon.png",
+    ] {
         let resp = get(&app, path).await;
         assert_eq!(resp.status(), StatusCode::OK, "{} should be served", path);
-        let ct = resp.headers().get("content-type").unwrap().to_str().unwrap().to_string();
+        let ct = resp
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
         assert!(ct.contains("image/png"), "{} content type: {}", path, ct);
     }
 }
@@ -73,14 +92,26 @@ async fn test_favicon_referenced_by_pages_and_descriptor() {
     let resp = get(&app, "/").await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
-    assert!(body.contains(r#"rel="icon" type="image/svg+xml" href="/static/favicon.svg""#), "home page should link the svg favicon");
-    assert!(body.contains(r#"rel="apple-touch-icon""#), "home page should link the touch icon");
+    assert!(
+        body.contains(r#"rel="icon" type="image/svg+xml" href="/static/favicon.svg""#),
+        "home page should link the svg favicon"
+    );
+    assert!(
+        body.contains(r#"rel="apple-touch-icon""#),
+        "home page should link the touch icon"
+    );
 
     // The OpenSearch descriptor advertises the icon for
     // browser search-engine entries.
     let resp = get(&app, "/opensearch.xml").await;
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;
-    assert!(body.contains("<Image"), "descriptor should carry an Image element");
-    assert!(body.contains("/static/favicon-64.png"), "descriptor Image should point at the 64px png");
+    assert!(
+        body.contains("<Image"),
+        "descriptor should carry an Image element"
+    );
+    assert!(
+        body.contains("/static/favicon-64.png"),
+        "descriptor Image should point at the 64px png"
+    );
 }

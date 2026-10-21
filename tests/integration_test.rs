@@ -86,7 +86,12 @@ async fn test_redirect_with_valid_alias() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Should redirect to Google with encoded query
     assert!(location.contains("google.com"));
@@ -108,7 +113,12 @@ async fn test_redirect_url_encoding_spaces() {
         .await
         .unwrap();
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(location.contains("rust%20programming"));
 }
 
@@ -129,7 +139,12 @@ async fn test_redirect_with_alias_only() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Should redirect to Google homepage (not search template)
     assert!(location.contains("google.com"));
@@ -172,7 +187,12 @@ async fn test_redirect_custom_default() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Should use google as default
     assert!(location.contains("google.com"));
@@ -195,7 +215,12 @@ async fn test_redirect_no_encoding_github() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Forward slash should be preserved (not %2F)
     assert!(location.contains("github.com"));
@@ -244,7 +269,12 @@ async fn test_redirect_special_characters() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Plus signs should be encoded
     assert!(location.contains("c%2B%2B"));
@@ -267,7 +297,12 @@ async fn test_redirect_ampersand_encoding() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Ampersand should be encoded
     assert!(location.contains("rock%20%26%20roll") || location.contains("rock+%26+roll"));
@@ -290,7 +325,12 @@ async fn test_redirect_multiple_spaces() {
 
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
-    let location = response.headers().get("Location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("Location")
+        .unwrap()
+        .to_str()
+        .unwrap();
 
     // Multiple spaces should be preserved and encoded
     assert!(location.contains("google.com"));

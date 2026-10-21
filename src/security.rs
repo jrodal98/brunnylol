@@ -14,10 +14,7 @@ pub async fn security_headers(request: Request, next: Next) -> Response<Body> {
     let headers = response.headers_mut();
 
     // Prevent clickjacking - deny all framing
-    headers.insert(
-        header::X_FRAME_OPTIONS,
-        HeaderValue::from_static("DENY"),
-    );
+    headers.insert(header::X_FRAME_OPTIONS, HeaderValue::from_static("DENY"));
 
     // Prevent MIME type sniffing
     headers.insert(
@@ -51,7 +48,7 @@ pub async fn security_headers(request: Request, next: Next) -> Response<Body> {
              connect-src 'self'; \
              frame-ancestors 'none'; \
              base-uri 'self'; \
-             form-action 'self'"
+             form-action 'self'",
         ),
     );
 
@@ -60,7 +57,7 @@ pub async fn security_headers(request: Request, next: Next) -> Response<Body> {
         "Permissions-Policy",
         HeaderValue::from_static(
             "accelerometer=(), camera=(), geolocation=(), gyroscope=(), \
-             magnetometer=(), microphone=(), payment=(), usb=()"
+             magnetometer=(), microphone=(), payment=(), usb=()",
         ),
     );
 

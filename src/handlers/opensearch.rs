@@ -60,7 +60,10 @@ pub async fn descriptor(headers: HeaderMap) -> Response {
     );
     (
         StatusCode::OK,
-        [("content-type", "application/opensearchdescription+xml; charset=utf-8")],
+        [(
+            "content-type",
+            "application/opensearchdescription+xml; charset=utf-8",
+        )],
         xml,
     )
         .into_response()
@@ -88,11 +91,7 @@ pub async fn suggest(
     Query(params): Query<SuggestParams>,
 ) -> Response {
     let query = params.q.unwrap_or_default();
-    let partial = query
-        .split_whitespace()
-        .next()
-        .unwrap_or("")
-        .to_lowercase();
+    let partial = query.split_whitespace().next().unwrap_or("").to_lowercase();
 
     // Gather candidates: globals first, personal overrides/additions win.
     let mut by_alias: HashMap<String, Candidate> = HashMap::new();

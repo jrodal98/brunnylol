@@ -17,7 +17,10 @@ pub async fn seed_test_user(pool: &SqlitePool) -> Result<()> {
     let password_hash = auth::hash_password("admin123")?;
     let user = db::create_user(pool, "admin", &password_hash).await?;
 
-    println!("Created test admin user: {} (id: {})", user.username, user.id);
+    println!(
+        "Created test admin user: {} (id: {})",
+        user.username, user.id
+    );
 
     Ok(())
 }

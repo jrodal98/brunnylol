@@ -39,17 +39,15 @@ pub async fn create_api_token(
     user_id: i64,
     name: &str,
 ) -> Result<(i64, String)> {
-    let plaintext = generate_token()
-        .map_err(|e| anyhow::anyhow!("failed to generate token: {}", e))?;
+    let plaintext =
+        generate_token().map_err(|e| anyhow::anyhow!("failed to generate token: {}", e))?;
     let token_hash = hash_token(&plaintext);
-    let result = sqlx::query(
-        "INSERT INTO api_tokens (user_id, name, token_hash) VALUES (?, ?, ?)",
-    )
-    .bind(user_id)
-    .bind(name)
-    .bind(&token_hash)
-    .execute(pool)
-    .await?;
+    let result = sqlx::query("INSERT INTO api_tokens (user_id, name, token_hash) VALUES (?, ?, ?)")
+        .bind(user_id)
+        .bind(name)
+        .bind(&token_hash)
+        .execute(pool)
+        .await?;
     Ok((result.last_insert_rowid(), plaintext))
 }
 
@@ -80,21 +78,20 @@ pub async fn revoke_api_token(pool: &SqlitePool, user_id: i64, token_id: i64) ->
 /// last_used_at. Returns None for unknown/revoked tokens.
 pub async fn user_for_token(pool: &SqlitePool, plaintext: &str) -> Result<Option<super::User>> {
     let token_hash = hash_token(plaintext);
-    let row = sqlx::query(
-        "SELECT user_id FROM api_tokens WHERE token_hash = ?",
-    )
-    .bind(&token_hash)
-    .fetch_optional(pool)
-    .await?;
+    let row = sqlx::query("SELECT user_id FROM api_tokens WHERE token_hash = ?")
+        .bind(&token_hash)
+        .fetch_optional(pool)
+        .await?;
 
     let Some(row) = row else { return Ok(None) };
     use sqlx::Row;
     let user_id: i64 = row.get("user_id");
 
-    let _ = sqlx::query("UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?")
-        .bind(&token_hash)
-        .execute(pool)
-        .await;
+    let _ =
+        sqlx::query("UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE token_hash = ?")
+            .bind(&token_hash)
+            .execute(pool)
+            .await;
 
     let user = sqlx::query_as::<_, super::User>("SELECT * FROM users WHERE id = ?")
         .bind(user_id)

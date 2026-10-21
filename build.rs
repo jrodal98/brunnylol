@@ -78,9 +78,8 @@ fn main() {
         if !bytes.starts_with(b"\x89PNG") {
             panic!("favicon generation: {} did not decode to a PNG", source);
         }
-        fs::write(target_path, &bytes).unwrap_or_else(|e| {
-            panic!("favicon generation: cannot write {}: {}", target, e)
-        });
+        fs::write(target_path, &bytes)
+            .unwrap_or_else(|e| panic!("favicon generation: cannot write {}: {}", target, e));
         println!(
             "cargo:warning=generated {} from {} ({} bytes)",
             target,

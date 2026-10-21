@@ -1,7 +1,7 @@
 // Shared helper functions used across handlers
 
+use crate::{db, domain::Command, error::AppError, validation, AppState};
 use std::sync::Arc;
-use crate::{AppState, db, domain::Command, error::AppError, validation};
 
 /// Load a bookmark for the given alias, checking user bookmarks first, then global bookmarks
 /// Respects user-disabled global bookmarks
@@ -12,7 +12,9 @@ pub async fn load_bookmark_for_alias(
 ) -> Option<Command> {
     if let Some(user) = user {
         // Check user's personal bookmarks first
-        if let Ok(user_bookmarks) = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id).await {
+        if let Ok(user_bookmarks) =
+            db::bookmarks::load_user_bookmarks(&state.db_pool, user.id).await
+        {
             if let Some(cmd) = user_bookmarks.get(alias).cloned() {
                 return Some(cmd);
             }

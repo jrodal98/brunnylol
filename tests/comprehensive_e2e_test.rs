@@ -15,13 +15,15 @@ async fn test_e2e_create_bookmark_with_options() {
 
     let result = db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "pr",
-        "templated",
-        "https://proton.me",
-        "Proton services",
-        Some("https://{product|options[mail,drive,calendar,vpn]}.proton.me"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "pr",
+            bookmark_type: "templated",
+            url: "https://proton.me",
+            description: "Proton services",
+            command_template: Some("https://{product|options[mail,drive,calendar,vpn]}.proton.me"),
+            created_by: None,
+        },
     )
     .await;
 
@@ -38,7 +40,8 @@ async fn test_e2e_create_bookmark_with_options() {
 // Test 2: Options pipeline strict validation
 #[tokio::test]
 async fn test_e2e_options_strict_validation() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
     let resolver = TemplateResolver::new();
 
     // Valid option should work
@@ -58,7 +61,8 @@ async fn test_e2e_options_strict_validation() {
 // Test 3: Options pipeline non-strict allows any value
 #[tokio::test]
 async fn test_e2e_options_non_strict_allows_any() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive]}.proton.me").unwrap();
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive]}.proton.me").unwrap();
     let resolver = TemplateResolver::new();
 
     // Any value allowed in non-strict mode
@@ -76,13 +80,15 @@ async fn test_e2e_positional_args_multiple_vars() {
 
     db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "ghuser",
-        "templated",
-        "https://github.com",
-        "GitHub user/repo",
-        Some("https://github.com/{user}/{repo}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "ghuser",
+            bookmark_type: "templated",
+            url: "https://github.com",
+            description: "GitHub user/repo",
+            command_template: Some("https://github.com/{user}/{repo}"),
+            created_by: None,
+        },
     )
     .await
     .unwrap();
@@ -192,8 +198,13 @@ async fn test_e2e_single_query_variable() {
 // Test 12: Form builder extracts options from pipelines
 #[tokio::test]
 async fn test_e2e_form_builder_options() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive,calendar]}.proton.me").unwrap();
-    let form_data = brunnylol::domain::template::form_builder::build_form_data(&template, None, &HashMap::new());
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive,calendar]}.proton.me").unwrap();
+    let form_data = brunnylol::domain::template::form_builder::build_form_data(
+        &template,
+        None,
+        &HashMap::new(),
+    );
 
     assert_eq!(form_data.len(), 1);
     assert_eq!(form_data[0].name, "product");
@@ -210,8 +221,13 @@ async fn test_e2e_form_builder_options() {
 // Test 13: Form builder extracts strict flag
 #[tokio::test]
 async fn test_e2e_form_builder_strict() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
-    let form_data = brunnylol::domain::template::form_builder::build_form_data(&template, None, &HashMap::new());
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
+    let form_data = brunnylol::domain::template::form_builder::build_form_data(
+        &template,
+        None,
+        &HashMap::new(),
+    );
 
     assert!(form_data[0].strict);
 }
@@ -272,7 +288,10 @@ async fn test_e2e_escaped_braces() {
 #[tokio::test]
 async fn test_e2e_variable_all_features() {
     // Variable with default, options, strict, and trim
-    let template = TemplateParser::parse("https://{product=mail|trim|options[mail,drive,calendar][strict]}.proton.me").unwrap();
+    let template = TemplateParser::parse(
+        "https://{product=mail|trim|options[mail,drive,calendar][strict]}.proton.me",
+    )
+    .unwrap();
     let resolver = TemplateResolver::new();
 
     // Test with default (no value provided)

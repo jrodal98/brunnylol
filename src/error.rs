@@ -4,8 +4,6 @@ use axum::{
     http::StatusCode,
     response::{Html, IntoResponse, Redirect, Response},
 };
-use std::fmt;
-
 /// HTML escape a string to prevent XSS
 fn html_escape(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -16,30 +14,21 @@ fn html_escape(s: &str) -> String {
 }
 
 /// Application error type
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum AppError {
+    #[error("Template rendering error: {0}")]
     TemplateRender(String),
+    #[error("Not found: {0}")]
     NotFound(String),
+    #[error("Unauthorized: {0}")]
     Unauthorized(String),
+    #[error("Forbidden: {0}")]
     Forbidden(String),
+    #[error("Bad request: {0}")]
     BadRequest(String),
+    #[error("Internal error: {0}")]
     Internal(String),
 }
-
-impl fmt::Display for AppError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            AppError::TemplateRender(msg) => write!(f, "Template rendering error: {}", msg),
-            AppError::NotFound(msg) => write!(f, "Not found: {}", msg),
-            AppError::Unauthorized(msg) => write!(f, "Unauthorized: {}", msg),
-            AppError::Forbidden(msg) => write!(f, "Forbidden: {}", msg),
-            AppError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
-            AppError::Internal(msg) => write!(f, "Internal error: {}", msg),
-        }
-    }
-}
-
-impl std::error::Error for AppError {}
 
 // Implement IntoResponse so Axum can convert errors to HTTP responses
 impl IntoResponse for AppError {

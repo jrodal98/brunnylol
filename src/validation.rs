@@ -59,7 +59,7 @@ fn is_private_ipv6(ipv6: std::net::Ipv6Addr) -> Option<&'static str> {
 pub fn validate_template(template: &str) -> Result<(), AppError> {
     if !template.is_empty() && !template.contains("{}") {
         return Err(AppError::BadRequest(
-            "Template must contain '{}' placeholder for the search query".to_string()
+            "Template must contain '{}' placeholder for the search query".to_string(),
         ));
     }
 
@@ -117,12 +117,15 @@ pub fn validate_url_scheme(url: &str) -> Result<(), AppError> {
     let url_lower = url.to_lowercase();
 
     // Check if it starts with a scheme
-    if url_lower.contains("://") || url_lower.starts_with("javascript:")
-        || url_lower.starts_with("data:") || url_lower.starts_with("file:") {
+    if url_lower.contains("://")
+        || url_lower.starts_with("javascript:")
+        || url_lower.starts_with("data:")
+        || url_lower.starts_with("file:")
+    {
         // Only allow http and https
         if !url_lower.starts_with("http://") && !url_lower.starts_with("https://") {
             return Err(AppError::BadRequest(
-                "Only http:// and https:// URLs are allowed".to_string()
+                "Only http:// and https:// URLs are allowed".to_string(),
             ));
         }
     }
@@ -145,7 +148,10 @@ pub fn validate_passwords_match(password: &str, confirm_password: &str) -> Resul
 /// Returns Ok(()) if non-empty, Err(AppError::BadRequest) if empty
 pub fn validate_not_empty(field_name: &str, value: &str) -> Result<(), AppError> {
     if value.trim().is_empty() {
-        return Err(AppError::BadRequest(format!("{} cannot be empty", field_name)));
+        return Err(AppError::BadRequest(format!(
+            "{} cannot be empty",
+            field_name
+        )));
     }
     Ok(())
 }
@@ -155,23 +161,33 @@ pub fn validate_not_empty(field_name: &str, value: &str) -> Result<(), AppError>
 /// Only allows http/https URLs and blocks private IP ranges
 pub fn validate_url_for_fetch(url_str: &str) -> Result<(), AppError> {
     // Parse URL
-    let url = url_str.parse::<Url>()
+    let url = url_str
+        .parse::<Url>()
         .map_err(|_| AppError::BadRequest("Invalid URL format".to_string()))?;
 
     // Only allow http and https
     let scheme = url.scheme();
     if scheme != "http" && scheme != "https" {
-        return Err(AppError::BadRequest("Only http:// and https:// URLs are allowed".to_string()));
+        return Err(AppError::BadRequest(
+            "Only http:// and https:// URLs are allowed".to_string(),
+        ));
     }
 
     // Get host
-    let host = url.host_str()
+    let host = url
+        .host_str()
         .ok_or(AppError::BadRequest("URL must have a host".to_string()))?;
 
     // Block localhost variants
-    if host == "localhost" || host == "127.0.0.1" || host.starts_with("127.")
-        || host == "::1" || host == "0.0.0.0" {
-        return Err(AppError::BadRequest("Cannot fetch from localhost".to_string()));
+    if host == "localhost"
+        || host == "127.0.0.1"
+        || host.starts_with("127.")
+        || host == "::1"
+        || host == "0.0.0.0"
+    {
+        return Err(AppError::BadRequest(
+            "Cannot fetch from localhost".to_string(),
+        ));
     }
 
     // Block private IP ranges (IPv4 and IPv6)
@@ -201,7 +217,9 @@ pub fn validate_resolved_ip(ip: std::net::IpAddr) -> Result<(), AppError> {
         std::net::IpAddr::V4(ipv4) => {
             // Check for unspecified address (0.0.0.0)
             if ipv4.is_unspecified() {
-                return Err(AppError::BadRequest("Cannot fetch from unspecified address".to_string()));
+                return Err(AppError::BadRequest(
+                    "Cannot fetch from unspecified address".to_string(),
+                ));
             }
             if let Some(error_msg) = is_private_ipv4(ipv4.octets()) {
                 return Err(AppError::BadRequest(error_msg.to_string()));
@@ -231,7 +249,10 @@ mod tests {
     fn test_validate_template_invalid() {
         let result = validate_template("https://example.com/search");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("must contain '{}'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("must contain '{}'"));
     }
 
     #[test]

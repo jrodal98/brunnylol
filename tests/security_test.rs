@@ -100,10 +100,16 @@ async fn test_ssrf_blocks_ipv4_mapped_link_local() {
 async fn test_validate_resolved_ip_allows_public() {
     use std::net::IpAddr;
     let ip: IpAddr = "8.8.8.8".parse().unwrap();
-    assert!(validation::validate_resolved_ip(ip).is_ok(), "Should allow public IPv4");
+    assert!(
+        validation::validate_resolved_ip(ip).is_ok(),
+        "Should allow public IPv4"
+    );
 
     let ip_v6: IpAddr = "2001:4860:4860::8888".parse().unwrap();
-    assert!(validation::validate_resolved_ip(ip_v6).is_ok(), "Should allow public IPv6");
+    assert!(
+        validation::validate_resolved_ip(ip_v6).is_ok(),
+        "Should allow public IPv6"
+    );
 }
 
 #[tokio::test]
@@ -128,4 +134,3 @@ async fn test_validate_resolved_ip_blocks_private() {
         assert!(result.is_err(), "Should block private IP: {}", ip_str);
     }
 }
-

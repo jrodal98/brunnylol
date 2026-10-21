@@ -11,10 +11,10 @@ use std::collections::HashMap;
 /// Usage mode for bookmark aliases
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UsageMode {
-    Direct,   // alias value
-    Form,     // alias?
-    Named,    // alias$
-    Chained,  // alias?$ or alias$?
+    Direct,  // alias value
+    Form,    // alias?
+    Named,   // alias$
+    Chained, // alias?$ or alias$?
 }
 
 /// Result of redirect resolution
@@ -111,8 +111,7 @@ impl RedirectService {
         let mut bytes_consumed = 0;
         let mut found_close = false;
 
-        #[allow(clippy::while_let_on_iterator)]
-        while let Some(ch) = chars.next() {
+        for ch in chars.by_ref() {
             bytes_consumed += ch.len_utf8();
             if escaped {
                 value.push(ch);
@@ -338,24 +337,27 @@ impl RedirectService {
 
         // Handle nested paths (multi-segment paths or single segment with specific modes)
         if path.len() > 1 || !matches!(usage_mode, UsageMode::Direct) {
-            return self.resolve_nested_redirect(
-                &path,
-                usage_mode,
-                remaining_query.as_deref(),
-                user,
-                global_bookmarks,
-            ).await;
+            return self
+                .resolve_nested_redirect(
+                    &path,
+                    usage_mode,
+                    remaining_query.as_deref(),
+                    user,
+                    global_bookmarks,
+                )
+                .await;
         }
 
         // Fall back to original single-alias logic for backward compatibility
         let bookmark_alias = &path[0];
         let query_part = remaining_query.as_deref().unwrap_or("");
 
-
         let command = root_command.cloned();
 
         let redirect_url = match command {
-            Some(Command::Variable { ref template, .. }) if matches!(usage_mode, UsageMode::Named) => {
+            Some(Command::Variable { ref template, .. })
+                if matches!(usage_mode, UsageMode::Named) =>
+            {
                 // Named mode
                 let (mut vars, remaining) = Self::parse_named_variables(query_part);
 
@@ -366,27 +368,43 @@ impl RedirectService {
                 }
 
                 let resolver = TemplateResolver::new();
-                let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+                let missing = resolver
+                    .validate_variables(template, &vars)
+                    .unwrap_or_default();
 
                 if !missing.is_empty() {
-                    return Ok(RedirectResult::InternalPath(format!("/f/{}?{}", bookmark_alias, Self::build_query_string(&vars))));
+                    return Ok(RedirectResult::InternalPath(format!(
+                        "/f/{}?{}",
+                        bookmark_alias,
+                        Self::build_query_string(&vars)
+                    )));
                 }
 
                 match resolver.resolve(template, &vars) {
                     Ok(url) => url,
                     Err(_) => {
-                        return Ok(RedirectResult::InternalPath(format!("/f/{}?{}", bookmark_alias, Self::build_query_string(&vars))));
+                        return Ok(RedirectResult::InternalPath(format!(
+                            "/f/{}?{}",
+                            bookmark_alias,
+                            Self::build_query_string(&vars)
+                        )));
                     }
                 }
             }
-            Some(Command::Variable { ref template, ref base_url, .. }) => {
+            Some(Command::Variable {
+                ref template,
+                ref base_url,
+                ..
+            }) => {
                 // Direct mode
                 if query_part.trim().is_empty() {
-                    return Ok(if base_url.starts_with("http://") || base_url.starts_with("https://") {
-                        RedirectResult::ExternalUrl(base_url.clone())
-                    } else {
-                        RedirectResult::InternalPath(base_url.clone())
-                    });
+                    return Ok(
+                        if base_url.starts_with("http://") || base_url.starts_with("https://") {
+                            RedirectResult::ExternalUrl(base_url.clone())
+                        } else {
+                            RedirectResult::InternalPath(base_url.clone())
+                        },
+                    );
                 }
 
                 let mut vars = HashMap::new();
@@ -395,9 +413,7 @@ impl RedirectService {
 
                 vars.insert("url".to_string(), base_url.clone());
 
-                let user_vars: Vec<_> = template_vars.iter()
-                    .filter(|v| v.name != "url")
-                    .collect();
+                let user_vars: Vec<_> = template_vars.iter().filter(|v| v.name != "url").collect();
 
                 if has_query_var && user_vars.len() == 1 && user_vars[0].name == "query" {
                     vars.insert("query".to_string(), query_part.to_string());
@@ -415,16 +431,25 @@ impl RedirectService {
                 }
 
                 let resolver = TemplateResolver::new();
-                let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+                let missing = resolver
+                    .validate_variables(template, &vars)
+                    .unwrap_or_default();
 
                 if !missing.is_empty() {
-                    return Ok(RedirectResult::InternalPath(format!("/f/{}", bookmark_alias)));
+                    return Ok(RedirectResult::InternalPath(format!(
+                        "/f/{}",
+                        bookmark_alias
+                    )));
                 }
 
                 match resolver.resolve(template, &vars) {
                     Ok(url) => url,
                     Err(_) => {
-                        return Ok(RedirectResult::InternalPath(format!("/f/{}?{}", bookmark_alias, Self::build_query_string(&vars))));
+                        return Ok(RedirectResult::InternalPath(format!(
+                            "/f/{}?{}",
+                            bookmark_alias,
+                            Self::build_query_string(&vars)
+                        )));
                     }
                 }
             }
@@ -435,7 +460,10 @@ impl RedirectService {
                 let default = default_alias.or(user_default).unwrap_or("");
 
                 if default.is_empty() {
-                    return Err(AppError::NotFound(format!("Unknown alias: '{}'", bookmark_alias)));
+                    return Err(AppError::NotFound(format!(
+                        "Unknown alias: '{}'",
+                        bookmark_alias
+                    )));
                 }
 
                 let default_command = user_bookmarks
@@ -452,7 +480,9 @@ impl RedirectService {
 
                 default_command
                     .map(|cmd| cmd.get_redirect_url(query))
-                    .unwrap_or_else(|| format!("/404?alias={}", urlencoding::encode(bookmark_alias)))
+                    .unwrap_or_else(|| {
+                        format!("/404?alias={}", urlencoding::encode(bookmark_alias))
+                    })
             }
         };
 
@@ -504,13 +534,9 @@ impl RedirectService {
 
         // Resolve nested path
         let final_command = if path.len() > 1 {
-            Self::resolve_nested_command(root_command, path, 1)
-                .ok_or_else(|| {
-                    AppError::NotFound(format!(
-                        "Unknown nested path: '{}'",
-                        path[1..].join("/")
-                    ))
-                })?
+            Self::resolve_nested_command(root_command, path, 1).ok_or_else(|| {
+                AppError::NotFound(format!("Unknown nested path: '{}'", path[1..].join("/")))
+            })?
         } else {
             root_command
         };
@@ -533,7 +559,12 @@ impl RedirectService {
                 Ok(RedirectResult::InternalPath(form_url))
             }
             // Named mode with Variable command
-            (Command::Variable { template, base_url, .. }, UsageMode::Named) => {
+            (
+                Command::Variable {
+                    template, base_url, ..
+                },
+                UsageMode::Named,
+            ) => {
                 let query = remaining_query.unwrap_or("");
                 let (mut vars, remaining) = Self::parse_named_variables(query);
 
@@ -546,7 +577,9 @@ impl RedirectService {
                 vars.insert("url".to_string(), base_url.clone());
 
                 let resolver = TemplateResolver::new();
-                let missing = resolver.validate_variables(template, &vars).unwrap_or_default();
+                let missing = resolver
+                    .validate_variables(template, &vars)
+                    .unwrap_or_default();
 
                 if !missing.is_empty() {
                     return Ok(RedirectResult::InternalPath(format!(
@@ -599,16 +632,14 @@ impl RedirectService {
 
 impl RedirectResult {
     pub fn into_response(self) -> axum::response::Response {
-        use axum::http::{StatusCode, header};
+        use axum::http::{header, StatusCode};
         use axum::response::{IntoResponse, Redirect};
 
         match self {
             RedirectResult::ExternalUrl(url) => {
                 (StatusCode::SEE_OTHER, [(header::LOCATION, url)]).into_response()
             }
-            RedirectResult::InternalPath(path) => {
-                Redirect::to(&path).into_response()
-            }
+            RedirectResult::InternalPath(path) => Redirect::to(&path).into_response(),
             RedirectResult::NotFound(alias) => {
                 AppError::NotFound(format!("Unknown alias: '{}'", alias)).into_response()
             }

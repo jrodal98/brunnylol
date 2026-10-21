@@ -5,9 +5,7 @@ use sqlx::SqlitePool;
 use std::collections::HashMap;
 
 use crate::{
-    config::yml_settings::YmlSettings,
-    db,
-    domain::Command,
+    config::yml_settings::YmlSettings, db, domain::Command,
     services::serializers::BookmarkSerializer,
 };
 
@@ -62,7 +60,8 @@ impl BookmarkService {
     /// Load all global bookmarks as Command objects
     pub async fn load_global_bookmarks(&self) -> Result<HashMap<String, Command>> {
         // Use optimized function that fetches bookmarks + nested in single query (fixes N+1)
-        let bookmarks_with_nested = db::get_bookmarks_with_nested(&self.pool, db::BookmarkScope::Global).await?;
+        let bookmarks_with_nested =
+            db::get_bookmarks_with_nested(&self.pool, db::BookmarkScope::Global).await?;
         let mut commands = HashMap::new();
 
         for (bookmark, nested) in bookmarks_with_nested {
@@ -71,7 +70,10 @@ impl BookmarkService {
                     commands.insert(bookmark.alias.clone(), command);
                 }
                 Err(e) => {
-                    eprintln!("Warning: Failed to load global bookmark '{}': {}", bookmark.alias, e);
+                    eprintln!(
+                        "Warning: Failed to load global bookmark '{}': {}",
+                        bookmark.alias, e
+                    );
                 }
             }
         }
@@ -87,7 +89,8 @@ impl BookmarkService {
         scope: db::BookmarkScope,
         created_by: Option<i64>,
     ) -> Result<ImportResult> {
-        let settings: Vec<YmlSettings> = serializer.deserialize(content)
+        let settings: Vec<YmlSettings> = serializer
+            .deserialize(content)
             .context("Failed to parse bookmark data")?;
 
         let mut imported = 0;
@@ -133,9 +136,7 @@ impl BookmarkService {
             db::BookmarkScope::Personal { user_id } => {
                 self.export_personal_bookmarks(user_id).await?
             }
-            db::BookmarkScope::Global => {
-                self.export_global_bookmarks().await?
-            }
+            db::BookmarkScope::Global => self.export_global_bookmarks().await?,
         };
 
         serializer.serialize(&bookmarks)
@@ -152,12 +153,9 @@ impl BookmarkService {
         let yaml_content = include_str!("../../commands.yml");
         let serializer = crate::services::serializers::YamlSerializer;
 
-        let result = self.import_bookmarks(
-            yaml_content,
-            &serializer,
-            db::BookmarkScope::Global,
-            None,
-        ).await?;
+        let result = self
+            .import_bookmarks(yaml_content, &serializer, db::BookmarkScope::Global, None)
+            .await?;
 
         if !result.errors.is_empty() {
             eprintln!("Errors during global bookmark seeding:");
@@ -191,14 +189,17 @@ impl BookmarkService {
 
         let bookmark_id = db::create_bookmark(
             &self.pool,
-            scope,
-            &setting.alias,
-            bookmark_type,
-            &setting.url,
-            &setting.description,
-            setting.command.as_deref(),
-            created_by,
-        ).await?;
+            db::NewBookmark {
+                scope,
+                alias: &setting.alias,
+                bookmark_type,
+                url: &setting.url,
+                description: &setting.description,
+                command_template: setting.command.as_deref(),
+                created_by,
+            },
+        )
+        .await?;
 
         // Import nested commands if present
         if let Some(nested) = &setting.nested {
@@ -211,7 +212,8 @@ impl BookmarkService {
                     &nested_setting.description,
                     nested_setting.command.as_deref(),
                     i as i32,
-                ).await?;
+                )
+                .await?;
             }
         }
 
@@ -219,15 +221,26 @@ impl BookmarkService {
     }
 
     async fn import_personal_bookmark(&self, setting: &YmlSettings, user_id: i64) -> Result<i64> {
-        self.import_bookmark(setting, db::BookmarkScope::Personal { user_id }, Some(user_id)).await
+        self.import_bookmark(
+            setting,
+            db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
     }
 
-    async fn import_global_bookmark(&self, setting: &YmlSettings, created_by: Option<i64>) -> Result<i64> {
-        self.import_bookmark(setting, db::BookmarkScope::Global, created_by).await
+    async fn import_global_bookmark(
+        &self,
+        setting: &YmlSettings,
+        created_by: Option<i64>,
+    ) -> Result<i64> {
+        self.import_bookmark(setting, db::BookmarkScope::Global, created_by)
+            .await
     }
 
     async fn export_personal_bookmarks(&self, user_id: i64) -> Result<Vec<YmlSettings>> {
-        let bookmarks = db::get_bookmarks(&self.pool, db::BookmarkScope::Personal { user_id }).await?;
+        let bookmarks =
+            db::get_bookmarks(&self.pool, db::BookmarkScope::Personal { user_id }).await?;
         self.bookmarks_to_yml(bookmarks).await
     }
 
@@ -253,7 +266,7 @@ impl BookmarkService {
                             command: n.command_template,
                             nested: None,
                         })
-                        .collect()
+                        .collect(),
                 )
             } else {
                 None

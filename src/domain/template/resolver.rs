@@ -47,7 +47,9 @@ impl TemplateResolver {
 
                             // Apply default encoding ONLY if no encoding-related pipeline exists
                             // EXCEPT for built-in variables like {url} which should never be encoded by default
-                            let has_encoding_pipeline = var_expr.pipelines.iter()
+                            let has_encoding_pipeline = var_expr
+                                .pipelines
+                                .iter()
                                 .any(|p| matches!(p, PipelineOp::Encode | PipelineOp::NoEncode));
 
                             let is_builtin_noenc = var_expr.name == "url"; // {url} built-in should not be encoded
@@ -123,10 +125,7 @@ impl TemplateResolver {
         let mut missing = Vec::new();
 
         for var in template.variables() {
-            if !var.is_optional
-                && var.default.is_none()
-                && !variables.contains_key(&var.name)
-            {
+            if !var.is_optional && var.default.is_none() && !variables.contains_key(&var.name) {
                 missing.push(var.name.clone());
             }
         }
@@ -268,7 +267,8 @@ mod tests {
 
     #[test]
     fn test_resolve_with_map_matched() {
-        let template = TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
+        let template =
+            TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
         let resolver = TemplateResolver::new();
 
         let mut vars = HashMap::new();
@@ -280,7 +280,8 @@ mod tests {
 
     #[test]
     fn test_resolve_with_map_unmapped() {
-        let template = TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
+        let template =
+            TemplateParser::parse("https://example.com/{app|map[cal:calendar]}").unwrap();
         let resolver = TemplateResolver::new();
 
         let mut vars = HashMap::new();
@@ -292,7 +293,8 @@ mod tests {
 
     #[test]
     fn test_resolve_with_map_multiple_mappings() {
-        let template = TemplateParser::parse("{app|map[cal:calendar,sh:sheets,dc:docs]|!encode}").unwrap();
+        let template =
+            TemplateParser::parse("{app|map[cal:calendar,sh:sheets,dc:docs]|!encode}").unwrap();
         let resolver = TemplateResolver::new();
 
         let mut vars = HashMap::new();
@@ -304,7 +306,9 @@ mod tests {
 
     #[test]
     fn test_resolve_with_options_and_map() {
-        let template = TemplateParser::parse("{app|options[calendar,sheets,docs]|map[cal:calendar]|!encode}").unwrap();
+        let template =
+            TemplateParser::parse("{app|options[calendar,sheets,docs]|map[cal:calendar]|!encode}")
+                .unwrap();
         let resolver = TemplateResolver::new();
 
         let mut vars = HashMap::new();

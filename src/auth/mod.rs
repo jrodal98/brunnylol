@@ -23,7 +23,10 @@ pub fn validate_username(username: &str) -> Result<()> {
     if username.len() > 30 {
         anyhow::bail!("Username must be at most 30 characters");
     }
-    if !username.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-') {
+    if !username
+        .chars()
+        .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+    {
         anyhow::bail!("Username can only contain letters, numbers, underscores, and hyphens");
     }
     Ok(())

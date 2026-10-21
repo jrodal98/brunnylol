@@ -1,5 +1,5 @@
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> anyhow::Result<()> {
     // Parse CLI arguments for port
     let matches = clap::Command::new("Brunnylol")
         .arg(
@@ -28,8 +28,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Enable ConnectInfo to get real client IP for rate limiting
     axum::serve(
         listener,
-        app.into_make_service_with_connect_info::<std::net::SocketAddr>()
-    ).await?;
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

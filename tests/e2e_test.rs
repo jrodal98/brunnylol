@@ -1,10 +1,10 @@
 // End-to-end tests using actual HTTP requests
 // Each test uses a unique available port to allow parallel execution
 
-use std::time::Duration;
-use std::process::{Command, Child};
-use std::sync::atomic::{AtomicU16, Ordering};
 use std::net::TcpListener;
+use std::process::{Child, Command};
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::time::Duration;
 use tokio::time::sleep as tokio_sleep;
 
 // Start port allocation from 8100
@@ -72,9 +72,9 @@ impl TestApp {
         // seeding is complete — poll for one, up to 60s.
         let ready_deadline = std::time::Instant::now() + Duration::from_secs(60);
         loop {
-            match process.try_wait() {
-                Ok(Some(_)) => break, // exited; the check below reports it
-                _ => {}
+            // Exited; the check below reports it.
+            if let Ok(Some(_)) = process.try_wait() {
+                break;
             }
             let probe = std::net::TcpStream::connect(format!("127.0.0.1:{}", port));
             if let Ok(mut stream) = probe {
@@ -170,7 +170,11 @@ async fn test_e2e_comprehensive() {
 
     // Test 1: Auto-seeding
     let global_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global';");
-    assert!(global_count >= 20, "Should have at least 20 global bookmarks seeded, got {}", global_count);
+    assert!(
+        global_count >= 20,
+        "Should have at least 20 global bookmarks seeded, got {}",
+        global_count
+    );
     println!("✓ Auto-seeding: {} global bookmarks", global_count);
 
     // Check if admin user exists, if not test is using production DB
@@ -190,7 +194,9 @@ async fn test_e2e_comprehensive() {
             .await
             .unwrap();
 
-        assert!(register_response.status().is_success() || register_response.status().is_redirection());
+        assert!(
+            register_response.status().is_success() || register_response.status().is_redirection()
+        );
         println!("✓ Created admin user via registration");
     } else {
         println!("  Admin user already exists");
@@ -242,8 +248,12 @@ async fn test_e2e_comprehensive() {
     println!("✓ Import personal bookmark (YAML)");
 
     // Test 4: Verify imported bookmark in database
-    let bookmark_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'personal' AND alias='e2e-test1';");
-    assert_eq!(bookmark_exists, "e2e-test1", "Bookmark should be in database");
+    let bookmark_exists =
+        app.db_query("SELECT alias FROM bookmarks WHERE scope = 'personal' AND alias='e2e-test1';");
+    assert_eq!(
+        bookmark_exists, "e2e-test1",
+        "Bookmark should be in database"
+    );
     println!("✓ Imported bookmark persisted to database");
 
     // Test 5: Import personal bookmark (JSON)
@@ -268,7 +278,11 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert!(import_json.text().await.unwrap().contains("Successfully imported 1 bookmarks"));
+    assert!(import_json
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported 1 bookmarks"));
     println!("✓ Import personal bookmark (JSON)");
 
     // Test 6: Import nested bookmark
@@ -296,7 +310,11 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert!(import_nested.text().await.unwrap().contains("Successfully imported 1 bookmarks"));
+    assert!(import_nested
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported 1 bookmarks"));
 
     let nested_count = app.db_query_count(
         "SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id = (SELECT id FROM bookmarks WHERE scope = 'personal' AND alias='e2e-nested');"
@@ -322,15 +340,23 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert!(import_global.text().await.unwrap().contains("Successfully imported 1 bookmarks"));
+    assert!(import_global
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported 1 bookmarks"));
 
-    let global_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'global' AND alias='e2e-global';");
+    let global_exists =
+        app.db_query("SELECT alias FROM bookmarks WHERE scope = 'global' AND alias='e2e-global';");
     assert_eq!(global_exists, "e2e-global");
     println!("✓ Import global bookmark (admin only)");
 
     // Test 8: Export personal bookmarks (YAML)
     let export_personal_yaml = client
-        .get(format!("{}/manage/export?scope=personal&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -342,7 +368,10 @@ async fn test_e2e_comprehensive() {
 
     // Test 9: Export personal bookmarks (JSON)
     let export_personal_json = client
-        .get(format!("{}/manage/export?scope=personal&format=json", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=json",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -353,7 +382,10 @@ async fn test_e2e_comprehensive() {
 
     // Test 10: Export global bookmarks (YAML, admin only)
     let export_global_yaml = client
-        .get(format!("{}/manage/export?scope=global&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=global&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -365,7 +397,10 @@ async fn test_e2e_comprehensive() {
 
     // Test 11: Export global bookmarks (JSON)
     let export_global_json = client
-        .get(format!("{}/manage/export?scope=global&format=json", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=global&format=json",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -421,17 +456,27 @@ async fn test_e2e_comprehensive() {
     match search_result {
         Ok(search_response) => {
             let redirect_url = search_response.url().to_string();
-            assert!(redirect_url.contains("custom-google.com"),
-                    "Should redirect to custom Google, got: {}", redirect_url);
+            assert!(
+                redirect_url.contains("custom-google.com"),
+                "Should redirect to custom Google, got: {}",
+                redirect_url
+            );
             println!("✓ Personal bookmark overrides global");
         }
         Err(e) => {
             // Might fail due to app state, verify in database instead
-            let personal_g = app.db_query("SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
-            assert!(personal_g.contains("custom-google.com"),
-                    "Personal 'g' bookmark should exist in DB");
+            let personal_g = app.db_query(
+                "SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';",
+            );
+            assert!(
+                personal_g.contains("custom-google.com"),
+                "Personal 'g' bookmark should exist in DB"
+            );
             println!("✓ Personal bookmark overrides global (verified in DB)");
-            println!("  Note: Redirect test skipped due to connection error: {}", e);
+            println!(
+                "  Note: Redirect test skipped due to connection error: {}",
+                e
+            );
         }
     }
 
@@ -448,9 +493,13 @@ async fn test_e2e_comprehensive() {
             println!("✓ Search with global bookmark (YouTube)");
         }
         Err(e) => {
-            println!("  Note: YouTube search skipped due to connection error: {}", e);
+            println!(
+                "  Note: YouTube search skipped due to connection error: {}",
+                e
+            );
             // Verify bookmark exists in DB instead
-            let yt_exists = app.db_query("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global' AND alias='yt';");
+            let yt_exists = app
+                .db_query("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global' AND alias='yt';");
             assert_eq!(yt_exists, "1");
             println!("✓ Global bookmark exists (YouTube verified in DB)");
         }
@@ -493,17 +542,28 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert_eq!(forbidden_import.status(), 403, "Should return 403 Forbidden");
+    assert_eq!(
+        forbidden_import.status(),
+        403,
+        "Should return 403 Forbidden"
+    );
     println!("✓ Regular user blocked from importing global bookmarks");
 
     // Test 17: Regular user cannot export global
     let forbidden_export = user_client
-        .get(format!("{}/manage/export?scope=global&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=global&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
 
-    assert_eq!(forbidden_export.status(), 403, "Should return 403 Forbidden");
+    assert_eq!(
+        forbidden_export.status(),
+        403,
+        "Should return 403 Forbidden"
+    );
     println!("✓ Regular user blocked from exporting global bookmarks");
 
     // Test 18: Regular user CAN import personal
@@ -519,12 +579,19 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert!(user_import.text().await.unwrap().contains("Successfully imported"));
+    assert!(user_import
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported"));
     println!("✓ Regular user can import personal bookmarks");
 
     // Test 19: Regular user CAN export personal
     let user_export = user_client
-        .get(format!("{}/manage/export?scope=personal&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -534,7 +601,10 @@ async fn test_e2e_comprehensive() {
 
     // Test 20: Round-trip export/import
     let exported = client
-        .get(format!("{}/manage/export?scope=personal&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap()
@@ -557,7 +627,10 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert!(reimport.contains("skipped"), "Should skip duplicates on re-import");
+    assert!(
+        reimport.contains("skipped"),
+        "Should skip duplicates on re-import"
+    );
     println!("✓ Round-trip: export → import skips duplicates");
 
     // Test 21: Unknown alias returns 404 by default (new behavior)
@@ -567,7 +640,11 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert_eq!(unknown_alias_response.status(), 404, "Unknown alias should return 404 by default");
+    assert_eq!(
+        unknown_alias_response.status(),
+        404,
+        "Unknown alias should return 404 by default"
+    );
     println!("✓ Unknown alias returns 404 (no default set)");
 
     // Test 22: Set default alias to 'g'
@@ -602,10 +679,21 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert_eq!(unknown_with_default.status(), 303, "Should redirect when default is set");
-    let location = unknown_with_default.headers().get("location").unwrap().to_str().unwrap();
-    assert!(location.contains("google.com") && location.contains("unknownalias456"),
-            "Should use default 'g' and include full query");
+    assert_eq!(
+        unknown_with_default.status(),
+        303,
+        "Should redirect when default is set"
+    );
+    let location = unknown_with_default
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(
+        location.contains("google.com") && location.contains("unknownalias456"),
+        "Should use default 'g' and include full query"
+    );
     println!("✓ Unknown alias redirects to default 'g'");
 
     // Test 24: Clear default alias
@@ -626,7 +714,11 @@ async fn test_e2e_comprehensive() {
         .await
         .unwrap();
 
-    assert_eq!(unknown_after_clear.status(), 404, "Unknown alias should return 404 after clearing default");
+    assert_eq!(
+        unknown_after_clear.status(),
+        404,
+        "Unknown alias should return 404 after clearing default"
+    );
     println!("✓ Unknown alias returns 404 after clearing default");
 
     // Test 26: Test return-to functionality when accessing protected pages
@@ -642,9 +734,17 @@ async fn test_e2e_comprehensive() {
         .unwrap();
 
     assert_eq!(settings_response.status(), 303, "Should redirect to login");
-    let settings_location = settings_response.headers().get("location").unwrap().to_str().unwrap();
+    let settings_location = settings_response
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(settings_location.contains("/login"));
-    assert!(settings_location.contains("return=%2Fsettings"), "Should include return parameter");
+    assert!(
+        settings_location.contains("return=%2Fsettings"),
+        "Should include return parameter"
+    );
     println!("✓ Accessing /settings without auth redirects to /login?return=/settings");
 
     // Test 27: Verify login redirects back to original page
@@ -665,7 +765,8 @@ async fn test_e2e_comprehensive() {
 
     // Final statistics
     let total_global = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'global';");
-    let total_personal = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal';");
+    let total_personal =
+        app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal';");
     let total_users = app.db_query_count("SELECT COUNT(*) FROM users;");
 
     println!("\nFinal Statistics:");
@@ -673,9 +774,15 @@ async fn test_e2e_comprehensive() {
     println!("  Global Bookmarks: {}", total_global);
     println!("  Personal Bookmarks: {}", total_personal);
 
-    assert!(total_global >= 21, "Should have at least 21 global bookmarks (20 seeded + 1 imported)");
+    assert!(
+        total_global >= 21,
+        "Should have at least 21 global bookmarks (20 seeded + 1 imported)"
+    );
     assert!(total_users >= 2, "Should have at least 2 users");
-    assert!(total_personal >= 4, "Should have at least 4 personal bookmarks");
+    assert!(
+        total_personal >= 4,
+        "Should have at least 4 personal bookmarks"
+    );
 
     println!("\n✅ ALL E2E TESTS PASSED");
 
@@ -699,7 +806,12 @@ async fn test_e2e_search_redirects() {
         .unwrap();
 
     assert_eq!(search_google.status(), 303);
-    let location = search_google.headers().get("location").unwrap().to_str().unwrap();
+    let location = search_google
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(location.contains("google.com") && location.contains("hello"));
     println!("✓ Global bookmark search redirect works");
 
@@ -710,7 +822,12 @@ async fn test_e2e_search_redirects() {
         .await
         .unwrap();
 
-    let yt_location = search_yt.headers().get("location").unwrap().to_str().unwrap();
+    let yt_location = search_yt
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(yt_location.contains("youtube.com") && yt_location.contains("rust"));
     println!("✓ YouTube search works");
 
@@ -721,7 +838,12 @@ async fn test_e2e_search_redirects() {
         .await
         .unwrap();
 
-    let ddg_location = search_ddg.headers().get("location").unwrap().to_str().unwrap();
+    let ddg_location = search_ddg
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(ddg_location.contains("duckduckgo.com") && ddg_location.contains("testing"));
     println!("✓ DuckDuckGo search works");
 
@@ -781,12 +903,19 @@ async fn test_e2e_import_export_formats() {
         .await
         .unwrap();
 
-    assert!(import_yaml.text().await.unwrap().contains("Successfully imported 1"));
+    assert!(import_yaml
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported 1"));
     println!("✓ YAML import works");
 
     // Export as YAML
     let export_yaml = client
-        .get(format!("{}/manage/export?scope=personal&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -797,7 +926,10 @@ async fn test_e2e_import_export_formats() {
 
     // Export as JSON
     let export_json = client
-        .get(format!("{}/manage/export?scope=personal&format=json", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=personal&format=json",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap();
@@ -820,7 +952,10 @@ async fn test_e2e_import_export_formats() {
         .unwrap();
 
     let json_import_text = import_json.text().await.unwrap();
-    assert!(json_import_text.contains("skipped"), "Should skip duplicates");
+    assert!(
+        json_import_text.contains("skipped"),
+        "Should skip duplicates"
+    );
     println!("✓ JSON round-trip works");
 
     println!("\n✅ ALL FORMAT TESTS PASSED");
@@ -887,7 +1022,11 @@ async fn test_e2e_nested_global_bookmarks() {
         .await
         .unwrap();
 
-    assert!(import_result.text().await.unwrap().contains("Successfully imported 1"));
+    assert!(import_result
+        .text()
+        .await
+        .unwrap()
+        .contains("Successfully imported 1"));
     println!("✓ Import nested global bookmark");
 
     // Verify in database
@@ -899,7 +1038,10 @@ async fn test_e2e_nested_global_bookmarks() {
 
     // Export and verify nested structure is preserved
     let export = client
-        .get(format!("{}/manage/export?scope=global&format=yaml", app.base_url))
+        .get(format!(
+            "{}/manage/export?scope=global&format=yaml",
+            app.base_url
+        ))
         .send()
         .await
         .unwrap()
@@ -977,13 +1119,18 @@ async fn test_e2e_bulk_operations() {
         .await
         .unwrap();
 
-    let initial_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
+    let initial_count = app
+        .db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(initial_count, 4, "Should have 4 test bookmarks");
     println!("✓ Imported 4 test bookmarks");
 
     // Get the IDs of the first 2 bookmarks
-    let id1 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test1';");
-    let id2 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test2';");
+    let id1 = app.db_query(
+        "SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test1';",
+    );
+    let id2 = app.db_query(
+        "SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test2';",
+    );
 
     // Test bulk delete
     let bulk_delete_response = client
@@ -994,14 +1141,19 @@ async fn test_e2e_bulk_operations() {
         .await
         .unwrap();
 
-    assert_eq!(bulk_delete_response.status(), 200, "Bulk delete should succeed");
+    assert_eq!(
+        bulk_delete_response.status(),
+        200,
+        "Bulk delete should succeed"
+    );
     let delete_text = bulk_delete_response.text().await.unwrap();
     let delete_json: serde_json::Value = serde_json::from_str(&delete_text).unwrap();
     assert_eq!(delete_json["deleted"], 2);
     println!("✓ Bulk delete: deleted 2 bookmarks");
 
     // Verify bookmarks were deleted
-    let after_delete_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
+    let after_delete_count = app
+        .db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(after_delete_count, 2, "Should have 2 bookmarks remaining");
     println!("✓ Verified bulk delete removed correct bookmarks");
 
@@ -1014,7 +1166,11 @@ async fn test_e2e_bulk_operations() {
         .await
         .unwrap();
 
-    assert_eq!(bulk_disable_response.status(), 200, "Bulk disable should succeed");
+    assert_eq!(
+        bulk_disable_response.status(),
+        200,
+        "Bulk disable should succeed"
+    );
     let disable_text = bulk_disable_response.text().await.unwrap();
     let disable_json: serde_json::Value = serde_json::from_str(&disable_text).unwrap();
     assert_eq!(disable_json["updated"], 3);
@@ -1022,7 +1178,7 @@ async fn test_e2e_bulk_operations() {
 
     // Verify overrides were created
     let disabled_count = app.db_query_count(
-        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;"
+        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;",
     );
     assert_eq!(disabled_count, 3, "Should have 3 disabled overrides");
     println!("✓ Verified bulk disable created overrides");
@@ -1036,7 +1192,11 @@ async fn test_e2e_bulk_operations() {
         .await
         .unwrap();
 
-    assert_eq!(bulk_enable_response.status(), 200, "Bulk enable should succeed");
+    assert_eq!(
+        bulk_enable_response.status(),
+        200,
+        "Bulk enable should succeed"
+    );
     let enable_text = bulk_enable_response.text().await.unwrap();
     let enable_json: serde_json::Value = serde_json::from_str(&enable_text).unwrap();
     assert_eq!(enable_json["updated"], 2);
@@ -1044,14 +1204,21 @@ async fn test_e2e_bulk_operations() {
 
     // Verify overrides were updated
     let still_disabled = app.db_query_count(
-        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;"
+        "SELECT COUNT(*) FROM user_bookmark_overrides WHERE user_id=1 AND is_disabled=1;",
     );
-    assert_eq!(still_disabled, 1, "Should have 1 disabled override remaining (yt)");
+    assert_eq!(
+        still_disabled, 1,
+        "Should have 1 disabled override remaining (yt)"
+    );
     println!("✓ Verified bulk enable updated overrides");
 
     // Test deleting all remaining bookmarks
-    let id3 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test3';");
-    let id4 = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test4';");
+    let id3 = app.db_query(
+        "SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test3';",
+    );
+    let id4 = app.db_query(
+        "SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='bulk-test4';",
+    );
 
     let delete_all = client
         .post(format!("{}/manage/bookmarks/bulk-delete", app.base_url))
@@ -1105,8 +1272,12 @@ async fn test_e2e_fork_global_bookmarks() {
     println!("✓ Admin logged in");
 
     // Verify no personal bookmarks initially
-    let initial_personal = app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
-    assert_eq!(initial_personal, 0, "Should have no personal bookmarks initially");
+    let initial_personal =
+        app.db_query_count("SELECT COUNT(*) FROM user_bookmarks WHERE user_id=1;");
+    assert_eq!(
+        initial_personal, 0,
+        "Should have no personal bookmarks initially"
+    );
     println!("✓ No personal bookmarks initially");
 
     // Fork a simple global bookmark (Google)
@@ -1118,17 +1289,27 @@ async fn test_e2e_fork_global_bookmarks() {
         .unwrap();
 
     let fork_response = fork_simple.text().await.unwrap();
-    assert!(fork_response.contains("Forked"), "Response should confirm fork: {}", fork_response);
+    assert!(
+        fork_response.contains("Forked"),
+        "Response should confirm fork: {}",
+        fork_response
+    );
     println!("✓ Forked simple global bookmark 'g'");
 
     // Verify bookmark was created in user bookmarks
-    let g_exists = app.db_query("SELECT alias FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
+    let g_exists = app.db_query(
+        "SELECT alias FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';",
+    );
     assert_eq!(g_exists, "g", "Forked bookmark should exist");
 
-    let g_type = app.db_query("SELECT bookmark_type FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
+    let g_type = app.db_query(
+        "SELECT bookmark_type FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';",
+    );
     assert_eq!(g_type, "templated", "Should preserve bookmark type");
 
-    let g_url = app.db_query("SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';");
+    let g_url = app.db_query(
+        "SELECT url FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='g';",
+    );
     assert!(g_url.contains("google.com"), "Should preserve URL");
     println!("✓ Forked bookmark has correct data");
 
@@ -1141,7 +1322,10 @@ async fn test_e2e_fork_global_bookmarks() {
         .unwrap();
 
     let dup_text = fork_duplicate.text().await.unwrap();
-    assert!(dup_text.contains("already have"), "Should prevent duplicate forks");
+    assert!(
+        dup_text.contains("already have"),
+        "Should prevent duplicate forks"
+    );
     println!("✓ Cannot fork same bookmark twice");
 
     // Import and fork a nested global bookmark (since none exist in default commands.yml anymore)
@@ -1181,20 +1365,32 @@ async fn test_e2e_fork_global_bookmarks() {
         .unwrap();
 
     let fork_nested_response = fork_nested.text().await.unwrap();
-    assert!(fork_nested_response.contains("Forked"), "Response should confirm fork: {}", fork_nested_response);
+    assert!(
+        fork_nested_response.contains("Forked"),
+        "Response should confirm fork: {}",
+        fork_nested_response
+    );
     println!("✓ Forked nested global bookmark 'test-nested-global'");
 
     // Verify nested bookmarks were copied
     let nested_id = app.db_query("SELECT id FROM bookmarks WHERE scope = 'personal' AND user_id=1 AND alias='test-nested-global';");
-    let nested_count = app.db_query_count(
-        &format!("SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};", nested_id.trim())
+    let nested_count = app.db_query_count(&format!(
+        "SELECT COUNT(*) FROM nested_bookmarks WHERE parent_bookmark_id={};",
+        nested_id.trim()
+    ));
+
+    assert_eq!(
+        nested_count, 2,
+        "Forked nested bookmark should have 2 sub-commands"
+    );
+    println!(
+        "✓ Nested bookmark forked with {} sub-commands",
+        nested_count
     );
 
-    assert_eq!(nested_count, 2, "Forked nested bookmark should have 2 sub-commands");
-    println!("✓ Nested bookmark forked with {} sub-commands", nested_count);
-
     // Verify the user now has 2 personal bookmarks
-    let final_count = app.db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
+    let final_count = app
+        .db_query_count("SELECT COUNT(*) FROM bookmarks WHERE scope = 'personal' AND user_id=1;");
     assert_eq!(final_count, 2, "Should have 2 forked bookmarks");
     println!("✓ Total personal bookmarks: 2");
 
@@ -1206,11 +1402,14 @@ async fn test_e2e_fork_global_bookmarks() {
         .await
         .unwrap();
 
-    assert_eq!(fork_invalid.status(), 404, "Should return 404 for non-existent bookmark");
+    assert_eq!(
+        fork_invalid.status(),
+        404,
+        "Should return 404 for non-existent bookmark"
+    );
     println!("✓ Forking non-existent bookmark returns 404");
 
     println!("\n✅ ALL FORK TESTS PASSED");
 
     app.stop().await;
 }
-

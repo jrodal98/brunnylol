@@ -1,10 +1,10 @@
 // Test to verify redirect URLs are not URL-encoded
 
-use brunnylol::db::{self, BookmarkScope};
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
+use brunnylol::db::{self, BookmarkScope};
 use tower::ServiceExt;
 
 mod common;
@@ -17,13 +17,15 @@ async fn test_redirect_url_not_encoded() {
     // Create a bookmark
     db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "gh",
-        "templated",
-        "https://github.com",
-        "GitHub",
-        Some("{url}/{query|!encode}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "gh",
+            bookmark_type: "templated",
+            url: "https://github.com",
+            description: "GitHub",
+            command_template: Some("{url}/{query|!encode}"),
+            created_by: None,
+        },
     )
     .await
     .unwrap();
@@ -46,7 +48,12 @@ async fn test_redirect_url_not_encoded() {
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
 
     // Check location header
-    let location = response.headers().get("location").unwrap().to_str().unwrap();
+    let location = response
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     eprintln!("DEBUG TEST: Location header = {}", location);
 
     // Location should NOT be URL-encoded
@@ -75,8 +82,17 @@ async fn test_question_mark_in_query_not_treated_as_form_helper() {
         .unwrap();
 
     // Should redirect to Google search, NOT return 404 or redirect to form page
-    assert_eq!(response.status(), StatusCode::SEE_OTHER, "Should redirect, not 404");
-    let location = response.headers().get("location").unwrap().to_str().unwrap();
+    assert_eq!(
+        response.status(),
+        StatusCode::SEE_OTHER,
+        "Should redirect, not 404"
+    );
+    let location = response
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(
         location.contains("google.com") && location.contains("what"),
         "Should redirect to Google search with query, got: {}",
@@ -101,7 +117,12 @@ async fn test_question_mark_in_query_not_treated_as_form_helper() {
         .unwrap();
 
     assert_eq!(response2.status(), StatusCode::SEE_OTHER);
-    let location2 = response2.headers().get("location").unwrap().to_str().unwrap();
+    let location2 = response2
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
     assert!(
         location2.contains("google.com") && location2.contains("how"),
         "Should redirect to Google search, got: {}",
@@ -117,13 +138,15 @@ async fn test_question_mark_suffix_on_alias_triggers_form() {
     // Create a bookmark with variables
     db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "gh",
-        "templated",
-        "https://github.com",
-        "GitHub",
-        Some("{url}/{user}/{repo}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "gh",
+            bookmark_type: "templated",
+            url: "https://github.com",
+            description: "GitHub",
+            command_template: Some("{url}/{user}/{repo}"),
+            created_by: None,
+        },
     )
     .await
     .unwrap();
@@ -147,7 +170,9 @@ async fn test_question_mark_suffix_on_alias_triggers_form() {
 
     // Will be 404 because bookmark is in different DB, but that's OK for now
     // The important thing is it doesn't treat the ? as part of the query
-    assert!(response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::SEE_OTHER);
+    assert!(
+        response.status() == StatusCode::NOT_FOUND || response.status() == StatusCode::SEE_OTHER
+    );
 }
 
 // Simplified test - just verify the core fix that queries ending with ? work
@@ -168,16 +193,25 @@ async fn test_query_with_question_mark_works() {
 
     // Should work without error
     assert_eq!(response.status(), StatusCode::SEE_OTHER);
-    let location = response.headers().get("location").unwrap().to_str().unwrap();
-    assert!(location.contains("google.com"), "Should redirect to Google, got: {}", location);
+    let location = response
+        .headers()
+        .get("location")
+        .unwrap()
+        .to_str()
+        .unwrap();
+    assert!(
+        location.contains("google.com"),
+        "Should redirect to Google, got: {}",
+        location
+    );
 }
 
 #[tokio::test]
 async fn test_default_alias_includes_unknown_alias_in_query() {
     // Test the full redirect service flow with default alias fallback
-    use brunnylol::services::redirect_service::RedirectService;
-    use brunnylol::domain::Command;
     use brunnylol::domain::template::TemplateParser;
+    use brunnylol::domain::Command;
+    use brunnylol::services::redirect_service::RedirectService;
     use std::collections::HashMap;
 
     let pool = common::setup_test_db().await;
@@ -244,8 +278,8 @@ async fn test_default_alias_includes_unknown_alias_in_query() {
 #[tokio::test]
 async fn test_default_alias_unit_test() {
     // Unit test for the get_redirect_url logic (kept for regression testing)
-    use brunnylol::domain::Command;
     use brunnylol::domain::template::TemplateParser;
+    use brunnylol::domain::Command;
 
     let template = TemplateParser::parse("{url}/search?q={query}").unwrap();
     let google_command = Command::Variable {
