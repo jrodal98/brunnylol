@@ -254,7 +254,9 @@
         <p>You haven't created any personal bookmarks yet. Use the "Create Bookmark" tab to add one!</p>
         {% else %}
 
+        <div class="table-scroll">
         {% include "partials/personal_bookmarks_table.html" %}
+        </div>
 
         <h3 style="margin-top: var(--space-6);">Export Personal Bookmarks</h3>
         <div class="export-buttons">
@@ -273,6 +275,7 @@
         <h2>Built-in Bookmarks</h2>
         <p>These are the global bookmarks loaded from commands.yml. You can override them by creating a personal bookmark with the same alias.</p>
 
+        <div class="table-scroll">
         <table>
             <thead>
                 <tr>
@@ -337,6 +340,7 @@
                 {% endfor %}
             </tbody>
         </table>
+        </div>
 
         {% if user.is_admin %}
         <h3 style="margin-top: var(--space-6);">Export Global Bookmarks (Admin)</h3>

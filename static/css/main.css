@@ -686,3 +686,68 @@ tr:hover {
   justify-content: flex-end;
   gap: var(--space-3);
 }
+
+/* ---------- Responsive ---------- */
+
+/* Wide tables keep their natural column widths and scroll horizontally
+   inside this wrapper instead of squeezing (and pushing the whole page
+   sideways) on narrow screens. On wide screens the table still fills
+   the wrapper via min-width. */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll > table {
+  /* At least this wide so columns keep readable widths (long URLs and
+     descriptions still wrap at soft-break points); the wrapper scrolls
+     when the screen is narrower. Wider screens are unaffected: the
+     base width: 100% takes over. */
+  min-width: 720px;
+}
+
+@media (max-width: 768px) {
+  /* Stack the two nav groups into centered, wrapping rows so the links
+     never collide or spill mid-word on phone-width screens. */
+  nav {
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--space-2) var(--space-3);
+    gap: var(--space-1);
+  }
+
+  nav > div {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+  }
+
+  nav a,
+  nav button {
+    margin: 0 var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .container,
+  .container-sm {
+    padding: 0 var(--space-3);
+  }
+
+  th,
+  td {
+    padding: var(--space-3);
+  }
+
+  /* Long inline code samples (template syntax examples) may break
+     mid-token instead of forcing the page wider than the screen. */
+  code {
+    overflow-wrap: anywhere;
+  }
+
+}
+
+/* Code blocks scroll horizontally instead of overflowing their card. */
+pre {
+  overflow-x: auto;
+}

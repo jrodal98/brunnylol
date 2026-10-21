@@ -47,6 +47,7 @@
 
 {% if !personal_aliases.is_empty() %}
 <h2>Your Personal Bookmarks</h2>
+<div class="table-scroll">
 <table id="personal-aliases">
     <tr>
         <th>Alias</th>
@@ -69,10 +70,12 @@
     </tr>
     {% endfor %}
 </table>
+</div>
 
 <h2>Global Bookmarks</h2>
 {% endif %}
 
+<div class="table-scroll">
 <table id="aliases">
     <tr>
         <th>Alias</th>
@@ -100,6 +103,7 @@
     </tr>
     {% endfor %}
 </table>
+</div>
 
 <script src="/static/js/help.js"></script>
 
