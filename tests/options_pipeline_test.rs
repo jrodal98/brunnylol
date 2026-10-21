@@ -1,6 +1,6 @@
 // Tests for options pipeline
 
-use brunnylol::domain::template::{TemplateParser, TemplateResolver, PipelineOp};
+use brunnylol::domain::template::{PipelineOp, TemplateParser, TemplateResolver};
 use std::collections::HashMap;
 
 #[test]
@@ -41,7 +41,8 @@ fn test_parse_options_pipeline_strict() {
 
 #[test]
 fn test_resolve_with_valid_option_strict() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -53,7 +54,8 @@ fn test_resolve_with_valid_option_strict() {
 
 #[test]
 fn test_resolve_with_invalid_option_strict() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive][strict]}.proton.me").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -66,7 +68,8 @@ fn test_resolve_with_invalid_option_strict() {
 
 #[test]
 fn test_resolve_with_invalid_option_non_strict() {
-    let template = TemplateParser::parse("https://{product|options[mail,drive]}.proton.me").unwrap();
+    let template =
+        TemplateParser::parse("https://{product|options[mail,drive]}.proton.me").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();

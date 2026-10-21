@@ -250,7 +250,10 @@ impl TemplateParser {
                                 // Parse the key:value pair
                                 let parts: Vec<&str> = current_pair.splitn(2, ':').collect();
                                 if parts.len() != 2 {
-                                    bail!("Invalid map syntax: expected 'key:value' but got '{}'", current_pair);
+                                    bail!(
+                                        "Invalid map syntax: expected 'key:value' but got '{}'",
+                                        current_pair
+                                    );
                                 }
                                 mappings.push((
                                     parts[0].trim().to_string(),
@@ -266,7 +269,10 @@ impl TemplateParser {
                                 // Parse the key:value pair
                                 let parts: Vec<&str> = current_pair.splitn(2, ':').collect();
                                 if parts.len() != 2 {
-                                    bail!("Invalid map syntax: expected 'key:value' but got '{}'", current_pair);
+                                    bail!(
+                                        "Invalid map syntax: expected 'key:value' but got '{}'",
+                                        current_pair
+                                    );
                                 }
                                 mappings.push((
                                     parts[0].trim().to_string(),
@@ -340,7 +346,8 @@ impl TemplateParser {
     }
 
     fn consume_char(&mut self) -> Result<char> {
-        let ch = self.peek_char()
+        let ch = self
+            .peek_char()
             .ok_or_else(|| anyhow::anyhow!("Unexpected end of input at position {}", self.pos))?;
         self.pos += ch.len_utf8();
         Ok(ch)
@@ -528,7 +535,8 @@ mod tests {
 
     #[test]
     fn test_parse_map_chained_with_options() {
-        let template = TemplateParser::parse("{var|options[calendar,sheets,docs]|map[cal:calendar]}").unwrap();
+        let template =
+            TemplateParser::parse("{var|options[calendar,sheets,docs]|map[cal:calendar]}").unwrap();
         let vars = template.variables();
         assert_eq!(vars[0].pipelines.len(), 2);
         match &vars[0].pipelines[0] {
@@ -549,13 +557,20 @@ mod tests {
 
     #[test]
     fn test_parse_map_with_colon_in_value() {
-        let template = TemplateParser::parse("{var|map[g:https://google.com,gh:https://github.com]}").unwrap();
+        let template =
+            TemplateParser::parse("{var|map[g:https://google.com,gh:https://github.com]}").unwrap();
         let vars = template.variables();
         match &vars[0].pipelines[0] {
             PipelineOp::Map { mappings } => {
                 assert_eq!(mappings.len(), 2);
-                assert_eq!(mappings[0], ("g".to_string(), "https://google.com".to_string()));
-                assert_eq!(mappings[1], ("gh".to_string(), "https://github.com".to_string()));
+                assert_eq!(
+                    mappings[0],
+                    ("g".to_string(), "https://google.com".to_string())
+                );
+                assert_eq!(
+                    mappings[1],
+                    ("gh".to_string(), "https://github.com".to_string())
+                );
             }
             _ => panic!("Expected Map pipeline"),
         }
@@ -565,27 +580,39 @@ mod tests {
     fn test_parse_map_empty_fails() {
         let result = TemplateParser::parse("{var|map[]}");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("requires at least one mapping"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("requires at least one mapping"));
     }
 
     #[test]
     fn test_parse_map_missing_colon_fails() {
         let result = TemplateParser::parse("{var|map[nocolon]}");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid map syntax"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid map syntax"));
     }
 
     #[test]
     fn test_parse_map_negated_fails() {
         let result = TemplateParser::parse("{var|!map[a:b]}");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cannot negate 'map'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Cannot negate 'map'"));
     }
 
     #[test]
     fn test_parse_map_duplicate_keys_fails() {
         let result = TemplateParser::parse("{var|map[cal:calendar,cal:contacts]}");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Duplicate key 'cal'"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Duplicate key 'cal'"));
     }
 }

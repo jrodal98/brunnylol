@@ -20,7 +20,11 @@ async fn resolve_nested_path(
     user: Option<&crate::db::User>,
     state: &Arc<crate::AppState>,
 ) -> Result<(Command, Vec<String>), AppError> {
-    let path_segments: Vec<&str> = path.trim_start_matches('/').split('/').filter(|s| !s.is_empty()).collect();
+    let path_segments: Vec<&str> = path
+        .trim_start_matches('/')
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .collect();
 
     if path_segments.is_empty() {
         return Err(AppError::NotFound("Empty path".to_string()));
@@ -28,26 +32,33 @@ async fn resolve_nested_path(
 
     // Load root bookmark
     let root_alias = path_segments[0];
-    let mut command = helpers::load_bookmark_for_alias(root_alias, user, state).await
+    let mut command = helpers::load_bookmark_for_alias(root_alias, user, state)
+        .await
         .ok_or_else(|| AppError::NotFound(format!("Unknown alias: '{}'", root_alias)))?;
 
     // Navigate through nested path
     for segment in &path_segments[1..] {
         match command {
             Command::Nested { children, .. } => {
-                command = children.get(*segment)
+                command = children
+                    .get(*segment)
                     .ok_or_else(|| AppError::NotFound(format!("Unknown child: '{}'", segment)))?
                     .clone();
             }
-            _ => return Err(AppError::BadRequest(format!(
-                "Cannot navigate into non-nested command at '{}'", segment
-            ))),
+            _ => {
+                return Err(AppError::BadRequest(format!(
+                    "Cannot navigate into non-nested command at '{}'",
+                    segment
+                )))
+            }
         }
     }
 
-    Ok((command, path_segments.iter().map(|s| s.to_string()).collect()))
+    Ok((
+        command,
+        path_segments.iter().map(|s| s.to_string()).collect(),
+    ))
 }
-
 
 #[derive(Template)]
 #[template(path = "variable_form.html")]
@@ -75,7 +86,6 @@ struct NestedChildDisplay {
     description: String,
 }
 
-
 #[derive(Clone)]
 struct FormVariableDisplay {
     name: String,
@@ -95,7 +105,8 @@ pub async fn show_variable_form(
     State(state): State<Arc<crate::AppState>>,
 ) -> Result<Response, AppError> {
     // Resolve hierarchical path to final command
-    let (command, path_segments) = resolve_nested_path(&path, optional_user.0.as_ref(), &state).await?;
+    let (command, path_segments) =
+        resolve_nested_path(&path, optional_user.0.as_ref(), &state).await?;
 
     let (has_user, is_admin) = if let Some(ref user) = optional_user.0 {
         (true, user.is_admin)
@@ -105,7 +116,12 @@ pub async fn show_variable_form(
 
     // Handle different command types
     match command {
-        Command::Variable { template, metadata, description, base_url } => {
+        Command::Variable {
+            template,
+            metadata,
+            description,
+            base_url,
+        } => {
             // Show variable form
             let form_data = form_builder::build_form_data(&template, metadata.as_ref(), &params);
 
@@ -145,7 +161,9 @@ pub async fn show_variable_form(
             Ok(Html(tmpl.render()?).into_response())
         }
         Command::Nested {
-            children, description, ..
+            children,
+            description,
+            ..
         } => {
             // Show nested command selection UI
             let mut child_list: Vec<NestedChildDisplay> = children
@@ -192,7 +210,12 @@ pub async fn submit_variable_form(
     let result = resolve_nested_path(&path, optional_user.0.as_ref(), &state).await;
 
     match result {
-        Ok((Command::Variable { base_url, template, .. }, _)) => {
+        Ok((
+            Command::Variable {
+                base_url, template, ..
+            },
+            _,
+        )) => {
             let resolver = crate::domain::template::TemplateResolver::new();
             // Populate the {url} built-in variable with base_url (matches redirect_service.rs behavior)
             form_data.insert("url".to_string(), base_url.clone());
@@ -201,10 +224,9 @@ pub async fn submit_variable_form(
             axum::http::Response::builder()
                 .header("Content-Type", "text/plain")
                 .body(axum::body::Body::from(url))
-                .unwrap()
+                .expect("a response with one static header cannot fail to build")
                 .into_response()
         }
         _ => crate::error::AppError::NotFound(format!("Unknown alias: '{}'", path)).into_response(),
     }
 }
-

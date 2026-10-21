@@ -16,13 +16,21 @@ async fn test_global_bookmarks_auto_seed() {
     // Seed from embedded commands.yml
     let count = service.seed_global_bookmarks().await.unwrap();
 
-    assert!(count >= 20, "Should seed at least 20 bookmarks from commands.yml, got {}", count);
+    assert!(
+        count >= 20,
+        "Should seed at least 20 bookmarks from commands.yml, got {}",
+        count
+    );
 
     // Verify table is no longer empty (use v2 API)
-    let is_empty_after = brunnylol::db::is_bookmarks_empty(&pool, brunnylol::db::BookmarkScope::Global)
-        .await
-        .unwrap();
-    assert!(!is_empty_after, "Global bookmarks table should have data after seeding");
+    let is_empty_after =
+        brunnylol::db::is_bookmarks_empty(&pool, brunnylol::db::BookmarkScope::Global)
+            .await
+            .unwrap();
+    assert!(
+        !is_empty_after,
+        "Global bookmarks table should have data after seeding"
+    );
 
     // Verify specific bookmarks exist (use v2 API)
     let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Global)
@@ -30,9 +38,18 @@ async fn test_global_bookmarks_auto_seed() {
         .unwrap();
 
     let aliases: Vec<String> = bookmarks.iter().map(|b| b.alias.clone()).collect();
-    assert!(aliases.contains(&"g".to_string()), "Should have Google bookmark");
-    assert!(aliases.contains(&"ddg".to_string()), "Should have DuckDuckGo bookmark");
-    assert!(aliases.contains(&"yt".to_string()), "Should have YouTube bookmark");
+    assert!(
+        aliases.contains(&"g".to_string()),
+        "Should have Google bookmark"
+    );
+    assert!(
+        aliases.contains(&"ddg".to_string()),
+        "Should have DuckDuckGo bookmark"
+    );
+    assert!(
+        aliases.contains(&"yt".to_string()),
+        "Should have YouTube bookmark"
+    );
 }
 
 #[tokio::test]
@@ -52,21 +69,25 @@ async fn test_import_personal_bookmarks_yaml() {
 "#;
 
     let serializer = brunnylol::services::serializers::YamlSerializer;
-    let result = service.import_bookmarks(
-        yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let result = service
+        .import_bookmarks(
+            yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result.imported, 2, "Should import 2 bookmarks");
     assert_eq!(result.skipped, 0, "Should skip 0 duplicates");
     assert_eq!(result.errors.len(), 0, "Should have 0 errors");
 
     // Verify in database
-    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
-        .await
-        .unwrap();
+    let bookmarks =
+        brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
+            .await
+            .unwrap();
 
     assert_eq!(bookmarks.len(), 2);
     assert_eq!(bookmarks[0].alias, "test1");
@@ -93,12 +114,15 @@ async fn test_import_personal_bookmarks_json() {
 ]"#;
 
     let serializer = brunnylol::services::serializers::JsonSerializer;
-    let result = service.import_bookmarks(
-        json,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let result = service
+        .import_bookmarks(
+            json,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result.imported, 1);
     assert_eq!(result.errors.len(), 0);
@@ -118,12 +142,15 @@ async fn test_import_global_bookmarks_admin_only() {
 "#;
 
     let serializer = brunnylol::services::serializers::YamlSerializer;
-    let result = service.import_bookmarks(
-        yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Global,
-        Some(admin_id),
-    ).await.unwrap();
+    let result = service
+        .import_bookmarks(
+            yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Global,
+            Some(admin_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result.imported, 1);
 
@@ -158,19 +185,23 @@ async fn test_import_nested_bookmarks() {
 "#;
 
     let serializer = brunnylol::services::serializers::YamlSerializer;
-    let result = service.import_bookmarks(
-        yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let result = service
+        .import_bookmarks(
+            yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result.imported, 1);
 
     // Verify parent bookmark
-    let bookmarks = brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
-        .await
-        .unwrap();
+    let bookmarks =
+        brunnylol::db::get_bookmarks(&pool, brunnylol::db::BookmarkScope::Personal { user_id })
+            .await
+            .unwrap();
     assert_eq!(bookmarks.len(), 1);
     assert_eq!(bookmarks[0].alias, "parent");
     assert_eq!(bookmarks[0].bookmark_type, "nested");
@@ -192,22 +223,29 @@ async fn test_export_personal_bookmarks_yaml() {
     // Create some bookmarks
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        "export1",
-        "simple",
-        "https://export1.com",
-        "Export test 1",
-        None,
-        Some(user_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Personal { user_id },
+            alias: "export1",
+            bookmark_type: "simple",
+            url: "https://export1.com",
+            description: "Export test 1",
+            command_template: None,
+            created_by: Some(user_id),
+        },
+    )
+    .await
+    .unwrap();
 
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
-    let yaml = service.export_bookmarks(
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        &serializer,
-    ).await.unwrap();
+    let yaml = service
+        .export_bookmarks(
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            &serializer,
+        )
+        .await
+        .unwrap();
 
     assert!(yaml.contains("alias: export1"));
     assert!(yaml.contains("url: https://export1.com"));
@@ -222,22 +260,26 @@ async fn test_export_global_bookmarks_json() {
     // Create a global bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "gtest",
-        "templated",
-        "https://gtest.com",
-        "Global test",
-        Some("https://gtest.com/search?q={}"),
-        Some(admin_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "gtest",
+            bookmark_type: "templated",
+            url: "https://gtest.com",
+            description: "Global test",
+            command_template: Some("https://gtest.com/search?q={}"),
+            created_by: Some(admin_id),
+        },
+    )
+    .await
+    .unwrap();
 
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
     let serializer = brunnylol::services::serializers::JsonSerializer;
 
-    let json = service.export_bookmarks(
-        brunnylol::db::BookmarkScope::Global,
-        &serializer,
-    ).await.unwrap();
+    let json = service
+        .export_bookmarks(brunnylol::db::BookmarkScope::Global, &serializer)
+        .await
+        .unwrap();
 
     assert!(json.contains("\"alias\": \"gtest\""));
     assert!(json.contains("\"url\": \"https://gtest.com\""));
@@ -251,14 +293,18 @@ async fn test_export_global_nested_bookmarks() {
     // Create nested global bookmark
     let parent_id = brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "gnest",
-        "nested",
-        "https://gnest.com",
-        "Global nested test",
-        None,
-        Some(admin_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "gnest",
+            bookmark_type: "nested",
+            url: "https://gnest.com",
+            description: "Global nested test",
+            command_template: None,
+            created_by: Some(admin_id),
+        },
+    )
+    .await
+    .unwrap();
 
     brunnylol::db::create_nested_bookmark(
         &pool,
@@ -268,15 +314,17 @@ async fn test_export_global_nested_bookmarks() {
         "Sub command",
         Some("https://gnest.com/sub?q={}"),
         0,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
-    let yaml = service.export_bookmarks(
-        brunnylol::db::BookmarkScope::Global,
-        &serializer,
-    ).await.unwrap();
+    let yaml = service
+        .export_bookmarks(brunnylol::db::BookmarkScope::Global, &serializer)
+        .await
+        .unwrap();
 
     // Verify nested structure is exported
     assert!(yaml.contains("alias: gnest"));
@@ -299,23 +347,29 @@ async fn test_duplicate_detection() {
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
     // Import first time
-    let result1 = service.import_bookmarks(
-        yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let result1 = service
+        .import_bookmarks(
+            yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result1.imported, 1);
     assert_eq!(result1.skipped, 0);
 
     // Import again - should skip duplicate
-    let result2 = service.import_bookmarks(
-        yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let result2 = service
+        .import_bookmarks(
+            yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(result2.imported, 0);
     assert_eq!(result2.skipped, 1);
@@ -330,26 +384,34 @@ async fn test_personal_overrides_global() {
     // Create global bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "override-test",
-        "simple",
-        "https://global.com",
-        "Global version",
-        None,
-        None,
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "override-test",
+            bookmark_type: "simple",
+            url: "https://global.com",
+            description: "Global version",
+            command_template: None,
+            created_by: None,
+        },
+    )
+    .await
+    .unwrap();
 
     // Create personal bookmark with same alias
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        "override-test",
-        "simple",
-        "https://personal.com",
-        "Personal version",
-        None,
-        Some(user_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Personal { user_id },
+            alias: "override-test",
+            bookmark_type: "simple",
+            url: "https://personal.com",
+            description: "Personal version",
+            command_template: None,
+            created_by: Some(user_id),
+        },
+    )
+    .await
+    .unwrap();
 
     // Load user bookmarks (should include personal, not global for conflicting alias)
     let bookmarks = service.load_user_bookmarks(user_id).await.unwrap();
@@ -372,14 +434,18 @@ async fn test_disabled_global_bookmarks() {
     // Create global bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "disable-test",
-        "simple",
-        "https://disabled.com",
-        "Should be disabled",
-        None,
-        None,
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "disable-test",
+            bookmark_type: "simple",
+            url: "https://disabled.com",
+            description: "Should be disabled",
+            command_template: None,
+            created_by: None,
+        },
+    )
+    .await
+    .unwrap();
 
     // Disable it for user
     brunnylol::db::upsert_override(
@@ -389,13 +455,17 @@ async fn test_disabled_global_bookmarks() {
         true, // is_disabled
         None,
         None,
-    ).await.unwrap();
+    )
+    .await
+    .unwrap();
 
     // Load user bookmarks - should not include disabled global
     let bookmarks = service.load_user_bookmarks(user_id).await.unwrap();
 
-    assert!(!bookmarks.contains_key("disable-test"),
-           "Disabled global bookmark should not appear in user bookmarks");
+    assert!(
+        !bookmarks.contains_key("disable-test"),
+        "Disabled global bookmark should not appear in user bookmarks"
+    );
 }
 
 #[tokio::test]
@@ -422,20 +492,26 @@ async fn test_round_trip_export_import() {
     let serializer = brunnylol::services::serializers::YamlSerializer;
 
     // Import
-    let import_result = service.import_bookmarks(
-        yaml_import,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let import_result = service
+        .import_bookmarks(
+            yaml_import,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(import_result.imported, 2);
 
     // Export
-    let exported = service.export_bookmarks(
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        &serializer,
-    ).await.unwrap();
+    let exported = service
+        .export_bookmarks(
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            &serializer,
+        )
+        .await
+        .unwrap();
 
     // Verify exported content contains both bookmarks
     assert!(exported.contains("roundtrip1"));
@@ -443,12 +519,15 @@ async fn test_round_trip_export_import() {
     assert!(exported.contains("sub1"));
 
     // Re-import should skip duplicates
-    let reimport_result = service.import_bookmarks(
-        &exported,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await.unwrap();
+    let reimport_result = service
+        .import_bookmarks(
+            &exported,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await
+        .unwrap();
 
     assert_eq!(reimport_result.imported, 0);
     assert_eq!(reimport_result.skipped, 2);
@@ -457,17 +536,15 @@ async fn test_round_trip_export_import() {
 #[tokio::test]
 async fn test_serializer_yaml_json_equivalence() {
     use brunnylol::config::yml_settings::YmlSettings;
-    use brunnylol::services::serializers::{YamlSerializer, JsonSerializer, BookmarkSerializer};
+    use brunnylol::services::serializers::{BookmarkSerializer, JsonSerializer, YamlSerializer};
 
-    let bookmarks = vec![
-        YmlSettings {
-            alias: "test".to_string(),
-            url: "https://test.com".to_string(),
-            description: "Test".to_string(),
-            command: Some("https://test.com/search?q={}".to_string()),
-            nested: None,
-        }
-    ];
+    let bookmarks = vec![YmlSettings {
+        alias: "test".to_string(),
+        url: "https://test.com".to_string(),
+        description: "Test".to_string(),
+        command: Some("https://test.com/search?q={}".to_string()),
+        nested: None,
+    }];
 
     let yaml_serializer = YamlSerializer;
     let json_serializer = JsonSerializer;
@@ -498,14 +575,18 @@ async fn test_load_global_bookmarks_as_commands() {
     // Create test global bookmarks
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "loadtest",
-        "templated",
-        "https://loadtest.com",
-        "Load test",
-        Some("https://loadtest.com/search?q={}"),
-        Some(admin_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "loadtest",
+            bookmark_type: "templated",
+            url: "https://loadtest.com",
+            description: "Load test",
+            command_template: Some("https://loadtest.com/search?q={}"),
+            created_by: Some(admin_id),
+        },
+    )
+    .await
+    .unwrap();
 
     let service = brunnylol::services::bookmark_service::BookmarkService::new(pool.clone());
     let commands = service.load_global_bookmarks().await.unwrap();
@@ -527,26 +608,34 @@ async fn test_merge_global_and_personal_bookmarks() {
     // Create global bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Global,
-        "merge-global",
-        "simple",
-        "https://global-merge.com",
-        "Global merge test",
-        None,
-        None,
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Global,
+            alias: "merge-global",
+            bookmark_type: "simple",
+            url: "https://global-merge.com",
+            description: "Global merge test",
+            command_template: None,
+            created_by: None,
+        },
+    )
+    .await
+    .unwrap();
 
     // Create personal bookmark
     brunnylol::db::create_bookmark(
         &pool,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        "merge-personal",
-        "simple",
-        "https://personal-merge.com",
-        "Personal merge test",
-        None,
-        Some(user_id),
-    ).await.unwrap();
+        brunnylol::db::NewBookmark {
+            scope: brunnylol::db::BookmarkScope::Personal { user_id },
+            alias: "merge-personal",
+            bookmark_type: "simple",
+            url: "https://personal-merge.com",
+            description: "Personal merge test",
+            command_template: None,
+            created_by: Some(user_id),
+        },
+    )
+    .await
+    .unwrap();
 
     // Load merged bookmarks
     let bookmarks = service.load_user_bookmarks(user_id).await.unwrap();
@@ -555,8 +644,17 @@ async fn test_merge_global_and_personal_bookmarks() {
     assert!(bookmarks.contains_key("merge-global"));
     assert!(bookmarks.contains_key("merge-personal"));
 
-    assert_eq!(bookmarks.get("merge-global").unwrap().get_redirect_url(""), "https://global-merge.com");
-    assert_eq!(bookmarks.get("merge-personal").unwrap().get_redirect_url(""), "https://personal-merge.com");
+    assert_eq!(
+        bookmarks.get("merge-global").unwrap().get_redirect_url(""),
+        "https://global-merge.com"
+    );
+    assert_eq!(
+        bookmarks
+            .get("merge-personal")
+            .unwrap()
+            .get_redirect_url(""),
+        "https://personal-merge.com"
+    );
 }
 
 #[tokio::test]
@@ -574,12 +672,14 @@ async fn test_import_with_errors() {
 "#;
 
     let serializer = brunnylol::services::serializers::YamlSerializer;
-    let result = service.import_bookmarks(
-        invalid_yaml,
-        &serializer,
-        brunnylol::db::BookmarkScope::Personal { user_id },
-        Some(user_id),
-    ).await;
+    let result = service
+        .import_bookmarks(
+            invalid_yaml,
+            &serializer,
+            brunnylol::db::BookmarkScope::Personal { user_id },
+            Some(user_id),
+        )
+        .await;
 
     // Should fail to parse
     assert!(result.is_err(), "Invalid YAML should return an error");

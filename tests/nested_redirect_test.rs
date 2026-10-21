@@ -97,10 +97,17 @@ async fn create_api_token(app: &axum::Router, cookie: &str) -> String {
         ))
         .await
         .unwrap();
-    assert!(resp.status().is_success(), "token create: {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "token create: {}",
+        resp.status()
+    );
     let body = body_string(resp).await;
     let start = body.find("brn_").expect("token fragment shows plaintext");
-    body[start..].chars().take_while(|c| *c != '<' && *c != '"' && !c.is_whitespace()).collect()
+    body[start..]
+        .chars()
+        .take_while(|c| *c != '<' && *c != '"' && !c.is_whitespace())
+        .collect()
 }
 
 /// Build the fixture from the bug report: nested "bl" (base "/")
@@ -129,7 +136,11 @@ async fn setup_bl(app: &axum::Router) -> (String, String) {
     (cookie, token)
 }
 
-async fn search_location(app: &axum::Router, cookie: &str, q: &str) -> (StatusCode, Option<String>) {
+async fn search_location(
+    app: &axum::Router,
+    cookie: &str,
+    q: &str,
+) -> (StatusCode, Option<String>) {
     let uri = format!("/search?q={}", urlencoding::encode(q));
     let resp = app
         .clone()
@@ -152,23 +163,47 @@ async fn test_bare_nested_alias_redirects_to_parent_url() {
     // Bare alias -> the parent's own URL (this used to produce an
     // empty Location and fail).
     let (status, location) = search_location(&app, &cookie, "bl").await;
-    assert!(status.is_redirection(), "bare bl should redirect, got {}", status);
-    assert_eq!(location.as_deref(), Some("/"), "bare bl should land on the parent URL");
+    assert!(
+        status.is_redirection(),
+        "bare bl should redirect, got {}",
+        status
+    );
+    assert_eq!(
+        location.as_deref(),
+        Some("/"),
+        "bare bl should land on the parent URL"
+    );
 
     // Known subcommand still resolves to the child.
     let (status, location) = search_location(&app, &cookie, "bl m").await;
-    assert!(status.is_redirection(), "bl m should redirect, got {}", status);
+    assert!(
+        status.is_redirection(),
+        "bl m should redirect, got {}",
+        status
+    );
     assert_eq!(location.as_deref(), Some("/manage"));
 
     // Templated subcommand still expands its query.
     let (status, location) = search_location(&app, &cookie, "bl s hello world").await;
-    assert!(status.is_redirection(), "bl s should redirect, got {}", status);
+    assert!(
+        status.is_redirection(),
+        "bl s should redirect, got {}",
+        status
+    );
     assert_eq!(location.as_deref(), Some("/search?q=hello%20world"));
 
     // Unknown subcommand lands on the parent URL instead of failing.
     let (status, location) = search_location(&app, &cookie, "bl zzz").await;
-    assert!(status.is_redirection(), "bl zzz should redirect, got {}", status);
-    assert_eq!(location.as_deref(), Some("/"), "unknown child should fall back to the parent URL");
+    assert!(
+        status.is_redirection(),
+        "bl zzz should redirect, got {}",
+        status
+    );
+    assert_eq!(
+        location.as_deref(),
+        Some("/"),
+        "unknown child should fall back to the parent URL"
+    );
 }
 
 #[tokio::test]
@@ -185,14 +220,25 @@ async fn test_usage_counts_only_successful_resolutions() {
     // (Named mode is unsupported for nested commands) and a fully
     // unknown alias.
     let (status, _) = search_location(&app, &cookie, "bl$").await;
-    assert!(!status.is_redirection(), "bl$ should not redirect, got {}", status);
+    assert!(
+        !status.is_redirection(),
+        "bl$ should not redirect, got {}",
+        status
+    );
     let _ = search_location(&app, &cookie, "zznope").await;
 
     // The count also must not move for the OpenSearch suggestions
     // endpoint — it only reads aliases.
     let resp = app
         .clone()
-        .oneshot(req("GET", "/api/suggest?q=bl", Some(&cookie), None, None, None))
+        .oneshot(req(
+            "GET",
+            "/api/suggest?q=bl",
+            Some(&cookie),
+            None,
+            None,
+            None,
+        ))
         .await
         .unwrap();
     assert!(resp.status().is_success());

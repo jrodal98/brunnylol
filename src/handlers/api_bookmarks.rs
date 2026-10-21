@@ -21,9 +21,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    auth::middleware::ApiUser, db, helpers, validation, AppState,
-};
+use crate::{auth::middleware::ApiUser, db, helpers, validation, AppState};
 
 #[derive(Serialize)]
 struct NestedJson {
@@ -63,19 +61,37 @@ pub struct BookmarkInput {
     nested: Option<Vec<NestedInput>>,
 }
 
-fn api_error(status: StatusCode, message: &str) -> Response {
-    (
-        status,
-        Json(serde_json::json!({ "error": message })),
-    )
-        .into_response()
+/// JSON API error: a status plus a message, rendered as
+/// `{"error": message}`. A small payload type (instead of a full
+/// `Response`, which is 128+ bytes) keeps `Result<T, ApiError>`
+/// return values cheap in the handlers' internal helpers.
+struct ApiError {
+    status: StatusCode,
+    message: String,
 }
 
-fn bad_request(message: &str) -> Response {
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        (
+            self.status,
+            Json(serde_json::json!({ "error": self.message })),
+        )
+            .into_response()
+    }
+}
+
+fn api_error(status: StatusCode, message: &str) -> ApiError {
+    ApiError {
+        status,
+        message: message.to_string(),
+    }
+}
+
+fn bad_request(message: &str) -> ApiError {
     api_error(StatusCode::BAD_REQUEST, message)
 }
 
-fn not_found(alias: &str) -> Response {
+fn not_found(alias: &str) -> ApiError {
     api_error(
         StatusCode::NOT_FOUND,
         &format!("no personal bookmark with alias '{}'", alias),
@@ -85,18 +101,15 @@ fn not_found(alias: &str) -> Response {
 async fn load_personal(
     state: &AppState,
     user_id: i64,
-) -> Result<Vec<(db::Bookmark, Vec<db::NestedBookmark>)>, Response> {
-    db::get_bookmarks_with_nested(
-        &state.db_pool,
-        db::BookmarkScope::Personal { user_id },
-    )
-    .await
-    .map_err(|e| {
-        api_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("database error: {}", e),
-        )
-    })
+) -> Result<Vec<(db::Bookmark, Vec<db::NestedBookmark>)>, ApiError> {
+    db::get_bookmarks_with_nested(&state.db_pool, db::BookmarkScope::Personal { user_id })
+        .await
+        .map_err(|e| {
+            api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                &format!("database error: {}", e),
+            )
+        })
 }
 
 fn to_json(
@@ -127,7 +140,7 @@ fn to_json(
 
 /// Validate shared create/update input; returns (url, description,
 /// bookmark_type). Mirrors the web form's validation rules.
-fn validate_input(input: &BookmarkInput) -> Result<(String, String, String), Response> {
+fn validate_input(input: &BookmarkInput) -> Result<(String, String, String), ApiError> {
     let url = input.url.clone().unwrap_or_default();
     let description = input.description.clone().unwrap_or_default();
     if description.is_empty() {
@@ -135,7 +148,12 @@ fn validate_input(input: &BookmarkInput) -> Result<(String, String, String), Res
     }
     let bookmark_type = if input.nested.is_some() {
         "nested"
-    } else if input.command.as_deref().map(|c| !c.is_empty()).unwrap_or(false) {
+    } else if input
+        .command
+        .as_deref()
+        .map(|c| !c.is_empty())
+        .unwrap_or(false)
+    {
         "templated"
     } else {
         "simple"
@@ -146,24 +164,24 @@ fn validate_input(input: &BookmarkInput) -> Result<(String, String, String), Res
         if url.is_empty() {
             return Err(bad_request("url is required"));
         }
-        validation::validate_url_scheme(&url)
-            .map_err(|e| bad_request(&e.to_string()))?;
+        validation::validate_url_scheme(&url).map_err(|e| bad_request(&e.to_string()))?;
     }
     if let Some(command) = &input.command {
-        let opt = if command.is_empty() { None } else { Some(command.clone()) };
-        helpers::validate_optional_template(&opt)
-            .map_err(|e| bad_request(&e.to_string()))?;
+        let opt = if command.is_empty() {
+            None
+        } else {
+            Some(command.clone())
+        };
+        helpers::validate_optional_template(&opt).map_err(|e| bad_request(&e.to_string()))?;
     }
     if let Some(nested) = &input.nested {
         if nested.len() > 100 {
             return Err(bad_request("too many nested commands (maximum 100)"));
         }
         for child in nested {
-            validation::validate_url_scheme(&child.url)
-                .map_err(|e| bad_request(&e.to_string()))?;
+            validation::validate_url_scheme(&child.url).map_err(|e| bad_request(&e.to_string()))?;
             let opt = child.command.clone().filter(|c| !c.is_empty());
-            helpers::validate_optional_template(&opt)
-                .map_err(|e| bad_request(&e.to_string()))?;
+            helpers::validate_optional_template(&opt).map_err(|e| bad_request(&e.to_string()))?;
         }
     }
     Ok((url, description, bookmark_type))
@@ -173,7 +191,7 @@ async fn insert_nested(
     state: &AppState,
     parent_id: i64,
     nested: &[NestedInput],
-) -> Result<(), Response> {
+) -> Result<(), ApiError> {
     for (i, child) in nested.iter().enumerate() {
         db::create_nested_bookmark(
             &state.db_pool,
@@ -223,7 +241,7 @@ pub async fn list_bookmarks(
 ) -> Response {
     let all = match load_personal(&state, user.id).await {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let usage_map = db::bookmarks::get_usage_map(&state.db_pool, user.id)
         .await
@@ -246,7 +264,7 @@ pub async fn get_bookmark(
 ) -> Response {
     let all = match load_personal(&state, user.id).await {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let usage_map = db::bookmarks::get_usage_map(&state.db_pool, user.id)
         .await
@@ -257,7 +275,7 @@ pub async fn get_bookmark(
             return Json(to_json(bookmark, nested, usage)).into_response();
         }
     }
-    not_found(&alias)
+    not_found(&alias).into_response()
 }
 
 /// POST /api/bookmarks — create a bookmark. 201 + the bookmark.
@@ -268,23 +286,25 @@ pub async fn create_bookmark(
 ) -> Response {
     let alias = match &input.alias {
         Some(a) if !a.is_empty() && a.len() <= 50 => a.clone(),
-        _ => return bad_request("alias is required (1-50 characters)"),
+        _ => return bad_request("alias is required (1-50 characters)").into_response(),
     };
     let (url, description, bookmark_type) = match validate_input(&input) {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let command = input.command.clone().filter(|c| !c.is_empty());
 
     let bookmark_id = match db::create_bookmark(
         &state.db_pool,
-        db::BookmarkScope::Personal { user_id: user.id },
-        &alias,
-        &bookmark_type,
-        &url,
-        &description,
-        command.as_deref(),
-        Some(user.id),
+        db::NewBookmark {
+            scope: db::BookmarkScope::Personal { user_id: user.id },
+            alias: &alias,
+            bookmark_type: &bookmark_type,
+            url: &url,
+            description: &description,
+            command_template: command.as_deref(),
+            created_by: Some(user.id),
+        },
     )
     .await
     {
@@ -293,26 +313,28 @@ pub async fn create_bookmark(
             return api_error(
                 StatusCode::CONFLICT,
                 &format!("alias '{}' already exists", alias),
-            );
+            )
+            .into_response();
         }
         Err(e) => {
             return api_error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 &format!("failed to create bookmark: {}", e),
-            );
+            )
+            .into_response();
         }
     };
 
     if let Some(nested) = &input.nested {
         if let Err(r) = insert_nested(&state, bookmark_id, nested).await {
-            return r;
+            return r.into_response();
         }
     }
 
     // Re-fetch for a canonical representation of what was stored.
     let all = match load_personal(&state, user.id).await {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     for (bookmark, nested) in all {
         if bookmark.id == bookmark_id {
@@ -320,7 +342,11 @@ pub async fn create_bookmark(
             return (StatusCode::CREATED, Json(body)).into_response();
         }
     }
-    api_error(StatusCode::INTERNAL_SERVER_ERROR, "created bookmark could not be re-read")
+    api_error(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "created bookmark could not be re-read",
+    )
+    .into_response()
 }
 
 /// PUT /api/bookmarks/{alias} — replace url/description/command;
@@ -333,16 +359,16 @@ pub async fn update_bookmark(
 ) -> Response {
     let all = match load_personal(&state, user.id).await {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let existing = all.into_iter().find(|(b, _)| b.alias == alias);
     let Some((bookmark, _nested)) = existing else {
-        return not_found(&alias);
+        return not_found(&alias).into_response();
     };
 
     let (url, description, _type) = match validate_input(&input) {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let command = input.command.clone().filter(|c| !c.is_empty());
 
@@ -360,7 +386,8 @@ pub async fn update_bookmark(
         return api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             &format!("failed to update bookmark: {}", e),
-        );
+        )
+        .into_response();
     }
 
     if let Some(nested) = &input.nested {
@@ -371,7 +398,7 @@ pub async fn update_bookmark(
             }
         }
         if let Err(r) = insert_nested(&state, bookmark.id, nested).await {
-            return r;
+            return r.into_response();
         }
     }
 
@@ -386,11 +413,11 @@ pub async fn delete_bookmark(
 ) -> Response {
     let all = match load_personal(&state, user.id).await {
         Ok(v) => v,
-        Err(r) => return r,
+        Err(r) => return r.into_response(),
     };
     let existing = all.into_iter().find(|(b, _)| b.alias == alias);
     let Some((bookmark, _)) = existing else {
-        return not_found(&alias);
+        return not_found(&alias).into_response();
     };
     match db::delete_bookmark(
         &state.db_pool,
@@ -403,6 +430,7 @@ pub async fn delete_bookmark(
         Err(e) => api_error(
             StatusCode::INTERNAL_SERVER_ERROR,
             &format!("failed to delete bookmark: {}", e),
-        ),
+        )
+        .into_response(),
     }
 }

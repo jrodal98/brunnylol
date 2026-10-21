@@ -54,7 +54,14 @@ fn form_req(method: &str, uri: &str, cookie: Option<&str>, form: &str) -> Reques
 }
 
 fn json_req(method: &str, uri: &str, bearer: &str, json: &str) -> Request<Body> {
-    req(method, uri, None, Some(bearer), Some("application/json"), Some(json))
+    req(
+        method,
+        uri,
+        None,
+        Some(bearer),
+        Some("application/json"),
+        Some(json),
+    )
 }
 
 /// Register the first user (becomes admin) and return its session cookie.
@@ -119,7 +126,12 @@ async fn test_session_cookie_is_lax_for_bookmarklet() {
 async fn create_token(app: &axum::Router, cookie: &str) -> String {
     let resp = app
         .clone()
-        .oneshot(form_req("POST", "/settings/api-tokens", Some(cookie), "name=test+agent"))
+        .oneshot(form_req(
+            "POST",
+            "/settings/api-tokens",
+            Some(cookie),
+            "name=test+agent",
+        ))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -145,8 +157,14 @@ async fn test_api_docs_endpoint() {
         .to_string();
     assert!(ct.contains("text/markdown"), "ct: {}", ct);
     let body = body_string(resp).await;
-    assert!(body.contains("Authorization: Bearer"), "docs must cover auth");
-    assert!(body.contains("/api/bookmarks/{alias}"), "docs must cover endpoints");
+    assert!(
+        body.contains("Authorization: Bearer"),
+        "docs must cover auth"
+    );
+    assert!(
+        body.contains("/api/bookmarks/{alias}"),
+        "docs must cover endpoints"
+    );
     assert!(body.contains("/api/whoami"), "docs must cover whoami");
 }
 
@@ -166,10 +184,20 @@ async fn test_opensearch_descriptor() {
         .to_str()
         .unwrap()
         .to_string();
-    assert!(ct.contains("application/opensearchdescription+xml"), "ct: {}", ct);
+    assert!(
+        ct.contains("application/opensearchdescription+xml"),
+        "ct: {}",
+        ct
+    );
     let body = body_string(resp).await;
-    assert!(body.contains("/search?q={searchTerms}"), "search template missing");
-    assert!(body.contains("/api/suggest?q={searchTerms}"), "suggest template missing");
+    assert!(
+        body.contains("/search?q={searchTerms}"),
+        "search template missing"
+    );
+    assert!(
+        body.contains("/api/suggest?q={searchTerms}"),
+        "suggest template missing"
+    );
 
     // Pages advertise the descriptor for browser auto-discovery.
     let resp = app
@@ -226,7 +254,14 @@ async fn test_suggest_personal_and_usage_counts() {
     // Suggestions include the personal alias for the signed-in user.
     let resp = app
         .clone()
-        .oneshot(req("GET", "/api/suggest?q=zzs", Some(&cookie), None, None, None))
+        .oneshot(req(
+            "GET",
+            "/api/suggest?q=zzs",
+            Some(&cookie),
+            None,
+            None,
+            None,
+        ))
         .await
         .unwrap();
     let body = body_string(resp).await;
@@ -254,7 +289,14 @@ async fn test_suggest_personal_and_usage_counts() {
     for _ in 0..2 {
         let resp = app
             .clone()
-            .oneshot(req("GET", "/search?q=zzsuggest", Some(&cookie), None, None, None))
+            .oneshot(req(
+                "GET",
+                "/search?q=zzsuggest",
+                Some(&cookie),
+                None,
+                None,
+                None,
+            ))
             .await
             .unwrap();
         assert!(resp.status().is_redirection(), "search should redirect");
@@ -265,7 +307,10 @@ async fn test_suggest_personal_and_usage_counts() {
         .unwrap();
     let body = body_string(resp).await;
     assert!(body.contains("data-uses=\"2\""), "usage count not rendered");
-    assert!(body.contains("data-sort-key=\"uses\""), "sortable Uses header missing");
+    assert!(
+        body.contains("data-sort-key=\"uses\""),
+        "sortable Uses header missing"
+    );
 }
 
 #[tokio::test]
@@ -293,7 +338,8 @@ async fn test_api_token_lifecycle_and_bookmark_crud() {
     assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
 
     // Create + duplicate + get + update + delete
-    let payload = "{\"alias\":\"api1\",\"url\":\"https://example.com\",\"description\":\"API One\"}";
+    let payload =
+        "{\"alias\":\"api1\",\"url\":\"https://example.com\",\"description\":\"API One\"}";
     let resp = app
         .clone()
         .oneshot(json_req("POST", "/api/bookmarks", &token, payload))
@@ -310,7 +356,14 @@ async fn test_api_token_lifecycle_and_bookmark_crud() {
 
     let resp = app
         .clone()
-        .oneshot(req("GET", "/api/bookmarks/api1", None, Some(&token), None, None))
+        .oneshot(req(
+            "GET",
+            "/api/bookmarks/api1",
+            None,
+            Some(&token),
+            None,
+            None,
+        ))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
@@ -333,14 +386,28 @@ async fn test_api_token_lifecycle_and_bookmark_crud() {
 
     let resp = app
         .clone()
-        .oneshot(req("DELETE", "/api/bookmarks/api1", None, Some(&token), None, None))
+        .oneshot(req(
+            "DELETE",
+            "/api/bookmarks/api1",
+            None,
+            Some(&token),
+            None,
+            None,
+        ))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NO_CONTENT);
 
     let resp = app
         .clone()
-        .oneshot(req("GET", "/api/bookmarks/api1", None, Some(&token), None, None))
+        .oneshot(req(
+            "GET",
+            "/api/bookmarks/api1",
+            None,
+            Some(&token),
+            None,
+            None,
+        ))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
@@ -394,19 +461,37 @@ async fn test_bookmarklet_prefill_and_settings_sections() {
         .await
         .unwrap();
     let body = body_string(resp).await;
-    assert!(body.contains("value=\"https://www.example.com/page\""), "prefill url missing");
-    assert!(body.contains("value=\"An Example\""), "prefill title missing");
-    assert!(body.contains("value=\"example\""), "suggested alias missing");
+    assert!(
+        body.contains("value=\"https://www.example.com/page\""),
+        "prefill url missing"
+    );
+    assert!(
+        body.contains("value=\"An Example\""),
+        "prefill title missing"
+    );
+    assert!(
+        body.contains("value=\"example\""),
+        "suggested alias missing"
+    );
 
     let resp = app
         .oneshot(req("GET", "/settings", Some(&cookie), None, None, None))
         .await
         .unwrap();
     let body = body_string(resp).await;
-    assert!(body.contains("javascript:(function(){"), "bookmarklet missing");
+    assert!(
+        body.contains("javascript:(function(){"),
+        "bookmarklet missing"
+    );
     assert!(body.contains("window.open("), "bookmarklet must open a tab");
-    assert!(body.contains("opensearch"), "bookmarklet must probe for OpenSearch");
-    assert!(body.contains("prefill_url"), "bookmarklet must carry prefill params");
+    assert!(
+        body.contains("opensearch"),
+        "bookmarklet must probe for OpenSearch"
+    );
+    assert!(
+        body.contains("prefill_url"),
+        "bookmarklet must carry prefill params"
+    );
     assert!(body.contains("API Tokens"), "token section missing");
 }
 
@@ -434,7 +519,11 @@ async fn test_global_usage_counts_and_opensearch_prefill() {
     let body = body_string(resp).await;
     let start = body.find("id=\"global-g\"").expect("global g row present");
     let row = &body[start..usize::min(start + 2500, body.len())];
-    assert!(row.contains(">2</span>"), "global use count 2 not shown: {}", &row[..200]);
+    assert!(
+        row.contains(">2</span>"),
+        "global use count 2 not shown: {}",
+        &row[..200]
+    );
 
     // OpenSearch-derived prefill: command lands in the template field.
     let resp = app

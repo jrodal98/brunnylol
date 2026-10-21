@@ -30,7 +30,9 @@ pub fn build_form_data(
         }
 
         // Extract options and strict from pipelines
-        let (options, strict) = var_expr.pipelines.iter()
+        let (options, strict) = var_expr
+            .pipelines
+            .iter()
             .find_map(|p| {
                 if let super::ast::PipelineOp::Options { values, strict } = p {
                     Some((Some(values.clone()), *strict))

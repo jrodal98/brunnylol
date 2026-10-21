@@ -21,12 +21,7 @@ async fn body_string(resp: axum::response::Response) -> String {
 
 async fn get(app: &axum::Router, uri: &str) -> axum::response::Response {
     app.clone()
-        .oneshot(
-            Request::builder()
-                .uri(uri)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
         .await
         .unwrap()
 }
@@ -55,18 +50,28 @@ async fn test_manifest_served_and_valid() {
     assert_eq!(manifest["background_color"], "#1a1a2e");
 
     let icons = manifest["icons"].as_array().expect("manifest icons array");
-    let sizes: Vec<&str> = icons
-        .iter()
-        .filter_map(|i| i["sizes"].as_str())
-        .collect();
-    assert!(sizes.contains(&"192x192"), "manifest needs a 192 icon: {:?}", sizes);
-    assert!(sizes.contains(&"512x512"), "manifest needs a 512 icon: {:?}", sizes);
+    let sizes: Vec<&str> = icons.iter().filter_map(|i| i["sizes"].as_str()).collect();
+    assert!(
+        sizes.contains(&"192x192"),
+        "manifest needs a 192 icon: {:?}",
+        sizes
+    );
+    assert!(
+        sizes.contains(&"512x512"),
+        "manifest needs a 512 icon: {:?}",
+        sizes
+    );
 
     // Every icon the manifest references must actually be served.
     for icon in icons {
         let src = icon["src"].as_str().expect("icon src");
         let resp = get(&app, src).await;
-        assert_eq!(resp.status(), StatusCode::OK, "icon {} should be served", src);
+        assert_eq!(
+            resp.status(),
+            StatusCode::OK,
+            "icon {} should be served",
+            src
+        );
         let ct = resp
             .headers()
             .get("content-type")
@@ -74,7 +79,12 @@ async fn test_manifest_served_and_valid() {
             .to_str()
             .unwrap()
             .to_string();
-        assert!(ct.contains("image/png"), "icon {} content type: {}", src, ct);
+        assert!(
+            ct.contains("image/png"),
+            "icon {} content type: {}",
+            src,
+            ct
+        );
     }
 }
 

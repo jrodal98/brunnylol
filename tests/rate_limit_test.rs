@@ -6,8 +6,8 @@ use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use tower::ServiceExt;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use tower::ServiceExt;
 
 /// Helper to create request with specific IP
 fn request_with_ip(uri: &str, ip: [u8; 4]) -> Request<Body> {
@@ -26,7 +26,7 @@ fn request_with_ip(uri: &str, ip: [u8; 4]) -> Request<Body> {
 
     req.extensions_mut().insert(SocketAddr::new(
         IpAddr::V4(Ipv4Addr::new(ip[0], ip[1], ip[2], ip[3])),
-        8000
+        8000,
     ));
 
     req
@@ -46,7 +46,8 @@ async fn test_login_rate_limit_blocks_after_5_attempts() {
 
         assert!(
             response.status().is_redirection() || response.status().is_success(),
-            "Attempt {} should not be rate limited", i
+            "Attempt {} should not be rate limited",
+            i
         );
     }
 
@@ -119,10 +120,10 @@ async fn test_register_route_also_rate_limited() {
         // Register returns either success/redirect or forbidden (if user exists)
         // Debug: print actual status if test fails
         assert!(
-            status.is_redirection()
-                || status.is_success()
-                || status == StatusCode::FORBIDDEN,
-            "Attempt {} should not be rate limited, got status: {}", i, status
+            status.is_redirection() || status.is_success() || status == StatusCode::FORBIDDEN,
+            "Attempt {} should not be rate limited, got status: {}",
+            i,
+            status
         );
     }
 
@@ -150,14 +151,15 @@ async fn test_x_forwarded_for_header_respected() {
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .header("X-Forwarded-For", "203.0.113.25")
                     .body(Body::from("username=test&password=wrong"))
-                    .unwrap()
+                    .unwrap(),
             )
             .await
             .unwrap();
 
         assert!(
             response.status().is_redirection() || response.status().is_success(),
-            "Attempt {} should not be rate limited", i
+            "Attempt {} should not be rate limited",
+            i
         );
     }
 
@@ -170,7 +172,7 @@ async fn test_x_forwarded_for_header_respected() {
                 .header("Content-Type", "application/x-www-form-urlencoded")
                 .header("X-Forwarded-For", "203.0.113.25")
                 .body(Body::from("username=test&password=wrong"))
-                .unwrap()
+                .unwrap(),
         )
         .await
         .unwrap();

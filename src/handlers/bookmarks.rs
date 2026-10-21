@@ -3,18 +3,24 @@
 use askama::Template;
 use axum::{
     extract::{Form, Path, Query, State},
-    response::{Html, IntoResponse, Response},
     http::header,
+    response::{Html, IntoResponse, Response},
 };
 use serde::Deserialize;
 use std::sync::Arc;
 
-use crate::{auth::middleware::CurrentUser, db, domain::Command, error::{AppError, DbResultExt}, validation, helpers};
 use super::common::{SuccessTemplate, SuccessWithLinkTemplate};
+use crate::{
+    auth::middleware::CurrentUser,
+    db,
+    domain::Command,
+    error::{AppError, DbResultExt},
+    helpers, validation,
+};
 
 // Helper function to convert Template AST back to string for editing
 fn render_template_to_string(template: &crate::domain::template::Template) -> String {
-    use crate::domain::template::{TemplatePart, PipelineOp};
+    use crate::domain::template::{PipelineOp, TemplatePart};
 
     let mut result = String::new();
 
@@ -204,7 +210,7 @@ pub struct NestedCommandData {
 #[derive(Deserialize)]
 pub struct CreateBookmarkForm {
     alias: String,
-    bookmark_type: String,  // "simple", "templated", or "nested"
+    bookmark_type: String, // "simple", "templated", or "nested"
     url: String,
     description: String,
     command_template: Option<String>,
@@ -244,8 +250,12 @@ pub async fn manage_page(
     // Get user's personal bookmarks with nested counts (optimized to avoid N+1)
     let bookmarks_with_nested = db::get_bookmarks_with_nested(
         &state.db_pool,
-        db::BookmarkScope::Personal { user_id: current_user.0.id }
-    ).await.db_err()?;
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        },
+    )
+    .await
+    .db_err()?;
 
     // Usage stats (best-effort: an empty map just shows zeros)
     let usage_map = db::bookmarks::get_usage_map(&state.db_pool, current_user.0.id)
@@ -256,19 +266,14 @@ pub async fn manage_page(
     let personal_bookmarks: Vec<BookmarkDisplay> = bookmarks_with_nested
         .into_iter()
         .map(|(bookmark, nested)| {
-            let usage = usage_map
-                .get(&bookmark.id)
-                .cloned()
-                .unwrap_or((0, None));
+            let usage = usage_map.get(&bookmark.id).cloned().unwrap_or((0, None));
             to_bookmark_display(bookmark, nested, &usage)
         })
         .collect();
 
     // Get global alias list and user overrides for conflict/disable detection
-    let user_aliases: std::collections::HashSet<String> = personal_bookmarks
-        .iter()
-        .map(|b| b.alias.clone())
-        .collect();
+    let user_aliases: std::collections::HashSet<String> =
+        personal_bookmarks.iter().map(|b| b.alias.clone()).collect();
 
     // Get user's disabled bookmarks
     let overrides = db::get_user_overrides(&state.db_pool, current_user.0.id)
@@ -302,7 +307,9 @@ pub async fn manage_page(
 
         // Extract URL and template from Command
         let (url, template) = match command {
-            Command::Variable { base_url, template, .. } => {
+            Command::Variable {
+                base_url, template, ..
+            } => {
                 // Render template back to string for editing
                 let template_str = render_template_to_string(template);
                 (base_url.clone(), template_str)
@@ -336,12 +343,10 @@ pub async fn manage_page(
     let has_conflicts = !conflicts.is_empty();
     let conflicts_text = conflicts.join(", ");
 
-    let ai_available = crate::services::ai_service::resolve_effective_config(
-        &state.db_pool,
-        &current_user.0,
-    )
-    .await
-    .is_some();
+    let ai_available =
+        crate::services::ai_service::resolve_effective_config(&state.db_pool, &current_user.0)
+            .await
+            .is_some();
 
     let prefill_url = prefill.prefill_url.unwrap_or_default();
     let prefill_alias = if prefill_url.is_empty() {
@@ -391,13 +396,17 @@ pub async fn create_bookmark(
     // Create parent bookmark in database
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
-        db::BookmarkScope::Personal { user_id: current_user.0.id },
-        &form.alias,
-        &form.bookmark_type,
-        &form.url,
-        &form.description,
-        form.command_template.as_deref(),
-        Some(current_user.0.id),
+        db::NewBookmark {
+            scope: db::BookmarkScope::Personal {
+                user_id: current_user.0.id,
+            },
+            alias: &form.alias,
+            bookmark_type: &form.bookmark_type,
+            url: &form.url,
+            description: &form.description,
+            command_template: form.command_template.as_deref(),
+            created_by: Some(current_user.0.id),
+        },
     )
     .await
     .map_err(|e| {
@@ -411,12 +420,16 @@ pub async fn create_bookmark(
     // If nested bookmark, create sub-commands from JSON
     if form.bookmark_type == "nested" {
         if let Some(json_str) = &form.nested_commands_json {
-            let nested_commands: Vec<NestedCommandData> = serde_json::from_str(json_str)
-                .map_err(|e| AppError::Internal(format!("Failed to parse nested commands: {}", e)))?;
+            let nested_commands: Vec<NestedCommandData> =
+                serde_json::from_str(json_str).map_err(|e| {
+                    AppError::Internal(format!("Failed to parse nested commands: {}", e))
+                })?;
 
             // Prevent DoS: Limit number of nested bookmarks per parent
             if nested_commands.len() > 100 {
-                return Err(AppError::BadRequest("Too many nested commands (maximum 100 allowed)".to_string()));
+                return Err(AppError::BadRequest(
+                    "Too many nested commands (maximum 100 allowed)".to_string(),
+                ));
             }
 
             for (i, nested_cmd) in nested_commands.iter().enumerate() {
@@ -433,7 +446,12 @@ pub async fn create_bookmark(
                     i as i32,
                 )
                 .await
-                .map_err(|e| AppError::Internal(format!("Failed to create nested bookmark '{}': {}", nested_cmd.alias, e)))?;
+                .map_err(|e| {
+                    AppError::Internal(format!(
+                        "Failed to create nested bookmark '{}': {}",
+                        nested_cmd.alias, e
+                    ))
+                })?;
             }
         }
     }
@@ -454,9 +472,15 @@ pub async fn delete_bookmark(
     State(state): State<Arc<crate::AppState>>,
     Path(bookmark_id): Path<i64>,
 ) -> Result<impl IntoResponse, AppError> {
-    db::delete_bookmark(&state.db_pool, bookmark_id, db::BookmarkScope::Personal { user_id: current_user.0.id })
-        .await
-        .map_err(|e| AppError::Internal(format!("Failed to delete bookmark: {}", e)))?;
+    db::delete_bookmark(
+        &state.db_pool,
+        bookmark_id,
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        },
+    )
+    .await
+    .map_err(|e| AppError::Internal(format!("Failed to delete bookmark: {}", e)))?;
 
     // Return empty HTML (HTMX will remove the row)
     Ok(Html(""))
@@ -477,7 +501,9 @@ pub async fn update_bookmark(
     db::update_bookmark(
         &state.db_pool,
         bookmark_id,
-        db::BookmarkScope::Personal { user_id: current_user.0.id },
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        },
         &form.alias,
         &form.url,
         &form.description,
@@ -508,10 +534,7 @@ pub async fn update_bookmark(
             personal_bookmarks: bookmarks_with_nested
                 .into_iter()
                 .map(|(bookmark, nested)| {
-                    let usage = usage_map
-                        .get(&bookmark.id)
-                        .cloned()
-                        .unwrap_or((0, None));
+                    let usage = usage_map.get(&bookmark.id).cloned().unwrap_or((0, None));
                     to_bookmark_display(bookmark, nested, &usage)
                 })
                 .collect(),
@@ -537,7 +560,9 @@ pub async fn create_nested_bookmark(
         .ok_or(AppError::NotFound("Parent bookmark not found".to_string()))?;
 
     if parent.user_id != Some(current_user.0.id) {
-        return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
+        return Err(AppError::Forbidden(
+            "Cannot modify bookmarks you don't own".to_string(),
+        ));
     }
 
     // Validate URL scheme
@@ -587,7 +612,9 @@ pub async fn delete_nested_bookmark(
         .ok_or(AppError::Internal("Parent bookmark not found".to_string()))?;
 
     if parent.user_id != Some(current_user.0.id) {
-        return Err(AppError::Forbidden("Cannot modify bookmarks you don't own".to_string()));
+        return Err(AppError::Forbidden(
+            "Cannot modify bookmarks you don't own".to_string(),
+        ));
     }
 
     db::delete_nested_bookmark(&state.db_pool, nested_id)
@@ -610,7 +637,9 @@ pub async fn list_nested_bookmarks(
         .ok_or(AppError::NotFound("Bookmark not found".to_string()))?;
 
     if parent.user_id != Some(current_user.0.id) {
-        return Err(AppError::Forbidden("Cannot access bookmarks you don't own".to_string()));
+        return Err(AppError::Forbidden(
+            "Cannot access bookmarks you don't own".to_string(),
+        ));
     }
 
     let nested = db::get_nested_bookmarks(&state.db_pool, bookmark_id)
@@ -646,9 +675,7 @@ pub async fn toggle_global_bookmark(
     let description = bookmark
         .map(|cmd| cmd.description())
         .unwrap_or("Built-in bookmark");
-    let url = bookmark
-        .map(|cmd| cmd.base_url())
-        .unwrap_or("");
+    let url = bookmark.map(|cmd| cmd.base_url()).unwrap_or("");
     let template_str = bookmark
         .map(|cmd| match cmd {
             Command::Variable { template, .. } => render_template_to_string(template),
@@ -705,37 +732,50 @@ pub async fn import_bookmarks(
     State(state): State<Arc<crate::AppState>>,
     Form(form): Form<ImportForm>,
 ) -> Result<impl IntoResponse, AppError> {
-    use crate::services::serializers::{YamlSerializer, JsonSerializer};
+    use crate::services::serializers::{JsonSerializer, YamlSerializer};
 
     // Determine scope - only admins can import global
     let scope = if form.scope == "global" {
         if !current_user.0.is_admin {
-            return Err(AppError::Forbidden("Only admins can import global bookmarks".to_string()));
+            return Err(AppError::Forbidden(
+                "Only admins can import global bookmarks".to_string(),
+            ));
         }
         db::BookmarkScope::Global
     } else {
-        db::BookmarkScope::Personal { user_id: current_user.0.id }
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        }
     };
 
     // Get content based on source
     let content = match form.source.as_str() {
-        "paste" => form.content.ok_or(AppError::BadRequest("No content provided".to_string()))?,
+        "paste" => form
+            .content
+            .ok_or(AppError::BadRequest("No content provided".to_string()))?,
         "url" => {
             // Fetch from URL
-            let url = form.url.ok_or(AppError::BadRequest("No URL provided".to_string()))?;
+            let url = form
+                .url
+                .ok_or(AppError::BadRequest("No URL provided".to_string()))?;
 
             // Validate URL for SSRF protection (first check)
             validation::validate_url_for_fetch(&url)?;
 
             // Parse URL to get host and port for DNS resolution
-            let parsed_url = url.parse::<url::Url>()
+            let parsed_url = url
+                .parse::<url::Url>()
                 .map_err(|_| AppError::BadRequest("Invalid URL format".to_string()))?;
 
-            let host = parsed_url.host_str()
+            let host = parsed_url
+                .host_str()
                 .ok_or(AppError::BadRequest("URL must have a host".to_string()))?;
 
-            let port = parsed_url.port_or_known_default()
-                .ok_or(AppError::BadRequest("Cannot determine port for URL".to_string()))?;
+            let port = parsed_url
+                .port_or_known_default()
+                .ok_or(AppError::BadRequest(
+                    "Cannot determine port for URL".to_string(),
+                ))?;
 
             // Manually resolve hostname to prevent DNS rebinding attacks
             // This ensures we validate the ACTUAL IP that will be connected to
@@ -745,7 +785,9 @@ pub async fn import_bookmarks(
                 .collect::<Vec<_>>();
 
             if socket_addrs.is_empty() {
-                return Err(AppError::BadRequest("Could not resolve hostname".to_string()));
+                return Err(AppError::BadRequest(
+                    "Could not resolve hostname".to_string(),
+                ));
             }
 
             // Validate ALL resolved IPs to prevent DNS rebinding
@@ -764,7 +806,8 @@ pub async fn import_bookmarks(
                 .map_err(|e| AppError::Internal(format!("Failed to create HTTP client: {}", e)))?;
 
             // Use reqwest to fetch URL content
-            let response = client.get(&url)
+            let response = client
+                .get(&url)
                 .send()
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to fetch URL: {}", e)))?;
@@ -772,19 +815,27 @@ pub async fn import_bookmarks(
             if !response.status().is_success() {
                 // Handle redirects explicitly - we don't follow them for security
                 if response.status().is_redirection() {
-                    return Err(AppError::BadRequest("URL redirects are not allowed for security".to_string()));
+                    return Err(AppError::BadRequest(
+                        "URL redirects are not allowed for security".to_string(),
+                    ));
                 }
-                return Err(AppError::Internal(format!("URL returned status {}", response.status())));
+                return Err(AppError::Internal(format!(
+                    "URL returned status {}",
+                    response.status()
+                )));
             }
 
             // Stream response and limit actual bytes received (not trusting Content-Length)
             const MAX_SIZE: usize = 1_000_000;
-            let bytes = response.bytes()
+            let bytes = response
+                .bytes()
                 .await
                 .map_err(|e| AppError::Internal(format!("Failed to read URL content: {}", e)))?;
 
             if bytes.len() > MAX_SIZE {
-                return Err(AppError::BadRequest("URL content too large (max 1MB)".to_string()));
+                return Err(AppError::BadRequest(
+                    "URL content too large (max 1MB)".to_string(),
+                ));
             }
 
             String::from_utf8(bytes.to_vec())
@@ -795,23 +846,29 @@ pub async fn import_bookmarks(
 
     // Validate content size (protect against YAML bombs and large files)
     if content.len() > 1_000_000 {
-        return Err(AppError::BadRequest("Content too large (max 1MB)".to_string()));
+        return Err(AppError::BadRequest(
+            "Content too large (max 1MB)".to_string(),
+        ));
     }
 
     // Select serializer
-    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match form.format.as_str() {
-        "json" => Box::new(JsonSerializer),
-        _ => Box::new(YamlSerializer), // Default to YAML
-    };
+    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> =
+        match form.format.as_str() {
+            "json" => Box::new(JsonSerializer),
+            _ => Box::new(YamlSerializer), // Default to YAML
+        };
 
     // Import bookmarks
-    let result = state.bookmark_service.import_bookmarks(
-        &content,
-        serializer.as_ref(),
-        scope,
-        Some(current_user.0.id),
-    ).await
-    .map_err(|e| AppError::Internal(format!("Import failed: {}", e)))?;
+    let result = state
+        .bookmark_service
+        .import_bookmarks(
+            &content,
+            serializer.as_ref(),
+            scope,
+            Some(current_user.0.id),
+        )
+        .await
+        .map_err(|e| AppError::Internal(format!("Import failed: {}", e)))?;
 
     let message = if result.errors.is_empty() {
         format!(
@@ -821,7 +878,9 @@ pub async fn import_bookmarks(
     } else {
         format!(
             "Imported {} bookmarks ({} skipped). Errors: {}",
-            result.imported, result.skipped, result.errors.join(", ")
+            result.imported,
+            result.skipped,
+            result.errors.join(", ")
         )
     };
 
@@ -839,29 +898,34 @@ pub async fn export_bookmarks(
     State(state): State<Arc<crate::AppState>>,
     axum::extract::Query(params): axum::extract::Query<ExportParams>,
 ) -> Result<Response, AppError> {
-    use crate::services::serializers::{YamlSerializer, JsonSerializer};
+    use crate::services::serializers::{JsonSerializer, YamlSerializer};
 
     // Check permissions for global export
     if params.scope == "global" && !current_user.0.is_admin {
-        return Err(AppError::Forbidden("Only admins can export global bookmarks".to_string()));
+        return Err(AppError::Forbidden(
+            "Only admins can export global bookmarks".to_string(),
+        ));
     }
 
     let scope = if params.scope == "global" {
         db::BookmarkScope::Global
     } else {
-        db::BookmarkScope::Personal { user_id: current_user.0.id }
+        db::BookmarkScope::Personal {
+            user_id: current_user.0.id,
+        }
     };
 
-    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> = match params.format.as_str() {
-        "json" => Box::new(JsonSerializer),
-        _ => Box::new(YamlSerializer),
-    };
+    let serializer: Box<dyn crate::services::serializers::BookmarkSerializer> =
+        match params.format.as_str() {
+            "json" => Box::new(JsonSerializer),
+            _ => Box::new(YamlSerializer),
+        };
 
-    let content = state.bookmark_service.export_bookmarks(
-        scope,
-        serializer.as_ref(),
-    ).await
-    .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?;
+    let content = state
+        .bookmark_service
+        .export_bookmarks(scope, serializer.as_ref())
+        .await
+        .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?;
 
     let is_global = matches!(scope, db::BookmarkScope::Global);
     let filename = format!(
@@ -873,11 +937,16 @@ pub async fn export_bookmarks(
     let mut response = Response::new(content.into());
     response.headers_mut().insert(
         header::CONTENT_TYPE,
-        serializer.content_type().parse().unwrap(),
+        serializer
+            .content_type()
+            .parse()
+            .expect("serializer content types are valid header values"),
     );
     response.headers_mut().insert(
         header::CONTENT_DISPOSITION,
-        format!("attachment; filename=\"{}\"", filename).parse().unwrap(),
+        format!("attachment; filename=\"{}\"", filename)
+            .parse()
+            .expect("the export filename is server-generated from the scope and format"),
     );
 
     Ok(response)
@@ -893,14 +962,25 @@ pub async fn bulk_delete_bookmarks(
     let mut errors = Vec::new();
 
     for id in form.ids {
-        match db::delete_bookmark(&state.db_pool, id, db::BookmarkScope::Personal { user_id: current_user.0.id }).await {
+        match db::delete_bookmark(
+            &state.db_pool,
+            id,
+            db::BookmarkScope::Personal {
+                user_id: current_user.0.id,
+            },
+        )
+        .await
+        {
             Ok(_) => deleted_count += 1,
             Err(e) => errors.push(format!("ID {}: {}", id, e)),
         }
     }
 
     if !errors.is_empty() {
-        return Err(AppError::Internal(format!("Failed to delete some bookmarks: {}", errors.join(", "))));
+        return Err(AppError::Internal(format!(
+            "Failed to delete some bookmarks: {}",
+            errors.join(", ")
+        )));
     }
 
     Ok((
@@ -908,7 +988,7 @@ pub async fn bulk_delete_bookmarks(
         axum::Json(serde_json::json!({
             "success": true,
             "deleted": deleted_count
-        }))
+        })),
     ))
 }
 
@@ -929,14 +1009,19 @@ pub async fn bulk_toggle_global(
             form.is_disabled,
             None,
             None,
-        ).await {
+        )
+        .await
+        {
             Ok(_) => updated_count += 1,
             Err(e) => errors.push(format!("Alias '{}': {}", alias, e)),
         }
     }
 
     if !errors.is_empty() {
-        return Err(AppError::Internal(format!("Failed to update some bookmarks: {}", errors.join(", "))));
+        return Err(AppError::Internal(format!(
+            "Failed to update some bookmarks: {}",
+            errors.join(", ")
+        )));
     }
 
     Ok((
@@ -944,7 +1029,7 @@ pub async fn bulk_toggle_global(
         axum::Json(serde_json::json!({
             "success": true,
             "updated": updated_count
-        }))
+        })),
     ))
 }
 
@@ -962,23 +1047,33 @@ pub async fn fork_global_bookmark(
     let global_bookmark = global_bookmarks
         .iter()
         .find(|b| b.alias == form.alias)
-        .ok_or(AppError::NotFound(format!("Global bookmark '{}' not found", form.alias)))?;
+        .ok_or(AppError::NotFound(format!(
+            "Global bookmark '{}' not found",
+            form.alias
+        )))?;
 
     // Create a copy in user bookmarks
     let bookmark_id = db::create_bookmark(
         &state.db_pool,
-        db::BookmarkScope::Personal { user_id: current_user.0.id },
-        &global_bookmark.alias,
-        &global_bookmark.bookmark_type,
-        &global_bookmark.url,
-        &global_bookmark.description,
-        global_bookmark.command_template.as_deref(),
-        Some(current_user.0.id), // Track who forked this
+        db::NewBookmark {
+            scope: db::BookmarkScope::Personal {
+                user_id: current_user.0.id,
+            },
+            alias: &global_bookmark.alias,
+            bookmark_type: &global_bookmark.bookmark_type,
+            url: &global_bookmark.url,
+            description: &global_bookmark.description,
+            command_template: global_bookmark.command_template.as_deref(),
+            created_by: Some(current_user.0.id), // Track who forked this
+        },
     )
     .await
     .map_err(|e| {
         if e.to_string().contains("UNIQUE constraint") {
-            AppError::BadRequest(format!("You already have a bookmark with alias '{}'", form.alias))
+            AppError::BadRequest(format!(
+                "You already have a bookmark with alias '{}'",
+                form.alias
+            ))
         } else {
             AppError::Internal(format!("Failed to fork bookmark: {}", e))
         }

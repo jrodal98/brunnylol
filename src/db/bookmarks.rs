@@ -4,8 +4,8 @@ use anyhow::Result;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 
-use crate::domain::Command;
 use crate::db::{self, Bookmark, NestedBookmark};
+use crate::domain::Command;
 
 // Create a Command::Variable from template string
 fn create_variable_command(
@@ -19,7 +19,9 @@ fn create_variable_command(
     let metadata = if let Some(json) = variable_metadata {
         serde_json::from_str(json).ok()
     } else {
-        Some(crate::domain::template::TemplateMetadata::from_template(&parsed_template))
+        Some(crate::domain::template::TemplateMetadata::from_template(
+            &parsed_template,
+        ))
     };
 
     Ok(Command::Variable {
@@ -95,7 +97,6 @@ pub fn bookmark_to_command(bookmark: &Bookmark, nested: Vec<NestedBookmark>) -> 
         }
     }
 }
-
 
 /// Record one use of a personal bookmark (upsert into bookmark_usage).
 /// Errors are the caller's choice to ignore: usage metrics must never
@@ -188,9 +189,13 @@ pub async fn get_usage_map(
 }
 
 // Load all user bookmarks and convert to Commands
-pub async fn load_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<HashMap<String, Command>> {
+pub async fn load_user_bookmarks(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> Result<HashMap<String, Command>> {
     // Use optimized v2 API that fetches bookmarks + nested in single query
-    let bookmarks_with_nested = db::get_bookmarks_with_nested(pool, db::BookmarkScope::Personal { user_id }).await?;
+    let bookmarks_with_nested =
+        db::get_bookmarks_with_nested(pool, db::BookmarkScope::Personal { user_id }).await?;
     let mut commands = HashMap::new();
 
     for (bookmark, nested) in bookmarks_with_nested {
@@ -199,7 +204,10 @@ pub async fn load_user_bookmarks(pool: &SqlitePool, user_id: i64) -> Result<Hash
                 commands.insert(bookmark.alias.clone(), command);
             }
             Err(e) => {
-                eprintln!("Warning: Failed to load bookmark '{}': {}. Skipping.", bookmark.alias, e);
+                eprintln!(
+                    "Warning: Failed to load bookmark '{}': {}. Skipping.",
+                    bookmark.alias, e
+                );
             }
         }
     }

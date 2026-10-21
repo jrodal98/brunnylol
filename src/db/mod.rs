@@ -5,8 +5,8 @@ pub mod bookmarks;
 pub mod seed;
 pub mod tokens;
 
-use sqlx::{sqlite::SqlitePool, Row};
 use anyhow::{Context, Result};
+use sqlx::{sqlite::SqlitePool, Row};
 use std::collections::HashMap;
 
 // Initialize database and run migrations
@@ -80,14 +80,13 @@ pub async fn create_user(pool: &SqlitePool, username: &str, password_hash: &str)
     let is_admin = count == 0;
 
     // Insert user
-    let result = sqlx::query(
-        "INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)"
-    )
-    .bind(username)
-    .bind(password_hash)
-    .bind(is_admin)
-    .execute(pool)
-    .await?;
+    let result =
+        sqlx::query("INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, ?)")
+            .bind(username)
+            .bind(password_hash)
+            .bind(is_admin)
+            .execute(pool)
+            .await?;
 
     Ok(User {
         id: result.last_insert_rowid(),
@@ -98,25 +97,30 @@ pub async fn create_user(pool: &SqlitePool, username: &str, password_hash: &str)
 }
 
 // Find user by username
-pub async fn get_user_by_username(pool: &SqlitePool, username: &str) -> Result<Option<(i64, String, bool)>> {
+pub async fn get_user_by_username(
+    pool: &SqlitePool,
+    username: &str,
+) -> Result<Option<(i64, String, bool)>> {
     let result = sqlx::query(
-        "SELECT id, password_hash, is_admin FROM users WHERE username = ? COLLATE NOCASE"
+        "SELECT id, password_hash, is_admin FROM users WHERE username = ? COLLATE NOCASE",
     )
     .bind(username)
     .fetch_optional(pool)
     .await?;
 
-    Ok(result.map(|row| (
-        row.get::<i64, _>("id"),
-        row.get::<String, _>("password_hash"),
-        row.get::<bool, _>("is_admin"),
-    )))
+    Ok(result.map(|row| {
+        (
+            row.get::<i64, _>("id"),
+            row.get::<String, _>("password_hash"),
+            row.get::<bool, _>("is_admin"),
+        )
+    }))
 }
 
 // Get user by ID
 pub async fn get_user_by_id(pool: &SqlitePool, user_id: i64) -> Result<Option<User>> {
     let user = sqlx::query_as::<_, User>(
-        "SELECT id, username, is_admin, default_alias FROM users WHERE id = ?"
+        "SELECT id, username, is_admin, default_alias FROM users WHERE id = ?",
     )
     .bind(user_id)
     .fetch_optional(pool)
@@ -157,7 +161,7 @@ pub async fn delete_user(pool: &SqlitePool, user_id: i64) -> Result<()> {
 // List all users (admin only)
 pub async fn list_all_users(pool: &SqlitePool) -> Result<Vec<User>> {
     let users = sqlx::query_as::<_, User>(
-        "SELECT id, username, is_admin, default_alias FROM users ORDER BY created_at DESC"
+        "SELECT id, username, is_admin, default_alias FROM users ORDER BY created_at DESC",
     )
     .fetch_all(pool)
     .await?;
@@ -171,7 +175,7 @@ pub async fn get_user_bookmark_counts(pool: &SqlitePool) -> Result<HashMap<i64, 
         "SELECT user_id, COUNT(*) as count
          FROM bookmarks
          WHERE scope = 'personal' AND user_id IS NOT NULL
-         GROUP BY user_id"
+         GROUP BY user_id",
     )
     .fetch_all(pool)
     .await?;
@@ -192,26 +196,23 @@ pub async fn create_session(pool: &SqlitePool, user_id: i64) -> Result<String> {
     // Set expiration to 10 years (essentially permanent until logout/password change)
     let expires_at = chrono::Utc::now() + chrono::Duration::days(3650);
 
-    sqlx::query(
-        "INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)"
-    )
-    .bind(&session_id)
-    .bind(user_id)
-    .bind(expires_at.to_rfc3339())
-    .execute(pool)
-    .await?;
+    sqlx::query("INSERT INTO sessions (id, user_id, expires_at) VALUES (?, ?, ?)")
+        .bind(&session_id)
+        .bind(user_id)
+        .bind(expires_at.to_rfc3339())
+        .execute(pool)
+        .await?;
 
     Ok(session_id)
 }
 
 // Validate session and return user_id
 pub async fn validate_session(pool: &SqlitePool, session_id: &str) -> Result<Option<i64>> {
-    let result = sqlx::query(
-        "SELECT user_id FROM sessions WHERE id = ? AND expires_at > datetime('now')"
-    )
-    .bind(session_id)
-    .fetch_optional(pool)
-    .await?;
+    let result =
+        sqlx::query("SELECT user_id FROM sessions WHERE id = ? AND expires_at > datetime('now')")
+            .bind(session_id)
+            .fetch_optional(pool)
+            .await?;
 
     Ok(result.map(|row| row.get("user_id")))
 }
@@ -274,15 +275,15 @@ impl BookmarkScope {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Bookmark {
     pub id: i64,
-    pub scope: String,  // "personal" or "global"
-    pub user_id: Option<i64>,  // NULL for global bookmarks
+    pub scope: String,        // "personal" or "global"
+    pub user_id: Option<i64>, // NULL for global bookmarks
     pub alias: String,
     pub bookmark_type: String,
     pub url: String,
     pub description: String,
     pub command_template: Option<String>,
-    pub created_by: Option<i64>,  // Track who created global bookmarks
-    pub variable_metadata: Option<String>,  // JSON metadata for template variables
+    pub created_by: Option<i64>, // Track who created global bookmarks
+    pub variable_metadata: Option<String>, // JSON metadata for template variables
 }
 
 impl Bookmark {
@@ -306,10 +307,13 @@ pub struct NestedBookmark {
     pub description: String,
     pub command_template: Option<String>,
     pub display_order: i32,
-    pub variable_metadata: Option<String>,  // JSON metadata for template variables
+    pub variable_metadata: Option<String>, // JSON metadata for template variables
 }
 
-pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Result<Option<NestedBookmark>> {
+pub async fn get_nested_bookmark_by_id(
+    pool: &SqlitePool,
+    nested_id: i64,
+) -> Result<Option<NestedBookmark>> {
     let nested = sqlx::query_as::<_, NestedBookmark>(
         "SELECT id, parent_bookmark_id, alias, url, description, command_template, display_order, variable_metadata
          FROM nested_bookmarks
@@ -323,22 +327,30 @@ pub async fn get_nested_bookmark_by_id(pool: &SqlitePool, nested_id: i64) -> Res
 }
 
 // Update a bookmark
-pub async fn get_user_overrides(pool: &SqlitePool, user_id: i64) -> Result<Vec<(String, bool, Option<String>, Option<String>)>> {
+pub async fn get_user_overrides(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> Result<Vec<(String, bool, Option<String>, Option<String>)>> {
     let rows = sqlx::query(
         "SELECT builtin_alias, is_disabled, custom_alias, additional_aliases
          FROM user_bookmark_overrides
-         WHERE user_id = ?"
+         WHERE user_id = ?",
     )
     .bind(user_id)
     .fetch_all(pool)
     .await?;
 
-    Ok(rows.into_iter().map(|row| (
-        row.get("builtin_alias"),
-        row.get("is_disabled"),
-        row.get("custom_alias"),
-        row.get("additional_aliases"),
-    )).collect())
+    Ok(rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.get("builtin_alias"),
+                row.get("is_disabled"),
+                row.get("custom_alias"),
+                row.get("additional_aliases"),
+            )
+        })
+        .collect())
 }
 
 // Create or update override for built-in bookmark
@@ -372,19 +384,20 @@ pub async fn upsert_override(
 
 // Delete override (reset to built-in default)
 pub async fn delete_override(pool: &SqlitePool, user_id: i64, builtin_alias: &str) -> Result<()> {
-    sqlx::query(
-        "DELETE FROM user_bookmark_overrides WHERE user_id = ? AND builtin_alias = ?"
-    )
-    .bind(user_id)
-    .bind(builtin_alias)
-    .execute(pool)
-    .await?;
+    sqlx::query("DELETE FROM user_bookmark_overrides WHERE user_id = ? AND builtin_alias = ?")
+        .bind(user_id)
+        .bind(builtin_alias)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
 
 // Get set of disabled global bookmark aliases for a user
-pub async fn get_disabled_global_aliases(pool: &SqlitePool, user_id: i64) -> std::collections::HashSet<String> {
+pub async fn get_disabled_global_aliases(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> std::collections::HashSet<String> {
     get_user_overrides(pool, user_id)
         .await
         .ok()
@@ -396,14 +409,16 @@ pub async fn get_disabled_global_aliases(pool: &SqlitePool, user_id: i64) -> std
 }
 
 // Update user's default alias preference
-pub async fn update_user_default_alias(pool: &SqlitePool, user_id: i64, default_alias: Option<&str>) -> Result<()> {
-    sqlx::query(
-        "UPDATE users SET default_alias = ? WHERE id = ?"
-    )
-    .bind(default_alias)
-    .bind(user_id)
-    .execute(pool)
-    .await?;
+pub async fn update_user_default_alias(
+    pool: &SqlitePool,
+    user_id: i64,
+    default_alias: Option<&str>,
+) -> Result<()> {
+    sqlx::query("UPDATE users SET default_alias = ? WHERE id = ?")
+        .bind(default_alias)
+        .bind(user_id)
+        .execute(pool)
+        .await?;
 
     Ok(())
 }
@@ -415,31 +430,34 @@ pub async fn update_user_default_alias(pool: &SqlitePool, user_id: i64, default_
 // UNIFIED BOOKMARK API
 // ============================================================================
 
+/// Fields for creating a bookmark in the unified schema. A params
+/// struct (rather than eight positional arguments) keeps call sites
+/// self-describing and lets the schema grow without breaking them.
+pub struct NewBookmark<'a> {
+    pub scope: BookmarkScope,
+    pub alias: &'a str,
+    pub bookmark_type: &'a str,
+    pub url: &'a str,
+    pub description: &'a str,
+    pub command_template: Option<&'a str>,
+    pub created_by: Option<i64>,
+}
+
 // Create a bookmark in the unified schema
-#[allow(clippy::too_many_arguments)]
-pub async fn create_bookmark(
-    pool: &SqlitePool,
-    scope: BookmarkScope,
-    alias: &str,
-    bookmark_type: &str,
-    url: &str,
-    description: &str,
-    command_template: Option<&str>,
-    created_by: Option<i64>,
-) -> Result<i64> {
+pub async fn create_bookmark(pool: &SqlitePool, new: NewBookmark<'_>) -> Result<i64> {
     let result = sqlx::query(
         "INSERT INTO bookmarks
          (scope, user_id, alias, bookmark_type, url, description, command_template, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
-    .bind(scope.to_db_string())
-    .bind(scope.user_id())
-    .bind(alias)
-    .bind(bookmark_type)
-    .bind(url)
-    .bind(description)
-    .bind(command_template)
-    .bind(created_by)
+    .bind(new.scope.to_db_string())
+    .bind(new.scope.user_id())
+    .bind(new.alias)
+    .bind(new.bookmark_type)
+    .bind(new.url)
+    .bind(new.description)
+    .bind(new.command_template)
+    .bind(new.created_by)
     .execute(pool)
     .await?;
 
@@ -447,10 +465,7 @@ pub async fn create_bookmark(
 }
 
 // Get all bookmarks for a given scope
-pub async fn get_bookmarks(
-    pool: &SqlitePool,
-    scope: BookmarkScope,
-) -> Result<Vec<Bookmark>> {
+pub async fn get_bookmarks(pool: &SqlitePool, scope: BookmarkScope) -> Result<Vec<Bookmark>> {
     let bookmarks = sqlx::query_as::<_, Bookmark>(
         "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, created_by, variable_metadata
          FROM bookmarks
@@ -466,10 +481,7 @@ pub async fn get_bookmarks(
 }
 
 // Get a single bookmark by ID
-pub async fn get_bookmark_by_id(
-    pool: &SqlitePool,
-    bookmark_id: i64,
-) -> Result<Option<Bookmark>> {
+pub async fn get_bookmark_by_id(pool: &SqlitePool, bookmark_id: i64) -> Result<Option<Bookmark>> {
     let bookmark = sqlx::query_as::<_, Bookmark>(
         "SELECT id, scope, user_id, alias, bookmark_type, url, description, command_template, created_by, variable_metadata
          FROM bookmarks
@@ -485,7 +497,7 @@ pub async fn get_bookmark_by_id(
 // Get global bookmark ID by alias
 pub async fn get_global_bookmark_id_by_alias(pool: &SqlitePool, alias: &str) -> Result<i64> {
     let id = sqlx::query_scalar::<_, i64>(
-        "SELECT id FROM bookmarks WHERE scope = 'global' AND alias = ?"
+        "SELECT id FROM bookmarks WHERE scope = 'global' AND alias = ?",
     )
     .bind(alias)
     .fetch_one(pool)
@@ -530,7 +542,7 @@ pub async fn delete_bookmark(
 ) -> Result<()> {
     sqlx::query(
         "DELETE FROM bookmarks
-         WHERE id = ? AND scope = ? AND (user_id = ? OR user_id IS NULL)"
+         WHERE id = ? AND scope = ? AND (user_id = ? OR user_id IS NULL)",
     )
     .bind(bookmark_id)
     .bind(scope.to_db_string())
@@ -572,7 +584,7 @@ pub async fn create_nested_bookmark(
     let result = sqlx::query(
         "INSERT INTO nested_bookmarks
          (parent_bookmark_id, alias, url, description, command_template, display_order)
-         VALUES (?, ?, ?, ?, ?, ?)"
+         VALUES (?, ?, ?, ?, ?, ?)",
     )
     .bind(parent_bookmark_id)
     .bind(alias)
@@ -587,10 +599,7 @@ pub async fn create_nested_bookmark(
 }
 
 // Delete nested bookmark (unified)
-pub async fn delete_nested_bookmark(
-    pool: &SqlitePool,
-    nested_id: i64,
-) -> Result<()> {
+pub async fn delete_nested_bookmark(pool: &SqlitePool, nested_id: i64) -> Result<()> {
     sqlx::query("DELETE FROM nested_bookmarks WHERE id = ?")
         .bind(nested_id)
         .execute(pool)
@@ -600,16 +609,11 @@ pub async fn delete_nested_bookmark(
 }
 
 // Check if bookmarks table is empty (for a given scope)
-pub async fn is_bookmarks_empty(
-    pool: &SqlitePool,
-    scope: BookmarkScope,
-) -> Result<bool> {
-    let count: i64 = sqlx::query_scalar(
-        "SELECT COUNT(*) FROM bookmarks WHERE scope = ?"
-    )
-    .bind(scope.to_db_string())
-    .fetch_one(pool)
-    .await?;
+pub async fn is_bookmarks_empty(pool: &SqlitePool, scope: BookmarkScope) -> Result<bool> {
+    let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM bookmarks WHERE scope = ?")
+        .bind(scope.to_db_string())
+        .fetch_one(pool)
+        .await?;
     Ok(count == 0)
 }
 
@@ -631,7 +635,11 @@ pub async fn get_bookmarks_with_nested(
     // Fetch ALL nested bookmarks in one query
     let all_nested = if !bookmark_ids.is_empty() {
         // Build query with IN clause
-        let placeholders = bookmark_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+        let placeholders = bookmark_ids
+            .iter()
+            .map(|_| "?")
+            .collect::<Vec<_>>()
+            .join(",");
         let query_str = format!(
             "SELECT id, parent_bookmark_id, alias, url, description, command_template, display_order, variable_metadata
              FROM nested_bookmarks
@@ -653,7 +661,8 @@ pub async fn get_bookmarks_with_nested(
     // Group nested bookmarks by parent_id
     let mut nested_map: HashMap<i64, Vec<NestedBookmark>> = HashMap::new();
     for nested in all_nested {
-        nested_map.entry(nested.parent_bookmark_id)
+        nested_map
+            .entry(nested.parent_bookmark_id)
             .or_default()
             .push(nested);
     }

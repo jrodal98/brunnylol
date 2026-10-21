@@ -4,12 +4,12 @@
 // with variable substitution and pipeline operations.
 
 mod ast;
+pub mod form_builder;
 mod parser;
 mod pipeline;
 mod resolver;
-pub mod form_builder;
 
-pub use ast::{PipelineOp, Template, TemplatePart, VariableExpr, TemplateMetadata};
+pub use ast::{PipelineOp, Template, TemplateMetadata, TemplatePart, VariableExpr};
 pub use parser::TemplateParser;
 pub use pipeline::{PipelineOperation, PipelineRegistry};
 pub use resolver::TemplateResolver;

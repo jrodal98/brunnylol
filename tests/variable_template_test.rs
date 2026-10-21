@@ -13,13 +13,15 @@ async fn test_create_variable_template_bookmark() {
     // Create a bookmark with variable template
     let result = db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "test",
-        "templated",
-        "https://example.com",
-        "Test variable template",
-        Some("https://example.com/{page}/{repo?}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "test",
+            bookmark_type: "templated",
+            url: "https://example.com",
+            description: "Test variable template",
+            command_template: Some("https://example.com/{page}/{repo?}"),
+            created_by: None,
+        },
     )
     .await;
 
@@ -34,13 +36,15 @@ async fn test_load_variable_template_as_command() {
     // Create bookmark with variable syntax
     db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "gh",
-        "templated",
-        "https://github.com",
-        "GitHub with variables",
-        Some("https://github.com/{org}/{repo}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "gh",
+            bookmark_type: "templated",
+            url: "https://github.com",
+            description: "GitHub with variables",
+            command_template: Some("https://github.com/{org}/{repo}"),
+            created_by: None,
+        },
     )
     .await
     .unwrap();
@@ -160,13 +164,15 @@ async fn test_backward_compatibility_with_query() {
     // Create bookmark with simple {query} template (migrated from {})
     db::create_bookmark(
         &pool,
-        BookmarkScope::Personal { user_id },
-        "search",
-        "templated",
-        "https://example.com",
-        "Simple search",
-        Some("https://example.com/search?q={query}"),
-        None,
+        db::NewBookmark {
+            scope: BookmarkScope::Personal { user_id },
+            alias: "search",
+            bookmark_type: "templated",
+            url: "https://example.com",
+            description: "Simple search",
+            command_template: Some("https://example.com/search?q={query}"),
+            created_by: None,
+        },
     )
     .await
     .unwrap();

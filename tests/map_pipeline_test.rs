@@ -1,6 +1,6 @@
 // Tests for map pipeline
 
-use brunnylol::domain::template::{TemplateParser, TemplateResolver, PipelineOp};
+use brunnylol::domain::template::{PipelineOp, TemplateParser, TemplateResolver};
 use std::collections::HashMap;
 
 #[test]
@@ -25,7 +25,8 @@ fn test_parse_map_pipeline() {
 
 #[test]
 fn test_resolve_with_map_matched() {
-    let template = TemplateParser::parse("https://google.com/{app|map[cal:calendar]|!encode}").unwrap();
+    let template =
+        TemplateParser::parse("https://google.com/{app|map[cal:calendar]|!encode}").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -37,7 +38,8 @@ fn test_resolve_with_map_matched() {
 
 #[test]
 fn test_resolve_with_map_unmapped_passthrough() {
-    let template = TemplateParser::parse("https://google.com/{app|map[cal:calendar]|!encode}").unwrap();
+    let template =
+        TemplateParser::parse("https://google.com/{app|map[cal:calendar]|!encode}").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -50,7 +52,8 @@ fn test_resolve_with_map_unmapped_passthrough() {
 
 #[test]
 fn test_resolve_with_map_multiple_mappings() {
-    let template = TemplateParser::parse("{app|map[cal:calendar,sh:sheets,dc:docs]|!encode}").unwrap();
+    let template =
+        TemplateParser::parse("{app|map[cal:calendar,sh:sheets,dc:docs]|!encode}").unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -62,7 +65,9 @@ fn test_resolve_with_map_multiple_mappings() {
 
 #[test]
 fn test_resolve_with_map_chained_with_options() {
-    let template = TemplateParser::parse("{app|options[calendar,sheets,docs]|map[cal:calendar]|!encode}").unwrap();
+    let template =
+        TemplateParser::parse("{app|options[calendar,sheets,docs]|map[cal:calendar]|!encode}")
+            .unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -167,9 +172,9 @@ fn test_proton_invalid_subproduct_fails() {
 #[test]
 fn test_map_before_strict_options_correct_order() {
     // Demonstrates the CORRECT pipeline order: map THEN options[strict]
-    let template = TemplateParser::parse(
-        "{var|map[short:longvalue]|options[longvalue,other][strict]}"
-    ).unwrap();
+    let template =
+        TemplateParser::parse("{var|map[short:longvalue]|options[longvalue,other][strict]}")
+            .unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -183,9 +188,9 @@ fn test_map_before_strict_options_correct_order() {
 #[test]
 fn test_options_before_map_wrong_order_fails() {
     // Demonstrates the WRONG pipeline order: options[strict] THEN map
-    let template = TemplateParser::parse(
-        "{var|options[longvalue,other][strict]|map[short:longvalue]}"
-    ).unwrap();
+    let template =
+        TemplateParser::parse("{var|options[longvalue,other][strict]|map[short:longvalue]}")
+            .unwrap();
     let resolver = TemplateResolver::new();
 
     let mut vars = HashMap::new();
@@ -194,7 +199,10 @@ fn test_options_before_map_wrong_order_fails() {
     // With wrong order: "short" -> validate (fails!) -> never gets to map
     let result = resolver.resolve(&template, &vars);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Invalid value 'short'"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid value 'short'"));
 }
 
 #[test]

@@ -1,16 +1,16 @@
 extern crate clap;
 
-pub mod domain;
-pub mod config;
-mod error;
-pub mod db;
 mod auth;
+pub mod config;
+pub mod db;
+pub mod domain;
+mod error;
 mod handlers;
-pub mod services;
-pub mod validation;
-mod security;
 mod helpers;
 mod rate_limiting;
+mod security;
+pub mod services;
+pub mod validation;
 
 use askama::Template;
 use axum::{
@@ -20,23 +20,24 @@ use axum::{
     routing::{delete, get, post, put},
     Router,
 };
-use tower_http::services::ServeDir;
-use tower_governor::{
-    governor::GovernorConfigBuilder,
-    key_extractor::SmartIpKeyExtractor,
-    GovernorLayer,
-};
+use clap::Arg;
 use domain::Command;
 use error::AppError;
 use serde::Deserialize;
 use sqlx::SqlitePool;
 use std::{collections::HashMap, sync::Arc};
-use clap::Arg;
+use tower_governor::{
+    governor::GovernorConfigBuilder, key_extractor::SmartIpKeyExtractor, GovernorLayer,
+};
+use tower_http::services::ServeDir;
 
 const DEFAULT_ALIAS: &str = "g";
 
 // Helper: Load disabled global bookmark aliases for a user
-async fn load_disabled_globals(pool: &SqlitePool, user_id: i64) -> std::collections::HashSet<String> {
+async fn load_disabled_globals(
+    pool: &SqlitePool,
+    user_id: i64,
+) -> std::collections::HashSet<String> {
     db::get_user_overrides(pool, user_id)
         .await
         .ok()
@@ -146,30 +147,31 @@ async fn help(
     State(state): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, AppError> {
     // Load disabled aliases if logged in
-    let (personal_aliases, disabled_set, has_user, is_admin) = if let Some(ref user) = optional_user.0 {
-        let user_bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
-            .await
-            .ok();
+    let (personal_aliases, disabled_set, has_user, is_admin) =
+        if let Some(ref user) = optional_user.0 {
+            let user_bookmarks = db::bookmarks::load_user_bookmarks(&state.db_pool, user.id)
+                .await
+                .ok();
 
-        let aliases = user_bookmarks
-            .map(|bookmarks| {
-                bookmarks
-                    .iter()
-                    .map(|(alias, cmd)| {
-                        let parts = split_command_description(cmd.description());
-                        (alias.clone(), parts)
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+            let aliases = user_bookmarks
+                .map(|bookmarks| {
+                    bookmarks
+                        .iter()
+                        .map(|(alias, cmd)| {
+                            let parts = split_command_description(cmd.description());
+                            (alias.clone(), parts)
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
 
-        // Get disabled global aliases
-        let disabled = load_disabled_globals(&state.db_pool, user.id).await;
+            // Get disabled global aliases
+            let disabled = load_disabled_globals(&state.db_pool, user.id).await;
 
-        (aliases, disabled, true, user.is_admin)
-    } else {
-        (Vec::new(), std::collections::HashSet::new(), false, false)
-    };
+            (aliases, disabled, true, user.is_admin)
+        } else {
+            (Vec::new(), std::collections::HashSet::new(), false, false)
+        };
 
     // Pre-process global descriptions with disabled status
     let bookmark_map = state.alias_to_bookmark_map.read().await;
@@ -200,15 +202,22 @@ async fn redirect(
     let bookmark_map = state.alias_to_bookmark_map.read().await;
 
     // Get default alias: query param takes precedence, then user preference, then None
-    let default_alias = params.default.as_deref()
-        .or_else(|| optional_user.0.as_ref().and_then(|u| u.default_alias.as_deref()));
+    let default_alias = params.default.as_deref().or_else(|| {
+        optional_user
+            .0
+            .as_ref()
+            .and_then(|u| u.default_alias.as_deref())
+    });
 
-    let result = state.redirect_service.resolve_redirect(
-        &params.q,
-        optional_user.0.as_ref(),
-        &bookmark_map,
-        default_alias,
-    ).await;
+    let result = state
+        .redirect_service
+        .resolve_redirect(
+            &params.q,
+            optional_user.0.as_ref(),
+            &bookmark_map,
+            default_alias,
+        )
+        .await;
 
     match result {
         Ok(redirect_result) => redirect_result.into_response(),
@@ -271,7 +280,9 @@ pub async fn create_router() -> Router {
     }
 
     // Create bookmark service
-    let bookmark_service = std::sync::Arc::new(services::bookmark_service::BookmarkService::new(db_pool.clone()));
+    let bookmark_service = std::sync::Arc::new(services::bookmark_service::BookmarkService::new(
+        db_pool.clone(),
+    ));
 
     // Seed global bookmarks from embedded commands.yml if DB is empty
     match bookmark_service.seed_global_bookmarks().await {
@@ -286,7 +297,8 @@ pub async fn create_router() -> Router {
     }
 
     // Load global bookmarks from database
-    let alias_to_bookmark_map = bookmark_service.load_global_bookmarks()
+    let alias_to_bookmark_map = bookmark_service
+        .load_global_bookmarks()
         .await
         .expect("Failed to load global bookmarks");
 
@@ -295,7 +307,9 @@ pub async fn create_router() -> Router {
         default_alias,
         db_pool: db_pool.clone(),
         bookmark_service: bookmark_service.clone(),
-        redirect_service: Arc::new(services::redirect_service::RedirectService::new(db_pool.clone())),
+        redirect_service: Arc::new(services::redirect_service::RedirectService::new(
+            db_pool.clone(),
+        )),
         ai_service: Arc::new(services::ai_service::AiService::new()),
     });
 
@@ -306,7 +320,7 @@ pub async fn create_router() -> Router {
         .burst_size(5)
         .key_extractor(SmartIpKeyExtractor)
         .finish()
-        .unwrap();
+        .expect("the hardcoded rate-limit config is valid");
 
     let governor_limiter = governor_conf.limiter().clone();
 
@@ -326,8 +340,8 @@ pub async fn create_router() -> Router {
     });
 
     // Create shared rate limit layer to avoid duplication
-    let rate_limit_layer = GovernorLayer::new(governor_conf)
-        .error_handler(rate_limiting::rate_limit_error_handler);
+    let rate_limit_layer =
+        GovernorLayer::new(governor_conf).error_handler(rate_limiting::rate_limit_error_handler);
 
     Router::new()
         // Public routes
@@ -351,72 +365,122 @@ pub async fn create_router() -> Router {
         )
         .route("/help", get(help))
         .route("/search", get(redirect))
-
         // Auth routes (rate limited)
-        .route("/login",
+        .route(
+            "/login",
             get(handlers::auth::login_page)
                 .post(handlers::auth::login_submit)
-                .layer(rate_limit_layer.clone()))
-        .route("/register",
+                .layer(rate_limit_layer.clone()),
+        )
+        .route(
+            "/register",
             get(handlers::auth::register_page)
                 .post(handlers::auth::register_submit)
-                .layer(rate_limit_layer))
+                .layer(rate_limit_layer),
+        )
         .route("/logout", post(handlers::auth::logout))
-
         // Bookmark management routes (require authentication)
         .route("/manage", get(handlers::bookmarks::manage_page))
-        .route("/manage/bookmark", post(handlers::bookmarks::create_bookmark))
-        .route("/manage/bookmark/{id}",
-            delete(handlers::bookmarks::delete_bookmark)
-            .put(handlers::bookmarks::update_bookmark))
-        .route("/manage/bookmark/{id}/nested", post(handlers::bookmarks::create_nested_bookmark))
-        .route("/manage/bookmark/{id}/nested/list", get(handlers::bookmarks::list_nested_bookmarks))
-        .route("/manage/nested/{id}", delete(handlers::bookmarks::delete_nested_bookmark))
-        .route("/manage/override", post(handlers::bookmarks::toggle_global_bookmark))
-        .route("/manage/import",
+        .route(
+            "/manage/bookmark",
+            post(handlers::bookmarks::create_bookmark),
+        )
+        .route(
+            "/manage/bookmark/{id}",
+            delete(handlers::bookmarks::delete_bookmark).put(handlers::bookmarks::update_bookmark),
+        )
+        .route(
+            "/manage/bookmark/{id}/nested",
+            post(handlers::bookmarks::create_nested_bookmark),
+        )
+        .route(
+            "/manage/bookmark/{id}/nested/list",
+            get(handlers::bookmarks::list_nested_bookmarks),
+        )
+        .route(
+            "/manage/nested/{id}",
+            delete(handlers::bookmarks::delete_nested_bookmark),
+        )
+        .route(
+            "/manage/override",
+            post(handlers::bookmarks::toggle_global_bookmark),
+        )
+        .route(
+            "/manage/import",
             post(handlers::bookmarks::import_bookmarks)
                 // Limit import request body to 2MB (1MB for content + overhead for form encoding)
-                .layer(DefaultBodyLimit::max(2 * 1024 * 1024))
+                .layer(DefaultBodyLimit::max(2 * 1024 * 1024)),
         )
         .route("/manage/export", get(handlers::bookmarks::export_bookmarks))
-        .route("/manage/bookmarks/bulk-delete", post(handlers::bookmarks::bulk_delete_bookmarks))
-        .route("/manage/overrides/bulk-disable", post(handlers::bookmarks::bulk_toggle_global))
-        .route("/manage/fork-global", post(handlers::bookmarks::fork_global_bookmark))
-
+        .route(
+            "/manage/bookmarks/bulk-delete",
+            post(handlers::bookmarks::bulk_delete_bookmarks),
+        )
+        .route(
+            "/manage/overrides/bulk-disable",
+            post(handlers::bookmarks::bulk_toggle_global),
+        )
+        .route(
+            "/manage/fork-global",
+            post(handlers::bookmarks::fork_global_bookmark),
+        )
         // User settings routes (require authentication)
         .route("/settings", get(handlers::auth::settings_page))
         .route("/settings/username", post(handlers::auth::change_username))
         .route("/settings/password", post(handlers::auth::change_password))
-        .route("/settings/default-alias", post(handlers::auth::change_default_alias))
+        .route(
+            "/settings/default-alias",
+            post(handlers::auth::change_default_alias),
+        )
         .route("/settings/ai", post(handlers::ai::update_user_ai_settings))
-        .route("/settings/api-tokens", post(handlers::api_tokens::create_token))
+        .route(
+            "/settings/api-tokens",
+            post(handlers::api_tokens::create_token),
+        )
         .route(
             "/settings/api-tokens/{id}/revoke",
             post(handlers::api_tokens::revoke_token),
         )
-
         // AI API routes (require authentication; JSON, surface-agnostic so
         // future clients like a browser extension can reuse them)
         .route("/api/ai/status", get(handlers::ai::ai_status))
-        .route("/api/ai/bookmark/propose", post(handlers::ai::propose_bookmark))
-
+        .route(
+            "/api/ai/bookmark/propose",
+            post(handlers::ai::propose_bookmark),
+        )
         // Variable form routes (GET shows form, POST submits)
-        .route("/f/{*path}", get(handlers::variable_form::show_variable_form)
-                             .post(handlers::variable_form::submit_variable_form))
-
+        .route(
+            "/f/{*path}",
+            get(handlers::variable_form::show_variable_form)
+                .post(handlers::variable_form::submit_variable_form),
+        )
         // Admin routes (require admin authentication)
         .route("/admin", get(handlers::admin::admin_page))
-        .route("/admin/cleanup-sessions", post(handlers::admin::cleanup_sessions))
+        .route(
+            "/admin/cleanup-sessions",
+            post(handlers::admin::cleanup_sessions),
+        )
         .route("/admin/create-user", post(handlers::admin::create_user))
-        .route("/admin/reload-global", post(handlers::admin::reload_global_bookmarks))
-        .route("/admin/ai-settings", post(handlers::ai::update_admin_ai_settings))
+        .route(
+            "/admin/reload-global",
+            post(handlers::admin::reload_global_bookmarks),
+        )
+        .route(
+            "/admin/ai-settings",
+            post(handlers::ai::update_admin_ai_settings),
+        )
         .route(
             "/admin/users/{id}/toggle-admin",
             post(handlers::admin::toggle_user_admin),
         )
-        .route("/admin/users/{id}/delete", post(handlers::admin::delete_user))
-        .route("/admin/bookmark/{alias}", put(handlers::admin::update_global_bookmark))
-
+        .route(
+            "/admin/users/{id}/delete",
+            post(handlers::admin::delete_user),
+        )
+        .route(
+            "/admin/bookmark/{alias}",
+            put(handlers::admin::update_global_bookmark),
+        )
         // Serve static files (JavaScript, CSS, etc.)
         .nest_service(
             "/static",
@@ -438,7 +502,6 @@ pub async fn create_router() -> Router {
                 ))
                 .service(ServeDir::new("static")),
         )
-
         .with_state(state)
         // Apply security headers to all responses
         .layer(middleware::from_fn(security::security_headers))

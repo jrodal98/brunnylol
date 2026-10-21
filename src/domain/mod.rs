@@ -9,7 +9,7 @@ pub mod template;
 pub enum Command {
     Variable {
         base_url: String,
-        template: template::Template,  // Parsed AST
+        template: template::Template, // Parsed AST
         description: String,
         metadata: Option<template::TemplateMetadata>,
     },
@@ -41,7 +41,9 @@ impl Command {
 
     pub fn get_redirect_url(&self, query: &str) -> String {
         match self {
-            Command::Variable { base_url, template, .. } => {
+            Command::Variable {
+                base_url, template, ..
+            } => {
                 // For variable templates, map query to variables
                 if query.trim().is_empty() {
                     return base_url.clone();
@@ -57,9 +59,7 @@ impl Command {
                 let has_query_var = template_vars.iter().any(|v| v.name == "query");
 
                 // Filter out built-in variables like {url} for user variables
-                let user_vars: Vec<_> = template_vars.iter()
-                    .filter(|v| v.name != "url")
-                    .collect();
+                let user_vars: Vec<_> = template_vars.iter().filter(|v| v.name != "url").collect();
 
                 if has_query_var && user_vars.len() == 1 && user_vars[0].name == "query" {
                     // Only user variable is {query} - map entire query to it
@@ -87,7 +87,9 @@ impl Command {
 
                 // Use resolver to expand template
                 let resolver = template::TemplateResolver::new();
-                resolver.resolve(template, &vars).unwrap_or_else(|_| base_url.clone())
+                resolver
+                    .resolve(template, &vars)
+                    .unwrap_or_else(|_| base_url.clone())
             }
             Command::Nested {
                 base_url, children, ..

@@ -20,8 +20,7 @@ use crate::{
 
 /// Build a secure session cookie with consistent settings
 fn build_session_cookie(session_id: String) -> Cookie<'static> {
-    #[allow(unused_mut)]
-    let mut cookie_builder = Cookie::build(("session_id", session_id))
+    let cookie_builder = Cookie::build(("session_id", session_id))
         .path("/")
         .http_only(true)
         // Lax, not Strict: Strict withholds the cookie on cross-site
@@ -35,11 +34,11 @@ fn build_session_cookie(session_id: String) -> Cookie<'static> {
         .same_site(axum_extra::extract::cookie::SameSite::Lax)
         .max_age(time::Duration::days(3650)); // 10 years - essentially permanent
 
-    // Only set Secure flag in release builds (production)
+    // Only set Secure flag in release builds (production). Shadowed
+    // rather than mutated so debug builds (where the block is compiled
+    // out) don't trip unused_mut.
     #[cfg(not(debug_assertions))]
-    {
-        cookie_builder = cookie_builder.secure(true);
-    }
+    let cookie_builder = cookie_builder.secure(true);
 
     cookie_builder.build()
 }
